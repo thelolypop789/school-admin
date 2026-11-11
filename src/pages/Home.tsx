@@ -8,7 +8,7 @@ import { OPEN, REVIEW_STATUS } from "../lib/vehicle";
 
 type Upcoming = { kind: "room" | "vehicle"; id: number; title: string; starts_at: string; ends_at: string; status: string };
 
-export default function Home() {
+export default function Home({ onEditProfile }: { onEditProfile: () => void }) {
   const me = useMe();
   const reviewStatus = REVIEW_STATUS[me.role];
   const [todayRooms, setTodayRooms] = useState<{ id: number; title: string; starts_at: string; ends_at: string; rooms: { name: string } | null }[]>([]);
@@ -46,6 +46,7 @@ export default function Home() {
         <div>
           <h1>สวัสดี {me.full_name.split(" ")[0] || ""}</h1>
           <p className="muted">{fmtDate(todayISO(), { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</p>
+          <button className="link small" onClick={onEditProfile}>{me.position ? `${me.position} · แก้ไขชื่อ/ตำแหน่ง` : "ตั้งชื่อและตำแหน่งสำหรับเอกสารราชการ"}</button>
         </div>
       </div>
 

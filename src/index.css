@@ -205,28 +205,39 @@ td select { min-height: 36px; padding: .3rem .5rem; width: auto; }
 .qr-card img { width: 100%; max-width: 220px; }
 .qr-title { font-weight: 700; color: #8b1e2d; font-size: 1.1rem; }
 .qr-name { font-weight: 700; font-size: 1.2rem; } .qr-sub, .qr-hint { font-size: .85rem; color: #555; }
-/* ใบขออนุญาตใช้รถ (กระดาษ A4) */
+/* เอกสารสำหรับพิมพ์ (กระดาษ A4) */
 .print-toolbar { display: flex; gap: .5rem; margin-bottom: 1rem; }
 .print-doc { background: #fff; color: #000; max-width: 210mm; margin: 0 auto; padding: 18mm 20mm; font-size: 16px; line-height: 1.7; box-shadow: var(--shadow); border-radius: 4px; }
-.print-doc h1.pd-title { text-align: center; font-size: 26px; margin: 0 0 .5rem; }
-.print-doc h2 { font-size: 16px; margin: 0 0 .25rem; }
 .print-doc p { margin: .25rem 0; }
-.print-doc hr { border: 0; border-top: 1px solid #000; margin: .5rem 0 1rem; }
-.pd-row { display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
-.pd-indent { text-indent: 2.5em; }
-.pd-sign { margin: 1rem 0 0 auto; width: fit-content; min-width: 55%; text-align: center; }
-.pd-sign i { color: #444; }
-.pd-sub { font-size: 12px; color: #444; }
-.pd-sign.live { margin-top: 1.25rem; }
-.pd-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem 2rem; margin-top: 1.5rem; }
-.pd-grid .pd-sign { margin-left: auto; margin-right: auto; min-width: 0; }
-.pd-director { margin-top: 1.5rem; border-top: 1px dashed #888; padding-top: 1rem; }
-.pd-foot { margin-top: 1.5rem !important; font-size: 11px; color: #666; text-align: right; }
-@media (max-width: 640px) { .print-doc { padding: 16px; font-size: 14px; } .pd-grid { grid-template-columns: 1fr; } }
+
+/* คำสั่งไปราชการ (แบบของโรงเรียน: ตัวอักษร 16pt, ครุฑกลางหน้า) */
+.print-doc.order { font-size: 12.5pt; line-height: 1.45; padding: 12mm 25mm 15mm; } /* Sarabun 12.5pt ≈ TH SarabunIT๙ 16pt */
+.od-garuda { display: block; width: 24mm; margin: 0 auto 3mm; }
+.od-head { text-align: center; margin-bottom: 4mm; }
+.od-para { text-indent: 25mm; text-align: justify; text-justify: inter-character; margin: 0 0 2mm !important; }
+.od-people { list-style: none; padding: 0; margin: 0 0 3mm; }
+.od-people li { display: grid; grid-template-columns: 25mm 8mm minmax(0, 1.4fr) minmax(0, 1fr); }
+.od-people li::before { content: ""; }
+.od-name { padding-right: 4mm; }
+.od-exp { list-style: none; padding: 0 0 0 25mm; margin: 0 0 4mm; }
+.od-exp li { padding-left: 2.2em; text-indent: -2.2em; }
+.od-sign { margin-left: 38%; text-align: center; margin-top: 2mm; break-inside: avoid; }
+.od-sign .od-sigline { margin-top: 8mm; text-align: left; padding-left: 8mm; }
+@media (max-width: 640px) {
+  .print-doc.order { font-size: 15px; padding: 16px; }
+  .od-para { text-indent: 2em; } .od-exp { padding-left: 0; } .od-sign { margin-left: 20%; }
+  .od-people li { grid-template-columns: 0 2em minmax(0, 1fr) minmax(0, 1fr); }
+}
 
 .steps { list-style: none; padding: 0; margin: .5rem 0; display: grid; gap: .5rem; }
 .steps li { border-left: 3px solid var(--ok); padding-left: .6rem; }
 .steps li.ret { border-left-color: var(--bad); }
+.fs { border: 1px solid var(--line); border-radius: 10px; padding: .5rem .75rem .75rem; display: grid; gap: .5rem; min-width: 0; }
+.fs legend { font-weight: 600; padding: 0 .25rem; }
+.trav-row { display: grid; grid-template-columns: auto minmax(0, 3fr) minmax(0, 2fr) auto; gap: .4rem; align-items: center; }
+.check { display: flex; gap: .5rem; align-items: flex-start; font-size: .92rem; }
+.check input { margin-top: .3rem; }
+.trav-list { margin: .35rem 0; padding-left: 1.4rem; }
 .actions { display: flex; flex-wrap: wrap; gap: .25rem 1rem; margin-top: .15rem; }
 
 @media print {
@@ -239,7 +250,7 @@ td select { min-height: 36px; padding: .3rem .5rem; width: auto; }
   .qr-grid { grid-template-columns: repeat(2, 1fr); gap: 8mm; }
   .qr-card { padding: 6mm; }
   .print-doc { box-shadow: none; border-radius: 0; max-width: none; padding: 15mm 20mm; font-size: 15px; }
-  .pd-grid { grid-template-columns: 1fr 1fr; }
+  .print-doc.order { padding: 10mm 20mm 8mm 25mm; font-size: 12.5pt; }
 }
 
 .spinner { width: 32px; height: 32px; margin: 3rem auto; border: 3px solid var(--line); border-top-color: var(--brand); border-radius: 50%; animation: spin .8s linear infinite; }

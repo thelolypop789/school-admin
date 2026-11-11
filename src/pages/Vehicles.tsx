@@ -3,7 +3,7 @@ import { errText, supabase } from "../lib/supabase";
 import { useMe } from "../lib/me";
 import { navigate } from "../lib/router";
 import { dayRange, fmtDateTime, fmtRange, hhmm, toISO, todayISO } from "../lib/time";
-import { OPEN, RESERVED, REVIEW_STATUS, STAGE_LABEL, STEP_SELECT, stepText, type Step } from "../lib/vehicle";
+import { EXPENSES, OPEN, RESERVED, REVIEW_STATUS, STAGE_LABEL, STEP_SELECT, stepText, type Step, type Traveler } from "../lib/vehicle";
 import { DateNav, Empty, Field, Modal, StatusChip, Timeline } from "../components/ui";
 
 export type Vehicle = { id: number; name: string; plate: string | null; seats: number | null; active: boolean };
@@ -12,10 +12,11 @@ export type VBooking = {
   id: number; booked_by: string; destination: string; purpose: string; passengers: number;
   starts_at: string; ends_at: string; status: string;
   vehicle_id: number | null; driver_id: number | null; approver_note: string | null;
+  travelers: Traveler[]; expenses: string[];
   requester: { full_name: string; email: string } | null;
 };
 
-export const VB_SELECT = "id,booked_by,destination,purpose,passengers,starts_at,ends_at,status,vehicle_id,driver_id,approver_note,requester:profiles!vehicle_bookings_booked_by_fkey(full_name,email)";
+export const VB_SELECT = "id,booked_by,destination,purpose,passengers,starts_at,ends_at,status,vehicle_id,driver_id,approver_note,travelers,expenses,requester:profiles!vehicle_bookings_booked_by_fkey(full_name,email)";
 type Tab = "mine" | "calendar" | "review";
 
 export default function Vehicles() {
@@ -89,6 +90,7 @@ export default function Vehicles() {
               <h3>{b.destination}</h3>
               <p><b>{fmtRange(b.starts_at, b.ends_at)}</b></p>
               <p className="muted">{b.purpose} · {b.passengers} คน</p>
+              {b.travelers?.length > 0 && <p className="small muted">{b.travelers.map((t) => t.name).join(", ")}</p>}
               <p className="small">ผู้ขอ: {b.requester?.full_name || b.requester?.email}</p>
               {b.vehicle_id && <p className="small">🚐 {vname(b.vehicle_id)}{b.driver_id ? ` · คนขับ ${dname(b.driver_id)}` : ""}</p>}
               {b.approver_note && <p className="small muted">หมายเหตุล่าสุด: {b.approver_note}</p>}
@@ -184,11 +186,16 @@ function Steps({ bookingId }: { bookingId: number }) {
 }
 
 function RequestForm({ edit, onClose, onSaved }: { edit: VBooking | null; onClose: () => void; onSaved: () => void }) {
+  const me = useMe();
   const t = todayISO();
   const dateOf = (iso: string) => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Bangkok" }).format(new Date(iso));
   const [v, setV] = useState(edit
-    ? { destination: edit.destination, purpose: edit.purpose, passengers: String(edit.passengers), sDate: dateOf(edit.starts_at), sTime: hhmm(edit.starts_at), eDate: dateOf(edit.ends_at), eTime: hhmm(edit.ends_at) }
-    : { destination: "", purpose: "", passengers: "1", sDate: t, sTime: "08:00", eDate: t, eTime: "16:30" });
+    ? { destination: edit.destination, purpose: edit.purpose, sDate: dateOf(edit.starts_at), sTime: hhmm(edit.starts_at), eDate: dateOf(edit.ends_at), eTime: hhmm(edit.ends_at) }
+    : { destination: "", purpose: "", sDate: t, sTime: "08:00", eDate: t, eTime: "16:30" });
+  const [travelers, setTravelers] = useState<Traveler[]>(
+    edit?.travelers?.length ? edit.travelers : [{ name: me.full_name, position: me.position ?? "" }],
+  );
+  const [expenses, setExpenses] = useState<string[]>(edit?.expenses ?? []);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState("");
   const set = (k: keyof typeof v) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -196,39 +203,71 @@ function RequestForm({ edit, onClose, onSaved }: { edit: VBooking | null; onClos
     if (k === "sDate" && v.eDate < e.target.value) next.eDate = e.target.value;
     setV(next);
   };
+  const setT = (i: number, k: keyof Traveler, val: string) => setTravelers(travelers.map((x, j) => (j === i ? { ...x, [k]: val } : x)));
+  const toggleExp = (key: string) => setExpenses(expenses.includes(key) ? expenses.filter((x) => x !== key) : [...expenses, key]);
 
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
     const starts_at = toISO(v.sDate, v.sTime), ends_at = toISO(v.eDate, v.eTime);
     if (ends_at <= starts_at) return setErr("เวลากลับต้องหลังเวลาออกเดินทาง");
+    const list = travelers.map((x) => ({ name: x.name.trim(), position: x.position.trim() })).filter((x) => x.name);
+    if (list.length === 0) return setErr("กรุณาใส่รายชื่อผู้เดินทางอย่างน้อย 1 คน");
+    if (list.some((x) => !x.position)) return setErr("กรุณาใส่ตำแหน่งของผู้เดินทางทุกคน (เช่น ครู, นักเรียน)");
+    const exps = EXPENSES.map((x) => x.key).filter((k) => expenses.includes(k));
     setSaving(true); setErr("");
     const { error } = edit
       ? await supabase.rpc("resubmit_vehicle_booking", {
           p_id: edit.id, p_destination: v.destination.trim(), p_purpose: v.purpose.trim(),
-          p_passengers: Number(v.passengers), p_starts_at: starts_at, p_ends_at: ends_at,
+          p_passengers: list.length, p_starts_at: starts_at, p_ends_at: ends_at, p_travelers: list, p_expenses: exps,
         })
       : await supabase.from("vehicle_bookings").insert({
-          destination: v.destination.trim(), purpose: v.purpose.trim(), passengers: Number(v.passengers), starts_at, ends_at,
+          destination: v.destination.trim(), purpose: v.purpose.trim(), passengers: list.length, starts_at, ends_at,
+          travelers: list, expenses: exps,
         });
     setSaving(false);
     if (error) setErr(errText(error)); else onSaved();
   };
 
   return (
-    <Modal title={edit ? "แก้ไขคำขอแล้วส่งใหม่" : "ขออนุญาตใช้รถ"} onClose={onClose}>
+    <Modal title={edit ? "แก้ไขคำขอแล้วส่งใหม่" : "ขออนุญาตไปราชการและใช้รถ"} onClose={onClose}>
       <form className="form" onSubmit={save}>
         {edit?.approver_note && <p className="error">เหตุผลที่ส่งกลับ: {edit.approver_note}</p>}
-        <Field label="สถานที่ไป"><input required maxLength={200} value={v.destination} onChange={set("destination")} placeholder="เช่น สพม.หนองคาย" /></Field>
-        <Field label="วัตถุประสงค์"><textarea required rows={2} maxLength={500} value={v.purpose} onChange={set("purpose")} placeholder="เช่น ไปราชการ ประชุมผู้บริหาร" /></Field>
-        <Field label="จำนวนผู้โดยสาร"><input type="number" min={1} required inputMode="numeric" value={v.passengers} onChange={set("passengers")} /></Field>
+        <Field label="ไปราชการเพื่อ" hint="ข้อความนี้จะพิมพ์ต่อจากคำว่า “ไปราชการเพื่อ” ในคำสั่ง">
+          <textarea id="vr-purpose" required rows={3} maxLength={1000} value={v.purpose} onChange={set("purpose")} placeholder="เช่น นำนักเรียนเข้าร่วมการแข่งขันวอลเลย์บอลระดับภูมิภาค (รอบโซน)" />
+        </Field>
+        <Field label="สถานที่ (ณ)"><input id="vr-dest" required maxLength={300} value={v.destination} onChange={set("destination")} placeholder="เช่น โรงเรียนหนองคายวิทยาคาร อำเภอเมือง จังหวัดหนองคาย" /></Field>
         <div className="row2">
-          <Field label="วันที่ออก"><input type="date" required value={v.sDate} onChange={set("sDate")} /></Field>
-          <Field label="เวลาออก"><input type="time" required value={v.sTime} onChange={set("sTime")} /></Field>
+          <Field label="วันที่ออก"><input id="vr-sdate" type="date" required value={v.sDate} onChange={set("sDate")} /></Field>
+          <Field label="เวลาออก"><input id="vr-stime" type="time" required value={v.sTime} onChange={set("sTime")} /></Field>
         </div>
         <div className="row2">
-          <Field label="วันที่กลับ"><input type="date" required min={v.sDate} value={v.eDate} onChange={set("eDate")} /></Field>
-          <Field label="เวลากลับ"><input type="time" required value={v.eTime} onChange={set("eTime")} /></Field>
+          <Field label="วันที่กลับ"><input id="vr-edate" type="date" required min={v.sDate} value={v.eDate} onChange={set("eDate")} /></Field>
+          <Field label="เวลากลับ"><input id="vr-etime" type="time" required value={v.eTime} onChange={set("eTime")} /></Field>
         </div>
+
+        <fieldset className="fs">
+          <legend>ผู้เดินทาง ({travelers.filter((x) => x.name.trim()).length} คน)</legend>
+          {travelers.map((x, i) => (
+            <div key={i} className="trav-row">
+              <span className="muted small">{i + 1}.</span>
+              <input id={`tv-name-${i}`} aria-label={`ชื่อผู้เดินทางคนที่ ${i + 1}`} placeholder="ชื่อ-นามสกุล (มีคำนำหน้า)" maxLength={120} value={x.name} onChange={(e) => setT(i, "name", e.target.value)} />
+              <input id={`tv-pos-${i}`} aria-label={`ตำแหน่งคนที่ ${i + 1}`} placeholder="ตำแหน่ง" list="positions" maxLength={120} value={x.position} onChange={(e) => setT(i, "position", e.target.value)} />
+              <button type="button" className="icon-btn" aria-label="ลบ" disabled={travelers.length === 1} onClick={() => setTravelers(travelers.filter((_, j) => j !== i))}>✕</button>
+            </div>
+          ))}
+          <datalist id="positions"><option value="ครู" /><option value="นักเรียน" /><option value="ครูผู้ช่วย" /><option value="พนักงานราชการ" /><option value="ลูกจ้างชั่วคราว" /></datalist>
+          <button type="button" className="link" onClick={() => setTravelers([...travelers, { name: "", position: "" }])}>+ เพิ่มผู้เดินทาง</button>
+          <p className="muted small">พนักงานขับรถที่หัวหน้างานจัดให้ จะถูกเพิ่มท้ายรายชื่อในคำสั่งเอง</p>
+        </fieldset>
+
+        <fieldset className="fs">
+          <legend>ขอเบิกจากเงินอุดหนุนการศึกษา/เงินรายได้สถานศึกษา</legend>
+          {EXPENSES.map((x) => (
+            <label key={x.key} className="check">
+              <input id={`exp-${x.key}`} type="checkbox" checked={expenses.includes(x.key)} onChange={() => toggleExp(x.key)} /> {x.label}
+            </label>
+          ))}
+        </fieldset>
         {err && <p className="error">{err}</p>}
         <button className="btn primary big" disabled={saving}>{saving ? "กำลังส่ง…" : edit ? "ส่งใหม่" : "ส่งคำขอ"}</button>
       </form>
@@ -286,6 +325,10 @@ function ReviewForm({ booking, role, vehicles, drivers, onClose, onDone }: {
           <div>{fmtRange(booking.starts_at, booking.ends_at)}</div>
           <div className="muted small">{booking.purpose} · {booking.passengers} คน · ผู้ขอ {booking.requester?.full_name || booking.requester?.email}</div>
           {!isHead && vname && <div className="small">🚐 {vname}{dname ? ` · คนขับ ${dname}` : ""}</div>}
+          {booking.travelers?.length > 0 && (
+            <ol className="small trav-list">{booking.travelers.map((t, i) => <li key={i}>{t.name} <span className="muted">· {t.position}</span></li>)}</ol>
+          )}
+          {booking.expenses?.length > 0 && <div className="small muted">ขอเบิก: {EXPENSES.filter((x) => booking.expenses.includes(x.key)).map((x) => x.label.split(" (")[0]).join(", ")}</div>}
         </div>
         <details>
           <summary className="small">ขั้นตอนที่ผ่านมา</summary>

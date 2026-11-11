@@ -18,6 +18,7 @@ export type Profile = {
   full_name: string;
   role: Role;
   line_user_id: string | null;
+  position: string | null;
 };
 
 export const ROLE_LABEL: Record<Role, string> = {

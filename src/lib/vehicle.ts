@@ -32,3 +32,15 @@ export function stepText(s: Step): string {
   if (s.action === "return") return "ส่งกลับ";
   return s.stage === "head" ? "จัดรถ ส่งต่อ" : s.stage === "deputy" ? "เห็นชอบ ส่งต่อ" : "อนุมัติ";
 }
+
+/** รายการเบิก (ตรงกับ check constraint ใน DB และลำดับในคำสั่งไปราชการ) */
+export const EXPENSES: { key: string; label: string }[] = [
+  { key: "registration", label: "ลงทะเบียน" },
+  { key: "allowance", label: "เบี้ยเลี้ยง (เฉพาะข้าราชการและพนักงานราชการ)" },
+  { key: "transport", label: "พาหนะ" },
+  { key: "lodging", label: "เช่าที่พัก" },
+  { key: "private_car", label: "ชดเชยในการใช้พาหนะส่วนตัวในการเดินทางไปราชการได้ตามสิทธิ์โดยประหยัด" },
+  { key: "lump_sum", label: "ค่าตอบแทนเหมาจ่าย/ค่าอาหารเหมาจ่าย (เฉพาะนักเรียนและลูกจ้างชั่วคราว)" },
+];
+
+export type Traveler = { name: string; position: string };

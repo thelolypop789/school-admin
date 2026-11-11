@@ -1,10 +1,10 @@
 # school-admin — CLAUDE.md
 
-ระบบงานบริหารทั่วไปของโรงเรียนวังหลวงพิทยาสาร (จองห้องประชุม · จองรถ · ตรวจห้องน้ำ HAS) — แยกจาก FormAuto/SOBPREP ทั้ง repo, Supabase project และ Vercel project
+ระบบงานบริหารทั่วไปของโรงเรียนวังหลวงพิทยาสรรพ์ (จองห้องประชุม · จองรถ · ตรวจห้องน้ำ HAS) — แยกจาก FormAuto/SOBPREP ทั้ง repo, Supabase project และ Vercel project
 วิธีติดตั้ง/deploy อยู่ใน `README.md`
 
 ## Stack / โครงสร้าง
-- React 19 + TS + Vite, ไม่มี router library: `src/lib/router.ts` (pushState) — `/`, `/rooms`, `/vehicles`, `/vehicles/print/<id>` (ใบขออนุญาตไปราชการ), `/toilets`, `/t/<qr_token>` (หน้าตรวจจาก QR), `/admin`
+- React 19 + TS + Vite, ไม่มี router library: `src/lib/router.ts` (pushState) — `/`, `/rooms`, `/vehicles`, `/vehicles/print/<id>` (คำสั่งอนุมัติการเดินทางไปราชการ ตามแบบโรงเรียน, Sarabun 12.5pt ≈ TH SarabunIT๙ 16pt, A4 หน้าเดียว), `/toilets`, `/t/<qr_token>` (หน้าตรวจจาก QR), `/admin`
 - `src/App.tsx` = auth gate (Google, จำกัด @wangluangpitt.ac.th) + nav; หน้าอยู่ใน `src/pages/*` (lazy)
 - `src/lib/supabase.ts` = client (storageKey `school-admin-auth`), types, `errText()` แปล error เป็นไทย
 - จองรถ 3 ขั้น: `pending`(หัวหน้างานยานพาหนะ) → `pending_deputy` → `pending_director` → `approved`; ส่งกลับ = ขั้นก่อนหน้า (`returned` = กลับผู้ขอ); ทำผ่าน RPC `review_vehicle_booking` / `resubmit_vehicle_booking` เท่านั้น ประวัติอยู่ `vehicle_booking_steps`; ค่าคงที่ฝั่ง UI อยู่ `src/lib/vehicle.ts`

@@ -204,7 +204,7 @@ function Users() {
   const [q, setQ] = useState("");
   const [err, setErr] = useState("");
   const load = useCallback(async () => {
-    const { data, error } = await supabase.from("profiles").select("id,email,full_name,role,line_user_id").order("full_name");
+    const { data, error } = await supabase.from("profiles").select("id,email,full_name,role,line_user_id,position").order("full_name");
     if (error) setErr(errText(error));
     setRows((data as Profile[]) ?? []);
   }, []);

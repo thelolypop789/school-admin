@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
-import { isConfigured, ROLE_LABEL, SCHOOL_DOMAIN, supabase, type Profile } from "./lib/supabase";
+import { errText, isConfigured, ROLE_LABEL, SCHOOL_DOMAIN, supabase, type Profile } from "./lib/supabase";
+import { Field, Modal } from "./components/ui";
 import { navigate, usePath } from "./lib/router";
 import { MeContext } from "./lib/me";
 import Home from "./pages/Home";
@@ -25,6 +26,7 @@ export default function App() {
   const [session, setSession] = useState<Session | null | undefined>(undefined);
   const [me, setMe] = useState<Profile | null | undefined>(undefined);
   const [loadErr, setLoadErr] = useState(false);
+  const [editProfile, setEditProfile] = useState(false);
   const path = usePath();
 
   useEffect(() => {
@@ -37,7 +39,7 @@ export default function App() {
   useEffect(() => {
     if (!uid) return;
     let alive = true;
-    supabase.from("profiles").select("id,email,full_name,role,line_user_id").eq("id", uid).maybeSingle()
+    supabase.from("profiles").select("id,email,full_name,role,line_user_id,position").eq("id", uid).maybeSingle()
       .then(({ data, error }) => {
         if (!alive) return;
         if (error) setLoadErr(true); // เน็ตหลุด/เซิร์ฟเวอร์มีปัญหา — อย่าบอกว่าไม่ใช่บุคลากร
@@ -55,13 +57,14 @@ export default function App() {
   const nav = NAV.filter((n) => !n.show || n.show(me));
   const active = (p: string) => (p === "/" ? path === "/" : path.startsWith(p));
   let page;
+  const openProfile = () => setEditProfile(true);
   if (path.startsWith("/t/")) page = <Inspect token={path.slice(3)} />;
   else if (path.startsWith("/rooms")) page = <Rooms />;
   else if (/^\/vehicles\/print\/\d+$/.test(path)) page = <VehiclePrint id={Number(path.split("/").pop())} />;
   else if (path.startsWith("/vehicles")) page = <Vehicles />;
   else if (path.startsWith("/toilets")) page = <Toilets />;
   else if (path.startsWith("/admin") && me.role === "admin") page = <Admin />;
-  else page = <Home />;
+  else page = <Home onEditProfile={openProfile} />;
 
   return (
     <MeContext.Provider value={me}>
@@ -76,7 +79,7 @@ export default function App() {
           ))}
         </nav>
         <div className="who">
-          <span className="who-name">{me.full_name || me.email}</span>
+          <button className="link who-name" onClick={() => setEditProfile(true)} title="แก้ไขชื่อและตำแหน่ง">{me.full_name || me.email}</button>
           <span className="chip">{ROLE_LABEL[me.role]}</span>
           <button className="link" onClick={() => supabase.auth.signOut()}>ออก</button>
         </div>
@@ -84,6 +87,7 @@ export default function App() {
       <main className="page">
         <Suspense fallback={<div className="spinner" />}>{page}</Suspense>
       </main>
+      {editProfile && <ProfileForm me={me} onClose={() => setEditProfile(false)} onSaved={(p) => { setMe(p); setEditProfile(false); }} />}
       <nav className="bottomnav">
         {nav.map((n) => (
           <button key={n.path} className={active(n.path) ? "on" : ""} onClick={() => navigate(n.path)}>
@@ -92,6 +96,36 @@ export default function App() {
         ))}
       </nav>
     </MeContext.Provider>
+  );
+}
+
+/** ชื่อ-นามสกุล (มีคำนำหน้า) และตำแหน่ง ใช้พิมพ์ในคำสั่งไปราชการ */
+function ProfileForm({ me, onClose, onSaved }: { me: Profile; onClose: () => void; onSaved: (p: Profile) => void }) {
+  const [fullName, setFullName] = useState(me.full_name);
+  const [position, setPosition] = useState(me.position ?? "");
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState("");
+  const save = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaving(true); setErr("");
+    const patch = { full_name: fullName.trim(), position: position.trim() || null };
+    const { error } = await supabase.from("profiles").update(patch).eq("id", me.id);
+    setSaving(false);
+    if (error) setErr(errText(error)); else onSaved({ ...me, ...patch });
+  };
+  return (
+    <Modal title="ข้อมูลของฉัน" onClose={onClose}>
+      <form className="form" onSubmit={save}>
+        <Field label="ชื่อ-นามสกุล (มีคำนำหน้า)" hint="ใช้พิมพ์ในคำสั่งไปราชการ เช่น นางสาววาสนา ศรียอด">
+          <input id="pf-name" required maxLength={120} value={fullName} onChange={(e) => setFullName(e.target.value)} />
+        </Field>
+        <Field label="ตำแหน่ง" hint="เช่น ครู, ครูชำนาญการพิเศษ, ผู้อำนวยการโรงเรียน">
+          <input id="pf-position" maxLength={120} value={position} onChange={(e) => setPosition(e.target.value)} />
+        </Field>
+        {err && <p className="error">{err}</p>}
+        <button className="btn primary big" disabled={saving}>{saving ? "กำลังบันทึก…" : "บันทึก"}</button>
+      </form>
+    </Modal>
   );
 }
 
@@ -115,7 +149,7 @@ function Login() {
       <div className="card login">
         <img src="/icon.svg" alt="" width={64} height={64} />
         <h1>งานบริหารทั่วไป</h1>
-        <p className="muted">โรงเรียนวังหลวงพิทยาสาร</p>
+        <p className="muted">โรงเรียนวังหลวงพิทยาสรรพ์</p>
         <button className="btn primary big" onClick={signIn}>เข้าสู่ระบบด้วย Google</button>
         <p className="muted small">ใช้อีเมล @{SCHOOL_DOMAIN} เท่านั้น</p>
         {err && <p className="error">{err}</p>}
