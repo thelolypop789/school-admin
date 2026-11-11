@@ -14,6 +14,13 @@ window.addEventListener("vite:preloadError", (event) => {
   window.location.reload();
 });
 
+// PWA: ลง service worker เฉพาะตอน build จริง (dev ไม่ใช้ เพื่อไม่ให้ cache ค้าง)
+if (import.meta.env.PROD && "serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/sw.js").catch(() => { /* ไม่มี SW ก็ใช้งานได้ปกติ */ });
+  });
+}
+
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <App />
