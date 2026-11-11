@@ -8,7 +8,7 @@
 - `src/App.tsx` = auth gate (Google, จำกัด @wangluangpitt.ac.th) + nav; หน้าอยู่ใน `src/pages/*` (lazy)
 - `src/lib/supabase.ts` = client (storageKey `school-admin-auth`), types, `errText()` แปล error เป็นไทย
 - `src/lib/time.ts` = เวลาไทยเสมอ (`toISO(date, "HH:MM")` ใส่ +07:00) ห้ามใช้เขตเวลาเครื่อง
-- `supabase/migrations/` = SQL; รันผ่าน SQL Editor (connector Claude ยังเข้า project นี้ไม่ได้)
+- `supabase/migrations/` = SQL; project ref `rvoixpbaiwilpigcxeix` — Claude รัน SQL ได้ผ่าน Management API (`POST https://api.supabase.com/v1/projects/<ref>/database/query`, proxy ใส่ credential ให้) หรือรันเองใน SQL Editor; คำสั่งที่แก้ข้อมูล/schema บน production ต้องถามผู้ใช้ก่อน
 
 ## กฎความปลอดภัย (ต้องคงไว้)
 - ทุกตารางเปิด RLS; anon ไม่มีสิทธิ์ใดๆ; `public.my_role()` = null สำหรับคนนอกโรงเรียน (ไม่มี profile)
