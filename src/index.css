@@ -205,12 +205,41 @@ td select { min-height: 36px; padding: .3rem .5rem; width: auto; }
 .qr-card img { width: 100%; max-width: 220px; }
 .qr-title { font-weight: 700; color: #8b1e2d; font-size: 1.1rem; }
 .qr-name { font-weight: 700; font-size: 1.2rem; } .qr-sub, .qr-hint { font-size: .85rem; color: #555; }
+/* ใบขออนุญาตใช้รถ (กระดาษ A4) */
+.print-toolbar { display: flex; gap: .5rem; margin-bottom: 1rem; }
+.print-doc { background: #fff; color: #000; max-width: 210mm; margin: 0 auto; padding: 18mm 20mm; font-size: 16px; line-height: 1.7; box-shadow: var(--shadow); border-radius: 4px; }
+.print-doc h1.pd-title { text-align: center; font-size: 26px; margin: 0 0 .5rem; }
+.print-doc h2 { font-size: 16px; margin: 0 0 .25rem; }
+.print-doc p { margin: .25rem 0; }
+.print-doc hr { border: 0; border-top: 1px solid #000; margin: .5rem 0 1rem; }
+.pd-row { display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+.pd-indent { text-indent: 2.5em; }
+.pd-sign { margin: 1rem 0 0 auto; width: fit-content; min-width: 55%; text-align: center; }
+.pd-sign i { color: #444; }
+.pd-sub { font-size: 12px; color: #444; }
+.pd-sign.live { margin-top: 1.25rem; }
+.pd-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem 2rem; margin-top: 1.5rem; }
+.pd-grid .pd-sign { margin-left: auto; margin-right: auto; min-width: 0; }
+.pd-director { margin-top: 1.5rem; border-top: 1px dashed #888; padding-top: 1rem; }
+.pd-foot { margin-top: 1.5rem !important; font-size: 11px; color: #666; text-align: right; }
+@media (max-width: 640px) { .print-doc { padding: 16px; font-size: 14px; } .pd-grid { grid-template-columns: 1fr; } }
+
+.steps { list-style: none; padding: 0; margin: .5rem 0; display: grid; gap: .5rem; }
+.steps li { border-left: 3px solid var(--ok); padding-left: .6rem; }
+.steps li.ret { border-left-color: var(--bad); }
+.actions { display: flex; flex-wrap: wrap; gap: .25rem 1rem; margin-top: .15rem; }
+
 @media print {
-  body > #root > *:not(.qr-print), .topbar, .bottomnav, .no-print { display: none !important; }
-  .page > *:not(.qr-print) { display: none !important; }
+  @page { size: A4; margin: 0; }
+  body { background: #fff !important; }
+  .topbar, .bottomnav, .no-print { display: none !important; }
+  .page > *:not(.qr-print):not(.print-doc) { display: none !important; }
+  .page { padding: 0 !important; margin: 0 !important; max-width: none !important; }
   .qr-print { position: static; padding: 0; }
   .qr-grid { grid-template-columns: repeat(2, 1fr); gap: 8mm; }
   .qr-card { padding: 6mm; }
+  .print-doc { box-shadow: none; border-radius: 0; max-width: none; padding: 15mm 20mm; font-size: 15px; }
+  .pd-grid { grid-template-columns: 1fr 1fr; }
 }
 
 .spinner { width: 32px; height: 32px; margin: 3rem auto; border: 3px solid var(--line); border-top-color: var(--brand); border-radius: 50%; animation: spin .8s linear infinite; }

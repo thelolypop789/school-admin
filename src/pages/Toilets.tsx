@@ -19,7 +19,7 @@ type Inspection = {
 
 export default function Toilets() {
   const me = useMe();
-  const canReport = me.role === "admin" || me.role === "approver";
+  const canReport = me.role === "admin" || me.role === "deputy" || me.role === "director";
   const canInspect = me.role === "admin" || me.role === "inspector";
   const [tab, setTab] = useState<"status" | "report">("status");
   const [status, setStatus] = useState<Status[]>([]);

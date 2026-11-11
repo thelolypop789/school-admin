@@ -86,7 +86,10 @@ export function Timeline({ items, day, from = 7, to = 19 }: {
 export function StatusChip({ status }: { status: string }) {
   const map: Record<string, [string, string]> = {
     confirmed: ["ยืนยันแล้ว", "ok"],
-    pending: ["รออนุมัติ", "warn"],
+    pending: ["รอหัวหน้างานยานพาหนะ", "warn"],
+    returned: ["ส่งกลับให้แก้ไข", "bad"],
+    pending_deputy: ["รอรอง ผอ.", "warn"],
+    pending_director: ["รอ ผอ.", "warn"],
     approved: ["อนุมัติแล้ว", "ok"],
     rejected: ["ไม่อนุมัติ", "bad"],
     cancelled: ["ยกเลิก", "mute"],

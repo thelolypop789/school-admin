@@ -4,12 +4,13 @@ import { useMe } from "../lib/me";
 import { navigate } from "../lib/router";
 import { dayRange, fmtDate, fmtRange, fmtTime, todayISO } from "../lib/time";
 import { StatusChip } from "../components/ui";
+import { OPEN, REVIEW_STATUS } from "../lib/vehicle";
 
 type Upcoming = { kind: "room" | "vehicle"; id: number; title: string; starts_at: string; ends_at: string; status: string };
 
 export default function Home() {
   const me = useMe();
-  const canApprove = me.role === "approver" || me.role === "admin";
+  const reviewStatus = REVIEW_STATUS[me.role];
   const [todayRooms, setTodayRooms] = useState<{ id: number; title: string; starts_at: string; ends_at: string; rooms: { name: string } | null }[]>([]);
   const [mine, setMine] = useState<Upcoming[]>([]);
   const [pending, setPending] = useState(0);
@@ -22,8 +23,8 @@ export default function Home() {
       supabase.from("room_bookings").select("id,title,starts_at,ends_at,rooms(name)").eq("status", "confirmed")
         .lt("starts_at", to).gt("ends_at", from).order("starts_at"),
       supabase.from("room_bookings").select("id,title,starts_at,ends_at,status").eq("booked_by", me.id).eq("status", "confirmed").gt("ends_at", now).order("starts_at").limit(5),
-      supabase.from("vehicle_bookings").select("id,destination,starts_at,ends_at,status").eq("booked_by", me.id).in("status", ["pending", "approved"]).gt("ends_at", now).order("starts_at").limit(5),
-      canApprove ? supabase.from("vehicle_bookings").select("id", { count: "exact", head: true }).eq("status", "pending") : Promise.resolve({ count: 0 }),
+      supabase.from("vehicle_bookings").select("id,destination,starts_at,ends_at,status").eq("booked_by", me.id).in("status", OPEN).gt("ends_at", now).order("starts_at").limit(5),
+      reviewStatus ? supabase.from("vehicle_bookings").select("id", { count: "exact", head: true }).eq("status", reviewStatus) : Promise.resolve({ count: 0 }),
       supabase.rpc("toilet_status"),
     ]).then(([tr, rb, vb, pc, ts]) => {
       setTodayRooms((tr.data as unknown as typeof todayRooms) ?? []);
@@ -37,7 +38,7 @@ export default function Home() {
       const st = (ts.data as { checks_today: number }[] | null) ?? [];
       setToilet({ total: st.length, notToday: st.filter((s) => s.checks_today === 0).length });
     });
-  }, [me.id, canApprove]);
+  }, [me.id, reviewStatus]);
 
   return (
     <>
@@ -48,9 +49,9 @@ export default function Home() {
         </div>
       </div>
 
-      {canApprove && pending > 0 && (
+      {reviewStatus && pending > 0 && (
         <button className="alert-card" onClick={() => navigate("/vehicles")}>
-          🚐 มีคำขอใช้รถรออนุมัติ <b>{pending}</b> รายการ →
+          🚐 มีคำขอใช้รถรอคุณพิจารณา <b>{pending}</b> รายการ →
         </button>
       )}
 

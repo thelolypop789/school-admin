@@ -7,6 +7,7 @@ import Home from "./pages/Home";
 
 const Rooms = lazy(() => import("./pages/Rooms"));
 const Vehicles = lazy(() => import("./pages/Vehicles"));
+const VehiclePrint = lazy(() => import("./pages/VehiclePrint"));
 const Toilets = lazy(() => import("./pages/Toilets"));
 const Inspect = lazy(() => import("./pages/Inspect"));
 const Admin = lazy(() => import("./pages/Admin"));
@@ -56,6 +57,7 @@ export default function App() {
   let page;
   if (path.startsWith("/t/")) page = <Inspect token={path.slice(3)} />;
   else if (path.startsWith("/rooms")) page = <Rooms />;
+  else if (/^\/vehicles\/print\/\d+$/.test(path)) page = <VehiclePrint id={Number(path.split("/").pop())} />;
   else if (path.startsWith("/vehicles")) page = <Vehicles />;
   else if (path.startsWith("/toilets")) page = <Toilets />;
   else if (path.startsWith("/admin") && me.role === "admin") page = <Admin />;
