@@ -645,11 +645,11 @@ td.num { font-variant-numeric: tabular-nums; }
 /* ลายน้ำ: สัญลักษณ์จากตรา จางๆ อยู่หลังเนื้อหาทุกหน้า */
 .wm {
   position: fixed; z-index: 0; pointer-events: none; right: -110px; bottom: -40px; width: min(560px, 120vw); aspect-ratio: 320 / 404;
-  background: linear-gradient(160deg, #b98a2c, #7a1530 75%); opacity: .06;
+  background: linear-gradient(160deg, #b98a2c, #7a1530 75%); opacity: .12;
   -webkit-mask: url(/mark.svg) center / contain no-repeat; mask: url(/mark.svg) center / contain no-repeat;
 }
 @media (min-width: 900px) { .wm { right: -60px; width: 620px; } }
-@media (prefers-color-scheme: dark) { .wm { opacity: .07; background: linear-gradient(160deg, #e4c06a, #d9467a 75%); } }
+@media (prefers-color-scheme: dark) { .wm { opacity: .12; background: linear-gradient(160deg, #e4c06a, #d9467a 75%); } }
 .shell { position: relative; isolation: isolate; }
 .shell > :not(.wm) { position: relative; z-index: 1; }
 .shell > .sidebar { position: sticky; }
