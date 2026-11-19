@@ -30,6 +30,7 @@
   --warn: #8a6514; --warn-bg: #faf0d6;
   --bad: #b42318;  --bad-bg: #fbe9e7;
   --mute-bg: #ece9e9;
+  --chart-1: #8f1d3a;     /* แท่งกราฟ (ผ่านตัวตรวจสี: ความสว่าง/คอนทราสต์) */
 
   --font-display: "Noto Sans Thai", "IBM Plex Sans Thai Looped", system-ui, sans-serif;
   --font-body: "IBM Plex Sans Thai Looped", "Sarabun", system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -49,7 +50,7 @@
     --burgundy-900: #2a0711; --burgundy: #a8314f; --burgundy-700: #c04566; --burgundy-50: #3a1520;
     --gold-text: #e6c574; --gold-50: #352a12;
     --brand: #c9506e;
-    --ok: #6cc892; --ok-bg: #16301f; --warn: #e6c574; --warn-bg: #352a12; --bad: #ff8a7d; --bad-bg: #3d1a17; --mute-bg: #2b2528;
+    --ok: #6cc892; --ok-bg: #16301f; --warn: #e6c574; --warn-bg: #352a12; --bad: #ff8a7d; --bad-bg: #3d1a17; --mute-bg: #2b2528; --chart-1: #c9506e;
     --shadow: none; --shadow-lg: 0 18px 50px rgb(0 0 0 / .5);
     color-scheme: dark;
   }
@@ -462,3 +463,93 @@ td select { min-height: 36px; padding: .3rem .5rem; width: auto; }
 .line-nudge > svg:first-child { color: var(--burgundy); }
 .line-nudge span { flex: 1; display: grid; line-height: 1.35; }
 .line-nudge small { color: var(--muted); }
+
+/* ============================================================ รถ: การ์ดรถ */
+.fleet { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr)); }
+.fleet-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; display: grid; grid-template-rows: auto 1fr; }
+.fleet-card.off .fleet-photo img { filter: grayscale(.8); opacity: .75; }
+.fleet-photo { position: relative; aspect-ratio: 16 / 9; background: var(--surface-2); display: grid; place-items: center; color: var(--line-strong); }
+.fleet-photo img { width: 100%; height: 100%; object-fit: cover; }
+.fleet-cond { position: absolute; top: 10px; left: 10px; margin: 0; box-shadow: 0 1px 4px rgb(0 0 0 / .15); }
+.fleet-body { padding: .9rem 1rem 1rem; display: grid; gap: .35rem; align-content: start; }
+.fleet-title { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
+.fleet-title h3 { margin: 0; }
+.plate { font-weight: 600; font-size: .82rem; padding: .05rem .5rem; border: 1.5px solid var(--ink); border-radius: 5px; background: var(--surface); font-variant-numeric: tabular-nums; }
+.fleet-today { font-size: .9rem; display: grid; gap: .1rem; padding: .45rem .6rem; background: var(--surface-2); border-radius: 8px; }
+.ok-text { color: var(--ok); font-weight: 600; }
+.docs { list-style: none; margin: .35rem 0 0; padding: 0; display: grid; gap: .4rem; }
+.docs li { display: grid; grid-template-columns: 5.5rem minmax(0, 1fr) auto; gap: .6rem; align-items: center; font-size: .86rem; }
+.doc-label { color: var(--muted); }
+.doc-bar { height: 6px; border-radius: 999px; background: var(--surface-2); overflow: hidden; }
+.doc-bar span { display: block; height: 100%; border-radius: 999px; background: var(--ok); }
+.doc-bar.warn span { background: var(--gold); } .doc-bar.bad span, .doc-bar.mute span { background: transparent; }
+.doc-left { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.doc-left.ok { color: var(--muted); } .doc-left.warn { color: var(--warn); font-weight: 600; } .doc-left.bad { color: var(--bad); font-weight: 600; } .doc-left.mute { color: var(--muted); font-style: italic; }
+
+/* การ์ดพิจารณามีรูปรถ */
+.review-card { overflow: hidden; }
+.review-photo { display: block; width: calc(100% + 2.3rem); margin: -1.15rem -1.15rem .8rem; aspect-ratio: 16 / 7; object-fit: cover; }
+
+/* รูปรถในหน้าจัดการ */
+.vphoto { position: relative; display: grid; place-items: center; width: 84px; height: 56px; border-radius: 8px; overflow: hidden; background: var(--surface-2); color: var(--muted); cursor: pointer; }
+.vphoto img { width: 100%; height: 100%; object-fit: cover; }
+.vphoto-btn { position: absolute; left: 0; right: 0; bottom: 0; display: flex; justify-content: center; gap: .2rem; align-items: center; font-size: .68rem; font-weight: 600; color: #fff; background: rgb(0 0 0 / .5); padding: 1px 0; }
+
+/* ============================================================ รถ: ปฏิทินรายเดือน */
+.cal { padding: .9rem; }
+.cal-head { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; margin-bottom: .75rem; }
+.cal-head h3 { margin: 0 .25rem; min-width: 9.5rem; text-align: center; }
+.cal-legend { list-style: none; margin: 0 0 0 auto; padding: 0; display: flex; gap: .85rem; font-size: .8rem; color: var(--muted); flex-wrap: wrap; }
+.cal-legend li { display: flex; align-items: center; gap: .35rem; }
+.cal-legend .ev { width: 14px; height: 10px; padding: 0; }
+.cal-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); border-top: 1px solid var(--line); border-left: 1px solid var(--line); }
+.cal-dow { text-align: center; font-size: .78rem; color: var(--muted); font-weight: 600; padding: .35rem 0; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); background: var(--surface-2); }
+.cal-day {
+  min-height: 92px; padding: .3rem .3rem .35rem; text-align: left; display: flex; flex-direction: column; gap: .2rem; cursor: pointer;
+  background: var(--surface); border: 0; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); min-width: 0;
+}
+.cal-day:hover { background: var(--burgundy-50); }
+.cal-day.out { background: var(--surface-2); }
+.cal-day.out .cal-num { color: var(--line-strong); }
+.cal-day.sel { box-shadow: inset 0 0 0 2px var(--burgundy); }
+.cal-num { font-size: .82rem; font-weight: 600; font-variant-numeric: tabular-nums; width: 1.6rem; height: 1.6rem; display: grid; place-items: center; border-radius: 50%; }
+.cal-day.today .cal-num { background: var(--burgundy); color: #fff; }
+.cal-evs { display: grid; gap: 2px; min-width: 0; }
+.ev { display: block; font-size: .7rem; line-height: 1.35; padding: 1px 5px; border-radius: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ev.ok { background: var(--burgundy); color: #fff; }
+.ev.wait { background: var(--gold-50); color: var(--gold-text); box-shadow: inset 3px 0 0 var(--gold); }
+.ev.done { background: var(--mute-bg); color: var(--muted); }
+.cal-more { font-size: .7rem; color: var(--muted); padding-left: 4px; }
+@media (max-width: 640px) {
+  .cal { padding: .6rem; }
+  .cal-day { min-height: 54px; align-items: center; }
+  .cal-evs { display: flex; gap: 3px; justify-content: center; flex-wrap: wrap; }
+  .cal-evs .ev { width: 7px; height: 7px; padding: 0; border-radius: 50%; font-size: 0; }
+  .cal-evs .ev.wait { box-shadow: none; background: var(--gold); }
+  .cal-more { font-size: .62rem; padding: 0; }
+  .cal-legend { margin-left: 0; width: 100%; }
+}
+.cal-vehicle { padding: .7rem 0; border-top: 1px solid var(--line); }
+.cal-vehicle:first-of-type { border-top: 0; }
+.today-out h3 { margin-bottom: .2rem; }
+
+/* ============================================================ แดชบอร์ด: แท่งรายเดือน */
+.mbars { margin: .9rem 0 .4rem; }
+.mbars-plot { position: relative; height: 190px; margin-left: 2rem; display: flex; align-items: flex-end; border-bottom: 1px solid var(--line-strong); }
+.mbars-grid { position: absolute; left: 0; right: 0; height: 0; border-top: 1px solid var(--line); pointer-events: none; }
+.mbars-grid span { position: absolute; right: calc(100% + .45rem); top: -.55rem; font-size: .72rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.mbars-col { position: relative; flex: 1; height: 100%; display: flex; align-items: flex-end; justify-content: center; outline: none; }
+.mbars-bar { position: relative; width: min(24px, 60%); background: var(--chart-1); border-radius: 4px 4px 0 0; min-height: 0; transition: opacity .15s; }
+.mbars-col:hover .mbars-bar, .mbars-col:focus-visible .mbars-bar { opacity: .82; }
+.mbars-col.sel .mbars-bar { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--gold); }
+.mbars-val { position: absolute; bottom: calc(100% + 4px); left: 50%; transform: translateX(-50%); font-size: .8rem; font-weight: 600; color: var(--ink); font-variant-numeric: tabular-nums; }
+.mbars-tip {
+  position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%); z-index: 2; white-space: nowrap;
+  background: var(--ink); color: var(--surface); font-size: .78rem; padding: .3rem .55rem; border-radius: 6px; opacity: 0; pointer-events: none; transition: opacity .12s;
+}
+.mbars-col:hover .mbars-tip, .mbars-col:focus-visible .mbars-tip { opacity: 1; }
+.mbars-x { display: flex; margin-left: 2rem; }
+.mbars-x span { flex: 1; text-align: center; font-size: .78rem; color: var(--muted); padding-top: .3rem; }
+.table-toggle summary { cursor: pointer; color: var(--burgundy); font-weight: 600; font-size: .88rem; }
+.table-toggle table { margin-top: .5rem; }
+td.num { font-variant-numeric: tabular-nums; }

@@ -3,9 +3,11 @@ import QRCode from "qrcode";
 import { errText, ROLE_LABEL, supabase, type Profile, type Role } from "../lib/supabase";
 import { useMe } from "../lib/me";
 import { Empty, Modal, PageHeader } from "../components/ui";
-import { Plus, Printer, Settings } from "lucide-react";
+import { Camera, CarFront, Plus, Printer, Settings } from "lucide-react";
 import { CAT_LABEL, GENDER_LABEL } from "../lib/toilet";
-import { licenseDaysLeft } from "../lib/vehicle";
+import { CONDITION_LABEL, licenseDaysLeft } from "../lib/vehicle";
+import { compressImage } from "../lib/image";
+import { useSignedUrls } from "../lib/photos";
 import { fmtDate } from "../lib/time";
 
 type Tab = "rooms" | "vehicles" | "drivers" | "toilets" | "checklist" | "users";
@@ -27,6 +29,11 @@ const TABLES: Record<Exclude<Tab, "users">, { table: string; order: string; cols
     { key: "name", label: "ชื่อรถ", required: true },
     { key: "plate", label: "ทะเบียน" },
     { key: "seats", label: "ที่นั่ง", type: "number" },
+    { key: "condition", label: "สภาพ", type: "select", options: CONDITION_LABEL, required: true },
+    { key: "condition_note", label: "หมายเหตุสภาพรถ" },
+    { key: "act_expiry", label: "พ.ร.บ. หมดอายุ", type: "date" },
+    { key: "tax_expiry", label: "ภาษีหมดอายุ", type: "date" },
+    { key: "insurance_expiry", label: "ประกันภัยหมดอายุ", type: "date" },
   ] },
   drivers: { table: "drivers", order: "full_name", cols: [
     { key: "full_name", label: "ชื่อ-สกุล", required: true },
@@ -63,6 +70,7 @@ export default function Admin() {
 function TableEditor({ kind }: { kind: Exclude<Tab, "users"> }) {
   const cfg = TABLES[kind];
   const [rows, setRows] = useState<Row[]>([]);
+  const photos = useSignedUrls("vehicle-photos", kind === "vehicles" ? rows.map((r) => r.photo_path as string | null) : []);
   const [edit, setEdit] = useState<Row | "new" | null>(null);
   const [showQr, setShowQr] = useState(false);
   const [err, setErr] = useState("");
@@ -104,10 +112,11 @@ function TableEditor({ kind }: { kind: Exclude<Tab, "users"> }) {
       {rows.length === 0 ? <Empty>ยังไม่มีข้อมูล</Empty> : (
         <div className="card table-wrap">
           <table>
-            <thead><tr>{cfg.cols.map((c) => <th key={c.key}>{c.label}</th>)}<th>สถานะ</th><th /></tr></thead>
+            <thead><tr>{kind === "vehicles" && <th>รูป</th>}{cfg.cols.map((c) => <th key={c.key}>{c.label}</th>)}<th>สถานะ</th><th /></tr></thead>
             <tbody>
               {rows.map((r) => (
                 <tr key={r.id} className={r.active ? "" : "inactive"}>
+                  {kind === "vehicles" && <td><VehiclePhoto row={r} url={r.photo_path ? photos[String(r.photo_path)] : undefined} onDone={load} /></td>}
                   {cfg.cols.map((c) => <td key={c.key}>{show(r, c)}</td>)}
                   <td><button className={`chip ${r.active ? "ok" : "mute"}`} onClick={() => toggle(r)}>{r.active ? "ใช้งาน" : "ปิด"}</button></td>
                   <td><button className="link" onClick={() => setEdit(r)}>แก้ไข</button></td>
@@ -252,5 +261,35 @@ function Users() {
       </div>
       {list.length === 0 && <Empty>ไม่พบผู้ใช้</Empty>}
     </>
+  );
+}
+
+/** รูปรถ: ย่อ/บีบก่อนอัปโหลด แล้วบันทึก path ลงแถวรถ (ลบรูปเก่าออก) */
+function VehiclePhoto({ row, url, onDone }: { row: Row; url?: string; onDone: () => void }) {
+  const [busy, setBusy] = useState(false);
+  const upload = async (file: File | undefined) => {
+    if (!file) return;
+    setBusy(true);
+    try {
+      const blob = await compressImage(file, 1200, 0.8);
+      const path = `${row.id}/${crypto.randomUUID()}.jpg`;
+      const up = await supabase.storage.from("vehicle-photos").upload(path, blob, { contentType: "image/jpeg" });
+      if (up.error) throw up.error;
+      const { error } = await supabase.from("vehicles").update({ photo_path: path }).eq("id", row.id);
+      if (error) throw error;
+      if (row.photo_path) await supabase.storage.from("vehicle-photos").remove([String(row.photo_path)]);
+      onDone();
+    } catch (e) {
+      alert(`อัปโหลดรูปไม่สำเร็จ: ${errText(e)}`);
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <label className="vphoto" title="เปลี่ยนรูปรถ">
+      {url ? <img src={url} alt="" /> : <CarFront size={22} aria-hidden />}
+      <span className="vphoto-btn"><Camera size={12} />{busy ? "…" : url ? "เปลี่ยน" : "ใส่รูป"}</span>
+      <input type="file" accept="image/*" hidden disabled={busy} onChange={(e) => { upload(e.target.files?.[0]); e.target.value = ""; }} />
+    </label>
   );
 }

@@ -73,3 +73,26 @@ export const EXPENSES: { key: string; label: string }[] = [
 ];
 
 export type Traveler = { name: string; position: string };
+
+/** เอกสารรถที่มีวันหมดอายุ — พ.ร.บ./ภาษี หมดแล้วจัดรถไม่ได้ (DB ตรวจ), ประกันภัยแค่เตือน */
+export const VEHICLE_DOCS: { key: "act_expiry" | "tax_expiry" | "insurance_expiry"; label: string; required: boolean }[] = [
+  { key: "act_expiry", label: "พ.ร.บ.", required: true },
+  { key: "tax_expiry", label: "ภาษีรถ", required: true },
+  { key: "insurance_expiry", label: "ประกันภัย", required: false },
+];
+
+/** สีตามวันคงเหลือ: หมดแล้ว = bad, ≤ 30 วัน = warn, ยังไม่กรอก = mute */
+export function expiryTone(daysLeft: number | null): "ok" | "warn" | "bad" | "mute" {
+  if (daysLeft === null) return "mute";
+  if (daysLeft < 0) return "bad";
+  return daysLeft <= 30 ? "warn" : "ok";
+}
+
+export const CONDITION_LABEL: Record<string, string> = { ready: "พร้อมใช้", maintenance: "ซ่อมบำรุง" };
+
+/** สถานะในปฏิทิน/แดชบอร์ด รวมเป็นกลุ่มที่ผู้ใช้เข้าใจ */
+export const STATUS_GROUP: Record<string, "waiting" | "approved" | "back" | "cancelled"> = {
+  pending: "waiting", pending_deputy: "waiting", pending_director: "waiting",
+  approved: "approved", on_trip: "approved", completed: "approved",
+  returned: "back", rejected: "back", cancelled: "cancelled",
+};
