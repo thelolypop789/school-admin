@@ -2,7 +2,7 @@
 // - หน้าเว็บ (navigation): ดึงจากเน็ตก่อน ถ้าออฟไลน์ใช้ตัวที่ cache ไว้
 // - /assets/* (ชื่อไฟล์มี hash): cache ก่อน
 // - ไม่แตะ request ไป Supabase หรือโดเมนอื่น ข้อมูลจริงต้องมาจากเซิร์ฟเวอร์เสมอ
-const VERSION = "v5"; // v5: ชื่อแอปบนหน้าจอโฮมใช้ วพ.
+const VERSION = "v6"; // v6: ดีไซน์รอบ 2 (สีประจำงาน ไอคอนใหม่ ฟอนต์ Anuphan)
 const SHELL = `shell-${VERSION}`;
 const ASSETS = `assets-${VERSION}`;
 const PRECACHE = ["/", "/manifest.webmanifest", "/favicon.svg", "/favicon.png", "/school-logo.png", "/icon-192.png", "/icon-512.png"];
