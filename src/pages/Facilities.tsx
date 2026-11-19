@@ -2,6 +2,7 @@ import { lazy, Suspense, useState } from "react";
 import { CalendarDays, Wrench } from "lucide-react";
 import { navigate, usePath } from "../lib/router";
 import Repairs, { type RepairStats } from "./Repairs";
+import { ModuleHero } from "../components/ui";
 
 const GaCalendar = lazy(() => import("./GaCalendar"));
 
@@ -18,23 +19,18 @@ export default function Facilities() {
   const repairs = tab.path === "/facilities";
   return (
     <>
-      <header className={`mhero ${tab.mod}`}>
-        <tab.icon size={64} strokeWidth={1.5} className="mh-ic" aria-hidden />
-        <h1>{tab.label}</h1>
-        <p>{tab.desc}</p>
-        {repairs && (
-          <div className="mh-stats" aria-live="polite">
-            <div><b>{stats?.urgent ?? "–"}</b>ด่วนมาก</div>
-            <div><b>{stats?.plan ?? "–"}</b>รอลงวันที่</div>
-            <div><b>{stats?.scheduled ?? "–"}</b>กำหนดวันแล้ว</div>
-          </div>
-        )}
+      <ModuleHero mod={tab.mod} icon={tab.icon} title={tab.label} desc={tab.desc}
+        stats={repairs ? [
+          { n: stats?.urgent ?? "–", label: "ด่วนมาก" },
+          { n: stats?.plan ?? "–", label: "รอลงวันที่" },
+          { n: stats?.scheduled ?? "–", label: "กำหนดวันแล้ว" },
+        ] : undefined}>
         <div className="mh-tabs" role="tablist">
           {TABS.map((t) => (
             <button key={t.path} role="tab" aria-selected={t.path === tab.path} className={t.path === tab.path ? "on" : ""} onClick={() => navigate(t.path)}>{t.label}</button>
           ))}
         </div>
-      </header>
+      </ModuleHero>
       {repairs ? <Repairs onStats={setStats} /> : <Suspense fallback={<div className="spinner" />}><GaCalendar /></Suspense>}
     </>
   );

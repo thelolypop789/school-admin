@@ -10,7 +10,7 @@ import VehicleFleet from "./VehicleFleet";
 import VehicleDashboard from "./VehicleDashboard";
 import { useSignedUrls } from "../lib/photos";
 import { hasRole, reviewStatuses } from "../lib/roles";
-import { Empty, Field, Modal, PageHeader, StatusChip } from "../components/ui";
+import { Empty, Field, Modal, ModuleHero, StatusChip } from "../components/ui";
 import { Check, CarFront, Plus, Printer, X } from "lucide-react";
 
 export type Vehicle = {
@@ -84,10 +84,14 @@ export default function Vehicles() {
 
   return (
     <>
-      <PageHeader icon={CarFront} tone="vehicles" title="ขอใช้รถไปราชการ"
-        desc="ยื่นคำขอ → งานยานพาหนะจัดรถ → รอง ผอ. → ผอ. อนุมัติ → พิมพ์คำสั่ง → เดินทาง → ปิดงาน">
-        <button className="btn primary" onClick={() => setForm({ edit: null })}><Plus size={18} />ขอใช้รถ</button>
-      </PageHeader>
+      <div className="c-car">
+      <ModuleHero mod="c-car" icon={CarFront} title="ขอใช้รถไปราชการ"
+        desc="ยื่นคำขอ → งานยานพาหนะจัดรถ → รอง ผอ. → ผอ. อนุมัติ → พิมพ์คำสั่ง → เดินทาง"
+        stats={[
+          ...(reviewStatus ? [{ n: toReview.length, label: reviewTitle }] : []),
+          { n: mine.filter((b) => OPEN.includes(b.status) || b.status === "on_trip").length, label: "ของฉันที่ยังไม่จบ" },
+          { n: mine.filter((b) => b.status === "returned").length, label: "ส่งกลับให้แก้" },
+        ]} />
       <div className="tabs scroll">
         {reviewStatus && <button className={tab === "review" ? "on" : ""} onClick={() => setTab("review")}>{reviewTitle} {toReview.length > 0 && <span className="badge">{toReview.length}</span>}</button>}
         <button className={tab === "mine" ? "on" : ""} onClick={() => setTab("mine")}>คำขอของฉัน</button>
@@ -162,6 +166,8 @@ export default function Vehicles() {
           <Steps bookingId={history.id} />
         </Modal>
       )}
+      <button className="fab" onClick={() => setForm({ edit: null })}><Plus size={20} />ขอใช้รถ</button>
+      </div>
     </>
   );
 }

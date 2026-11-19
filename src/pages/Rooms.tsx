@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { errText, supabase } from "../lib/supabase";
 import { useMe } from "../lib/me";
 import { dayRange, fmtRange, fmtTime, hhmm, toISO, todayISO } from "../lib/time";
-import { DateNav, Empty, Field, Modal, PageHeader, StatusChip, Timeline } from "../components/ui";
+import { DateNav, Empty, Field, Modal, ModuleHero, StatusChip, Timeline } from "../components/ui";
 import { Plus, Presentation } from "lucide-react";
 
 export type Room = { id: number; name: string; capacity: number | null; equipment: string[]; note: string | null; active: boolean };
@@ -51,7 +51,13 @@ export default function Rooms() {
   const range = dayRange(date);
   return (
     <>
-      <PageHeader icon={Presentation} tone="rooms" title="จองห้องประชุม" desc="เลือกวัน ดูช่วงที่ห้องว่าง แล้วกดจอง · ระบบไม่ให้จองเวลาซ้อนกัน" />
+      <div className="c-room">
+      <ModuleHero mod="c-room" icon={Presentation} title="จองห้องประชุม" desc="เลือกวัน ดูช่วงที่ห้องว่าง แล้วกดจอง · ระบบไม่ให้จองเวลาซ้อนกัน"
+        stats={[
+          { n: rooms.length, label: "ห้องทั้งหมด" },
+          { n: day.length, label: date === todayISO() ? "จองวันนี้" : "จองวันที่เลือก" },
+          { n: mine.length, label: "การจองของฉัน" },
+        ]} />
       <DateNav date={date} onChange={setDate} />
       {err && <p className="error">{err}</p>}
       {rooms.length === 0 && <Empty>ยังไม่มีห้องประชุม{me.role === "admin" ? " — เพิ่มได้ที่เมนู จัดการ" : ""}</Empty>}
@@ -108,6 +114,8 @@ export default function Rooms() {
         <BookRoomForm rooms={rooms} date={date} roomId={form.room_id} busy={day}
           onClose={() => setForm(null)} onSaved={() => { setForm(null); load(); }} />
       )}
+      {rooms.length > 0 && <button className="fab" onClick={() => setForm({ room_id: rooms[0].id })}><Plus size={20} />จองห้อง</button>}
+      </div>
     </>
   );
 }

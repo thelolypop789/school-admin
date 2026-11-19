@@ -2,7 +2,7 @@
 // - หน้าเว็บ (navigation): ดึงจากเน็ตก่อน ถ้าออฟไลน์ใช้ตัวที่ cache ไว้
 // - /assets/* (ชื่อไฟล์มี hash): cache ก่อน
 // - ไม่แตะ request ไป Supabase หรือโดเมนอื่น ข้อมูลจริงต้องมาจากเซิร์ฟเวอร์เสมอ
-const VERSION = "v7"; // v7: ไอคอนแอปมีคำ "บริหารทั่วไป" + ลายน้ำชัดขึ้น
+const VERSION = "v8"; // v8: หัวแผ่นสีประจำงานครบทุกหน้า
 const SHELL = `shell-${VERSION}`;
 const ASSETS = `assets-${VERSION}`;
 const PRECACHE = ["/", "/manifest.webmanifest", "/favicon.svg", "/favicon.png", "/school-logo.png", "/icon-192.png", "/icon-512.png"];

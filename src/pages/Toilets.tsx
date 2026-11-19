@@ -3,7 +3,7 @@ import { errText, supabase } from "../lib/supabase";
 import { useMe } from "../lib/me";
 import { navigate } from "../lib/router";
 import { addDays, fmtDateTime, todayISO } from "../lib/time";
-import { Empty, Field, Modal, PageHeader } from "../components/ui";
+import { Empty, Field, Modal, ModuleHero } from "../components/ui";
 import { Camera, Toilet } from "lucide-react";
 import { canInspectToilets, CAT_LABEL, GENDER_LABEL, isToiletTeam, tone, type Item } from "../lib/toilet";
 
@@ -42,8 +42,15 @@ export default function Toilets() {
 
   return (
     <>
-      <PageHeader icon={Toilet} tone="toilets" title={team ? "ตรวจห้องน้ำ" : "รายงานห้องน้ำ"}
-        desc={team ? "สุขาดี มีความสุข · ตรวจตามหลัก HAS: สะอาด เพียงพอ ปลอดภัย" : "สุขาดี มีความสุข · ผลตรวจโดยฝ่ายบริหารทั่วไป (ดูได้อย่างเดียว)"} />
+      <div className="c-wc">
+      <ModuleHero mod="c-wc" icon={Toilet} title={team ? "ตรวจห้องน้ำ" : "รายงานห้องน้ำ"}
+        desc={team ? "สุขาดี มีความสุข · ตรวจตามหลัก HAS: สะอาด เพียงพอ ปลอดภัย" : "สุขาดี มีความสุข · ผลตรวจโดยฝ่ายบริหารทั่วไป (ดูได้อย่างเดียว)"}
+        stats={status.length ? [
+          { n: status.length, label: "จุดทั้งหมด" },
+          { n: status.length - notToday, label: "ตรวจแล้ววันนี้" },
+          { n: notToday, label: "ยังไม่ตรวจ" },
+          { n: status.filter((s) => tone(s.last_score, s.last_safety_fail) === "bad").length, label: "ต้องแก้ไข" },
+        ] : undefined} />
       {(
         <div className="tabs">
           <button className={tab === "status" ? "on" : ""} onClick={() => setTab("status")}>สถานะวันนี้</button>
@@ -54,14 +61,6 @@ export default function Toilets() {
 
       {tab === "status" && (
         <>
-          {status.length > 0 && (
-            <div className="stats">
-              <div className="stat"><b>{status.length}</b><span>จุดทั้งหมด</span></div>
-              <div className="stat"><b>{status.length - notToday}</b><span>ตรวจแล้ววันนี้</span></div>
-              <div className={`stat ${notToday ? "warn" : ""}`}><b>{notToday}</b><span>ยังไม่ตรวจ</span></div>
-              <div className="stat bad"><b>{status.filter((s) => tone(s.last_score, s.last_safety_fail) === "bad").length}</b><span>ต้องแก้ไข</span></div>
-            </div>
-          )}
           {status.length === 0 && <Empty>ยังไม่มีจุดห้องน้ำ{me.role === "admin" ? " — เพิ่มได้ที่เมนู จัดการ" : ""}</Empty>}
           <div className="grid">
             {status.map((s) => (
@@ -87,6 +86,7 @@ export default function Toilets() {
       )}
 
       {tab === "report" && <Report toilets={status} showPhotos={team} />}
+      </div>
     </>
   );
 }

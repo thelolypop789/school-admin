@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import QRCode from "qrcode";
 import { errText, ROLE_LABEL, supabase, type Profile, type Role } from "../lib/supabase";
 import { useMe } from "../lib/me";
-import { Empty, Modal, PageHeader } from "../components/ui";
+import { Empty, Modal, ModuleHero } from "../components/ui";
 import { Camera, CarFront, Plus, Printer, Settings } from "lucide-react";
 import { CAT_LABEL, GENDER_LABEL } from "../lib/toilet";
 import { CONDITION_LABEL, licenseDaysLeft } from "../lib/vehicle";
@@ -59,7 +59,7 @@ export default function Admin() {
   const [tab, setTab] = useState<Tab>("rooms");
   return (
     <>
-      <PageHeader icon={Settings} tone="admin" title="จัดการระบบ" desc="ข้อมูลห้อง รถ คนขับ ห้องน้ำ รายการตรวจ และสิทธิ์ของผู้ใช้" />
+      <ModuleHero mod="c-ga" icon={Settings} title="จัดการระบบ" desc="ข้อมูลห้อง รถ คนขับ ห้องน้ำ รายการตรวจ และสิทธิ์ของผู้ใช้" />
       <div className="tabs scroll">
         {TABS.map(([k, l]) => <button key={k} className={tab === k ? "on" : ""} onClick={() => setTab(k)}>{l}</button>)}
       </div>
