@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { ArrowRight, CarFront, ChevronRight, MessageCircle, ClipboardCheck, Gauge, Presentation, Toilet, Undo2, Wrench, type LucideIcon } from "lucide-react";
 import { Mark } from "../components/Mark";
 import { InstallNudge } from "../components/Install";
+import { GaUpcoming } from "../components/GaUpcoming";
 import { canInspectToilets, isToiletTeam } from "../lib/toilet";
 import { supabase } from "../lib/supabase";
 import { useMe } from "../lib/me";
@@ -162,6 +163,8 @@ export default function Home({ onEditProfile }: { onEditProfile: () => void }) {
           <ArrowRight size={20} className="chev" />
         </button>
       </div>
+
+      <GaUpcoming />
 
       <div className="grid">
         <section className="card">

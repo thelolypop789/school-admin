@@ -594,3 +594,15 @@ td.num { font-variant-numeric: tabular-nums; }
 .prio-pick span { display: grid; gap: .1rem; }
 .kv { display: grid; grid-template-columns: 6.5rem minmax(0, 1fr); gap: .3rem .75rem; margin: 0; }
 .kv dt { color: var(--muted); font-size: .9rem; } .kv dd { margin: 0; overflow-wrap: anywhere; }
+
+/* ============================================================ ปฏิทินงานฝ่าย */
+.ev.bad { background: var(--bad-bg); color: var(--bad); box-shadow: inset 3px 0 0 var(--bad); }
+.cal-legend .ev.bad { box-shadow: none; }
+@media (max-width: 720px) { .cal-evs .ev.bad { background: var(--bad); box-shadow: none; } }
+.chip.filter { cursor: pointer; margin: 0; padding: .3rem .65rem; font: inherit; font-size: .82rem; font-weight: 600; border: 1px solid var(--line-strong); background: var(--surface); color: var(--muted); }
+.chip.filter.ok { background: var(--burgundy-50); color: var(--burgundy); border-color: var(--burgundy); }
+.ga-item { display: grid; gap: .1rem; min-width: 0; }
+.ga-item .ag-kind { justify-self: start; }
+.ga-item b { overflow-wrap: anywhere; }
+.agenda li.clickable { cursor: pointer; }
+.agenda li.clickable:hover .ag-what { text-decoration: underline; text-decoration-color: var(--gold); text-underline-offset: 3px; }

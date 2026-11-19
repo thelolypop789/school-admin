@@ -47,3 +47,8 @@ export function fmtRange(startISO: string, endISO: string): string {
 export function hhmm(iso: string): string {
   return new Intl.DateTimeFormat("en-GB", { timeZone: TZ, hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(new Date(iso));
 }
+
+/** วันที่ (YYYY-MM-DD) ตามเวลาไทยของเวลา ISO */
+export function dateOf(iso: string): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: TZ }).format(new Date(iso));
+}
