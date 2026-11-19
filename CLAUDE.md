@@ -22,3 +22,6 @@
 
 ## ทดสอบ
 `npm run lint && npm run build`; ทดสอบ SQL บน Postgres local ได้โดยสร้าง stub schema `auth` (users, uid()) / `storage` / roles anon, authenticated ก่อนรัน migration
+
+## Skills
+- `.claude/skills/frontend-design` — แนวทางออกแบบ UI (ติดตั้งผ่าน `npx get-skill add anthropic/frontend-design`, ที่มา skillmd.com ไม่ใช่ช่องทางทางการของ Anthropic; เนื้อหาเป็นข้อความล้วน ไม่มีสคริปต์) ใช้ตอนปรับหน้าตา UI ของแอป
