@@ -1,3 +1,13 @@
+import type { Role } from "./supabase";
+
+/**
+ * งานห้องน้ำเป็นของฝ่ายบริหารทั่วไป (งานอาคารสถานที่) — ตรงกับ RLS/RPC ใน DB
+ * ตรวจได้: ผู้ตรวจ, หัวหน้าฝ่ายบริหารทั่วไป (vehicle_head ควบงานอาคารสถานที่), แอดมิน
+ * เห็นรูป: + รอง ผอ., ผอ. · คนอื่นดูรายงานอย่างเดียว
+ */
+export const canInspectToilets = (r: Role) => r === "inspector" || r === "vehicle_head" || r === "admin";
+export const isToiletTeam = (r: Role) => canInspectToilets(r) || r === "deputy" || r === "director";
+
 export type Item = { id: number; category: "H" | "A" | "S"; label: string; sort: number; active: boolean };
 
 export const CAT_LABEL: Record<Item["category"], string> = { H: "H · สะอาด", A: "A · เพียงพอ", S: "S · ปลอดภัย" };

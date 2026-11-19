@@ -5,7 +5,7 @@ import { navigate } from "../lib/router";
 import { addDays, fmtDateTime, todayISO } from "../lib/time";
 import { Empty, Field, Modal, PageHeader } from "../components/ui";
 import { Camera, Toilet } from "lucide-react";
-import { CAT_LABEL, GENDER_LABEL, tone, type Item } from "../lib/toilet";
+import { canInspectToilets, CAT_LABEL, GENDER_LABEL, isToiletTeam, tone, type Item } from "../lib/toilet";
 
 type Status = {
   id: number; name: string; building: string | null; gender: string;
@@ -20,8 +20,8 @@ type Inspection = {
 
 export default function Toilets() {
   const me = useMe();
-  const canReport = me.role === "admin" || me.role === "deputy" || me.role === "director";
-  const canInspect = me.role === "admin" || me.role === "inspector";
+  const canInspect = canInspectToilets(me.role);
+  const team = isToiletTeam(me.role);
   const [tab, setTab] = useState<"status" | "report">("status");
   const [status, setStatus] = useState<Status[]>([]);
   const [tokens, setTokens] = useState<Record<number, string>>({});
@@ -42,8 +42,9 @@ export default function Toilets() {
 
   return (
     <>
-      <PageHeader icon={Toilet} tone="toilets" title="ตรวจห้องน้ำ" desc="สุขาดี มีความสุข · ตรวจตามหลัก HAS: สะอาด เพียงพอ ปลอดภัย" />
-      {canReport && (
+      <PageHeader icon={Toilet} tone="toilets" title={team ? "ตรวจห้องน้ำ" : "รายงานห้องน้ำ"}
+        desc={team ? "สุขาดี มีความสุข · ตรวจตามหลัก HAS: สะอาด เพียงพอ ปลอดภัย" : "สุขาดี มีความสุข · ผลตรวจโดยฝ่ายบริหารทั่วไป (ดูได้อย่างเดียว)"} />
+      {(
         <div className="tabs">
           <button className={tab === "status" ? "on" : ""} onClick={() => setTab("status")}>สถานะวันนี้</button>
           <button className={tab === "report" ? "on" : ""} onClick={() => setTab("report")}>รายงาน</button>
@@ -85,12 +86,12 @@ export default function Toilets() {
         </>
       )}
 
-      {tab === "report" && canReport && <Report toilets={status} />}
+      {tab === "report" && <Report toilets={status} showPhotos={team} />}
     </>
   );
 }
 
-function Report({ toilets }: { toilets: Status[] }) {
+function Report({ toilets, showPhotos }: { toilets: Status[]; showPhotos: boolean }) {
   const [from, setFrom] = useState(addDays(todayISO(), -6));
   const [to, setTo] = useState(todayISO());
   const [items, setItems] = useState<ItemReport[]>([]);
@@ -173,20 +174,20 @@ function Report({ toilets }: { toilets: Status[] }) {
           </ul>
         )}
       </section>
-      {open && <InspectionDetail row={open} title={tname(open.toilet_id)} onClose={() => setOpen(null)} />}
+      {open && <InspectionDetail row={open} title={tname(open.toilet_id)} showPhotos={showPhotos} onClose={() => setOpen(null)} />}
     </>
   );
 }
 
-function InspectionDetail({ row, title, onClose }: { row: Inspection; title: string; onClose: () => void }) {
+function InspectionDetail({ row, title, showPhotos, onClose }: { row: Inspection; title: string; showPhotos: boolean; onClose: () => void }) {
   const [items, setItems] = useState<Item[]>([]);
   const [urls, setUrls] = useState<string[]>([]);
   useEffect(() => {
     supabase.from("toilet_checklist_items").select("*").order("sort").then(({ data }) => setItems((data as Item[]) ?? []));
-    if (row.photo_paths.length)
+    if (showPhotos && row.photo_paths.length)
       supabase.storage.from("toilet-photos").createSignedUrls(row.photo_paths, 600)
         .then(({ data }) => setUrls((data ?? []).map((d) => d.signedUrl).filter(Boolean) as string[]));
-  }, [row]);
+  }, [row, showPhotos]);
   const failed = items.filter((i) => row.answers[String(i.id)] === false);
   return (
     <Modal title={`${title} · ${fmtDateTime(row.inspected_at)}`} onClose={onClose}>
@@ -198,6 +199,7 @@ function InspectionDetail({ row, title, onClose }: { row: Inspection; title: str
         </>
       )}
       {row.note && <p>หมายเหตุ: {row.note}</p>}
+      {!showPhotos && row.photo_paths.length > 0 && <p className="muted small">มีรูปประกอบ {row.photo_paths.length} รูป (ดูได้เฉพาะฝ่ายบริหารทั่วไป)</p>}
       {urls.length > 0 && <div className="photos">{urls.map((u) => <a key={u} href={u} target="_blank" rel="noreferrer" className="photo"><img src={u} alt="" /></a>)}</div>}
     </Modal>
   );
