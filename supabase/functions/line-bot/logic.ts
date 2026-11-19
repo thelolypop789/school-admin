@@ -1,8 +1,27 @@
 // ตรรกะล้วนของบอท LINE (ไม่มี I/O) — เทสต์ด้วย node scripts/test_line_bot_logic.mjs
-// สี: เบอร์กันดี #6b1027 + ทอง #dcb45a ให้ตรงกับแอป
+// สีตรงกับแอป (ดีไซน์รอบ 2): หัวการ์ด = แผ่นสีประจำงาน (รถ = เขียวน้ำทะเล, แจ้งซ่อม = ส้ม) ปุ่มหลัก = เบอร์กันดี
 
-export const BURGUNDY = "#6b1027";
+export const BURGUNDY = "#8f1036";
 export const GOLD = "#dcb45a";
+/** สีประจำงาน: start/end = ไล่สีหัวการ์ด, ink = ตัวอักษรบนพื้นอ่อน, tint = พื้นอ่อน */
+export const MOD = {
+  car: { start: "#3fd6b8", end: "#0c9a86", ink: "#08715f", tint: "#e3f8f3" },
+  fix: { start: "#ffb23f", end: "#f0611c", ink: "#b8430b", tint: "#fff1e4" },
+} as const;
+type Mod = (typeof MOD)[keyof typeof MOD];
+
+/** หัวการ์ดแบบแผ่นสีไล่ (เหมือน .mhero ในแอป) */
+function headerBox(m: Mod, kicker: string, title: string) {
+  return {
+    type: "box", layout: "vertical", paddingAll: "16px", paddingTop: "14px", spacing: "xs",
+    background: { type: "linearGradient", angle: "150deg", startColor: m.start, endColor: m.end },
+    contents: [
+      { type: "text", text: kicker, color: "#FFFFFFE6", size: "sm", weight: "bold", wrap: true },
+      { type: "text", text: title, color: "#ffffff", size: "xl", weight: "bold", wrap: true },
+    ],
+  };
+}
+const BRAND_LINE = { type: "text", text: "ระบบบริหารทั่วไป · วังหลวงพิทยาสรรพ์", size: "xxs", color: "#a39ea9", margin: "md" };
 
 export type Role = "staff" | "inspector" | "vehicle_head" | "facilities_head" | "ga_head" | "deputy" | "director" | "admin";
 export type Action = "forward" | "return" | "reject";
@@ -95,12 +114,12 @@ export function externalUrl(uri: string): string {
 }
 const uriBtn = (label: string, uri: string, style: Btn["style"] = "link"): Btn => ({ label, style, action: { type: "uri", label, uri: externalUrl(uri) } });
 
-function row(label: string, value: string) {
+function row(label: string, value: string, valueColor?: string) {
   return {
     type: "box", layout: "baseline", spacing: "md",
     contents: [
-      { type: "text", text: label, color: "#8a8486", size: "sm", flex: 2 },
-      { type: "text", text: value || "-", color: "#1d1a1b", size: "sm", flex: 5, wrap: true },
+      { type: "text", text: label, color: "#8b8794", size: "sm", flex: 2 },
+      { type: "text", text: value || "-", color: valueColor ?? "#1c1a21", size: "sm", flex: 5, wrap: true, ...(valueColor ? { weight: "bold" } : {}) },
     ],
   };
 }
@@ -110,13 +129,7 @@ export function bookingBubble(b: Booking, title: string, buttons: Btn[], extra?:
   const car = b.vehicle ? `${b.vehicle.name}${b.vehicle.plate ? ` ${b.vehicle.plate}` : ""}${b.driver ? ` · ${b.driver.full_name}` : ""}` : "ยังไม่ได้จัดรถ";
   return {
     type: "bubble", size: "mega",
-    header: {
-      type: "box", layout: "vertical", backgroundColor: BURGUNDY, paddingAll: "16px", spacing: "xs",
-      contents: [
-        { type: "text", text: title, color: GOLD, size: "sm", weight: "bold", wrap: true },
-        { type: "text", text: b.destination, color: "#ffffff", size: "lg", weight: "bold", wrap: true },
-      ],
-    },
+    header: headerBox(MOD.car, title, b.destination),
     body: {
       type: "box", layout: "vertical", spacing: "sm", paddingAll: "16px",
       contents: [
@@ -126,6 +139,7 @@ export function bookingBubble(b: Booking, title: string, buttons: Btn[], extra?:
         row("ผู้ขอ", b.requester?.full_name || b.requester?.email || "-"),
         row("รถ", car),
         ...(extra ? [row(extra.label, extra.value)] : []),
+        BRAND_LINE,
       ],
     },
     ...(buttons.length ? {
@@ -257,7 +271,7 @@ export function planRange(start: string | null, end: string | null): string {
 
 export function repairBubble(r: Repair, title: string, buttons: Btn[], extra?: { label: string; value: string }) {
   const rows = [
-    row("เร่งด่วน", PRIORITY_TH[r.priority] ?? r.priority),
+    row("เร่งด่วน", PRIORITY_TH[r.priority] ?? r.priority, r.priority === "urgent" ? "#d92d20" : r.priority === "high" ? "#b8430b" : undefined),
     row("สถานที่", r.location),
     row("ประเภท", CATEGORY_TH[r.category] ?? r.category),
     ...(r.detail ? [row("รายละเอียด", r.detail.length > 120 ? `${r.detail.slice(0, 117)}…` : r.detail)] : []),
@@ -268,14 +282,8 @@ export function repairBubble(r: Repair, title: string, buttons: Btn[], extra?: {
   ];
   return {
     type: "bubble", size: "mega",
-    header: {
-      type: "box", layout: "vertical", backgroundColor: BURGUNDY, paddingAll: "16px", spacing: "xs",
-      contents: [
-        { type: "text", text: title, color: GOLD, size: "sm", weight: "bold", wrap: true },
-        { type: "text", text: r.title, color: "#ffffff", size: "lg", weight: "bold", wrap: true },
-      ],
-    },
-    body: { type: "box", layout: "vertical", spacing: "sm", paddingAll: "16px", contents: rows },
+    header: headerBox(MOD.fix, title, r.title),
+    body: { type: "box", layout: "vertical", spacing: "sm", paddingAll: "16px", contents: [...rows, BRAND_LINE] },
     ...(buttons.length ? {
       footer: {
         type: "box", layout: "vertical", spacing: "sm", paddingAll: "12px",
