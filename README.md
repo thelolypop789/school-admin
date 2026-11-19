@@ -18,6 +18,7 @@ Stack: React 19 + TypeScript + Vite, Supabase (Auth Google / Postgres + RLS / St
    - `20261111000000_vehicle_approval_chain.sql` — จองรถอนุมัติ 3 ขั้น + บทบาทใหม่ (approver เดิมกลายเป็น รอง ผอ.)
    - `20261112000000_travel_order_fields.sql` — ตำแหน่งบุคลากร, รายชื่อผู้เดินทาง, รายการเบิก (ใช้พิมพ์คำสั่งไปราชการ)
    - `20261119000000_vehicle_trip_log.sql` — บันทึกเดินทาง/ปิดงาน (เลขไมล์ น้ำมัน), วันหมดอายุใบขับขี่, ผอ. ไม่อนุมัติแบบยุติเรื่อง
+   - `20261119000001_harden_function_privileges.sql` — ปิดสิทธิ์เรียก trigger function ผ่าน RPC, ตั้ง search_path
 3. `pongsarkon@wangluangpitt.ac.th` จะเป็น admin อัตโนมัติเมื่อล็อกอินครั้งแรก
 
 ### 2. ล็อกอิน Google
