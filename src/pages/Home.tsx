@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { ArrowRight, CarFront, ChevronRight, MessageCircle, ClipboardCheck, Gauge, Presentation, Toilet, Undo2, type LucideIcon } from "lucide-react";
 import { Mark } from "../components/Mark";
 import { InstallNudge } from "../components/Install";
-import { isToiletTeam } from "../lib/toilet";
+import { canInspectToilets, isToiletTeam } from "../lib/toilet";
 import { ROLE_LABEL, supabase } from "../lib/supabase";
 import { useMe } from "../lib/me";
 import { navigate } from "../lib/router";
@@ -20,7 +20,7 @@ export default function Home({ onEditProfile }: { onEditProfile: () => void }) {
   const me = useMe();
   const reviewStatus = REVIEW_STATUS[me.role];
   const logsTrips = me.role === "vehicle_head" || me.role === "admin";
-  const inspects = me.role === "inspector" || me.role === "admin";
+  const inspects = canInspectToilets(me.role);
   const [todayRooms, setTodayRooms] = useState<{ id: number; title: string; starts_at: string; ends_at: string; rooms: { name: string } | null }[] | null>(null);
   const [mine, setMine] = useState<Upcoming[] | null>(null);
   const [counts, setCounts] = useState<Counts | null>(null);
