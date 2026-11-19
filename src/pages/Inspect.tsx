@@ -3,7 +3,7 @@ import { errText, supabase } from "../lib/supabase";
 import { useMe } from "../lib/me";
 import { navigate } from "../lib/router";
 import { compressImage } from "../lib/image";
-import { Empty, PageHeader } from "../components/ui";
+import { Empty, ModuleHero } from "../components/ui";
 import { Camera, ClipboardCheck } from "lucide-react";
 import { canInspectToilets, CAT_LABEL, GENDER_LABEL, type Item } from "../lib/toilet";
 
@@ -95,10 +95,10 @@ export default function Inspect({ token }: { token: string }) {
 
   return (
     <>
-      <PageHeader icon={ClipboardCheck} tone="toilets" title={`ตรวจ: ${toilet.name}`}
+      <ModuleHero mod="c-wc" icon={ClipboardCheck} title={`ตรวจ: ${toilet.name}`}
         desc={<>{toilet.building ? `${toilet.building} · ` : ""}{GENDER_LABEL[toilet.gender]} · กด ✓ ผ่าน หรือ ✕ ไม่ผ่าน ให้ครบทุกข้อ</>}>
         <button className="btn" onClick={() => setAll(true)}>ผ่านทุกข้อ</button>
-      </PageHeader>
+      </ModuleHero>
 
       {(["H", "A", "S"] as const).map((cat) => {
         const list = items.filter((i) => i.category === cat);

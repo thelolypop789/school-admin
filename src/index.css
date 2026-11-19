@@ -809,3 +809,21 @@ td.num { font-variant-numeric: tabular-nums; }
 .mhero .mh-tabs button:focus-visible { outline-color: #fff; }
 /* มือถือมีตราบนแถบบนแล้ว ไม่ต้องซ้ำในหัวหน้าแรก */
 @media (max-width: 899px) { .hhero .who { display: none; } .hhero .date { margin-top: .1rem; } }
+
+/* ปุ่มในหัวแผ่นสี */
+.mhero .mh-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: .9rem; }
+.mhero .mh-actions .btn { background: rgb(255 255 255 / .2); color: #fff; border: 0; box-shadow: inset 0 0 0 1px rgb(255 255 255 / .35); min-height: 40px; }
+.mhero .mh-actions .btn:hover { background: rgb(255 255 255 / .3); color: #fff; }
+.mhero .mh-actions .mh-tabs { margin-top: 0; }
+@media (max-width: 420px) { .mhero .mh-stats div { padding: .4rem .5rem; font-size: .72rem; } .mhero .mh-stats b { font-size: 1.2rem; } }
+/* เส้นเวลา/ปฏิทินในหน้างานใช้สีประจำงาน */
+.tl-block { background: var(--a, var(--burgundy)); }
+.ev.ok { background: var(--a, var(--burgundy)); }
+.ev.wait { box-shadow: inset 3px 0 0 var(--a, var(--gold)); }
+.cal-day.today .cal-num { background: var(--a, var(--burgundy)); }
+.cal-day.sel { box-shadow: inset 0 0 0 2px var(--a, var(--burgundy)); }
+.card.toilet { border-left: 0; position: relative; overflow: hidden; }
+.card.toilet::before { content: ""; position: absolute; left: 0; top: 14px; bottom: 14px; width: 4px; border-radius: 0 4px 4px 0; background: var(--line-strong); }
+.card.toilet.ok::before { background: var(--ok); } .card.toilet.warn::before { background: var(--gold); } .card.toilet.bad::before { background: var(--bad); }
+/* หน้าในคอลัมน์ขวาของ grid: margin auto ทำให้หดตามเนื้อหา ต้องกำหนดความกว้างเต็มก่อน */
+@media (min-width: 900px) { .page { width: 100%; } }

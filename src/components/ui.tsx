@@ -118,3 +118,23 @@ export function PageHeader(props: {
     </header>
   );
 }
+
+/** หัวหน้าแบบแผ่นสีประจำงาน (mod = c-room/c-car/c-fix/c-wc/c-ga) + ตัวเลขสรุป + ปุ่ม/แท็บใน children */
+export function ModuleHero({ mod, icon: Icon, title, desc, stats, children }: {
+  mod: string; icon: LucideIcon; title: string; desc?: ReactNode;
+  stats?: { n: ReactNode; label: string }[]; children?: ReactNode;
+}) {
+  return (
+    <header className={`mhero ${mod}`}>
+      <Icon size={64} strokeWidth={1.5} className="mh-ic" aria-hidden />
+      <h1>{title}</h1>
+      {desc && <p>{desc}</p>}
+      {stats && stats.length > 0 && (
+        <div className="mh-stats" style={{ gridTemplateColumns: `repeat(${stats.length}, minmax(0, 1fr))` }} aria-live="polite">
+          {stats.map((x) => <div key={x.label}><b>{x.n}</b>{x.label}</div>)}
+        </div>
+      )}
+      {children && <div className="mh-actions">{children}</div>}
+    </header>
+  );
+}
