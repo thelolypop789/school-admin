@@ -70,5 +70,45 @@ t('altText ≤ 400', plan('pending_director', null, { destination: 'ก'.repeat(
 const uris = [...card('pending_deputy').matchAll(/"uri":"([^"]+)"/g)].map((m) => m[1]);
 t('app links open in external browser (Google blocks LINE webview login)', uris.length > 0 && uris.every((u) => u.endsWith('openExternalBrowser=1')));
 t('externalUrl keeps existing query', L.externalUrl('https://a/b?x=1') === 'https://a/b?x=1&openExternalBrowser=1');
+
+// ---------------- แจ้งซ่อมงานอาคารสถานที่
+const rep = { id: 5, title: 'หลอดไฟห้อง 201 เสีย', detail: 'ดับสนิท', location: 'อาคาร 2 ห้อง 201', category: 'electric', priority: 'high',
+  status: 'new', plan_start: '2026-11-27', plan_end: '2026-11-27', proposal: 'ช่างว่างวันพฤหัส', exec_decision: null, exec_note: null, done_note: null,
+  reporter: { full_name: 'ครู เอ', line_user_id: 'Ua' } };
+const rplan = (status, from = null, extra = {}) => L.repairNotifyPlan({ ...rep, status, ...extra }, from, 'https://app');
+const rroles = (p) => p.map((x) => x.to === 'requester' ? 'requester' : x.to.role).join(',');
+t('repair new → facilities head', rroles(rplan('new')) === 'facilities_head');
+t('repair new shows priority in title', JSON.stringify(rplan('new')).includes('ด่วน'));
+t('repair proposed → deputy', rroles(rplan('proposed', 'new')) === 'deputy');
+t('repair scheduled → reporter', rroles(rplan('scheduled', 'proposed')) === 'requester');
+t('repair done → reporter', rroles(rplan('done', 'scheduled')) === 'requester');
+t('repair sent back (urgent) → facilities head with exec note', rroles(rplan('new', 'proposed', { exec_decision: 'urgent', exec_note: 'ห้องสอบวันจันทร์' })) === 'facilities_head'
+  && JSON.stringify(rplan('new', 'proposed', { exec_decision: 'urgent', exec_note: 'ห้องสอบวันจันทร์' })).includes('ห้องสอบวันจันทร์'));
+t('repair sent back (defer) title', JSON.stringify(rplan('new', 'proposed', { exec_decision: 'defer' })).includes('ทำงานอื่นก่อน'));
+t('repair cancelled while proposed → deputy; otherwise nobody', rroles(rplan('cancelled', 'proposed')) === 'deputy' && rplan('cancelled', 'new').length === 0);
+t('repair in-progress statuses nobody else', rplan('proposed', 'scheduled').length === 1);
+
+const rcard = (status) => JSON.stringify(L.repairCard({ ...rep, status }, 'https://app'));
+const racts = (status) => [...rcard(status).matchAll(/"data":"([^"]+)"/g)].map((m) => L.parseRepairPostback(m[1]).a).join(',');
+t('repair proposed card: agree + urgent + defer', racts('proposed') === 'agree,urgent,defer');
+t('repair new card: no decision buttons', racts('new') === '' && rcard('new').includes('https://app/facilities'));
+const rd = L.repairPostbackData('urgent', 9, 'proposed');
+t('repair postback round trip', JSON.stringify(L.parseRepairPostback(rd)) === JSON.stringify({ a: 'urgent', id: 9, s: 'proposed' }));
+t('repair postback is not a booking postback and vice versa', L.parsePostback(rd) === null && L.parseRepairPostback(L.postbackData('forward', 3, 'pending_deputy')) === null);
+t('repair postback rejects unknown decision / bad id', L.parseRepairPostback('v=1&k=r&a=delete&id=1&s=proposed') === null && L.parseRepairPostback('v=1&k=r&a=agree&id=0&s=proposed') === null);
+t('repair postback fits 300 chars', rd.length < 300);
+const rlabels = [...rcard('proposed').matchAll(/"label":"([^"]+)"/g)].map((m) => m[1]);
+t('repair button labels ≤ 20 chars', rlabels.every((l) => [...l].length <= 20));
+const ruris = [...rcard('proposed').matchAll(/"uri":"([^"]+)"/g)].map((m) => m[1]);
+t('repair links open in external browser', ruris.length > 0 && ruris.every((u) => u.endsWith('openExternalBrowser=1')));
+t('repair altText ≤ 400', rplan('proposed', 'new', { title: 'ก'.repeat(500) })[0].messages[0].altText.length <= 400);
+t('long detail truncated', JSON.stringify(L.repairCard({ ...rep, detail: 'ข'.repeat(300) }, 'x')).length < JSON.stringify(L.repairCard({ ...rep, detail: 'ข'.repeat(30) }, 'x')).length + 300);
+t('plan range formats one day and range', L.planRange('2026-11-27', '2026-11-27') === L.planRange('2026-11-27', null) && L.planRange('2026-11-27', '2026-11-28').includes(' – ') && L.planRange(null, null) === '-');
+const mixed = L.queueMessage([{ ...base, status: 'pending_director' }], 'https://app', [{ ...rep, status: 'proposed' }]);
+t('queue merges bookings + repairs in one carousel', mixed.type === 'flex' && mixed.contents.contents.length === 2);
+t('queue only repairs', L.queueMessage([], 'https://app', [{ ...rep, status: 'proposed' }]).contents.contents.length === 1);
+t('queue caps at 10', L.queueMessage([], 'x', Array.from({ length: 14 }, () => ({ ...rep, status: 'proposed' }))).contents.contents.length === 10);
+t('repair done texts mention title', ['agree', 'urgent', 'defer'].every((d) => L.repairDoneText(d, 'เรื่องX').includes('เรื่องX')));
+t('bad_action has Thai text', L.errorText('ERROR: bad_action').includes('ปุ่ม'));
 console.log(`${n - bad}/${n} passed`);
 process.exit(bad ? 1 : 0);

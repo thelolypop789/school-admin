@@ -61,6 +61,7 @@ const ERRORS: Record<string, string> = {
   use_app: "ขั้นจัดรถต้องเลือกรถและคนขับ กรุณาทำในระบบ",
   bad_code: "รหัสไม่ถูกต้องหรือหมดอายุแล้ว (ใช้ได้ 15 นาที)\nสร้างรหัสใหม่ในระบบ แล้วส่งมาอีกครั้ง",
   not_found: "ไม่พบคำขอนี้",
+  bad_action: "ปุ่มนี้ใช้ไม่ได้แล้ว พิมพ์ งาน เพื่อดูเรื่องล่าสุด",
 };
 export function errorCode(message: string | undefined | null): string {
   const m = message ?? "";
@@ -201,10 +202,145 @@ export function notifyPlan(b: Booking, from: string | null, appUrl: string): Pla
   return [];
 }
 
-/** คำสั่ง "งาน": การ์ดงานที่รออยู่ (สูงสุด 10 ใบ ตามขีดจำกัด carousel) */
-export function queueMessage(rows: Booking[], appUrl: string) {
-  if (!rows.length) return { type: "text", text: "ตอนนี้ไม่มีคำขอใช้รถรอคุณพิจารณา ✓" };
-  return flex(`คำขอใช้รถรอคุณ ${rows.length} รายการ`, { type: "carousel", contents: rows.slice(0, 10).map((b) => reviewCard(b, appUrl)) });
+/** คำสั่ง "งาน": การ์ดงานที่รออยู่ (คำขอใช้รถ + เรื่องแจ้งซ่อมที่เสนอผู้บริหาร; สูงสุด 10 ใบ ตามขีดจำกัด carousel) */
+export function queueMessage(rows: Booking[], appUrl: string, repairs: Repair[] = []) {
+  const bubbles = [...rows.map((b) => reviewCard(b, appUrl)), ...repairs.map((r) => repairCard(r, appUrl))].slice(0, 10);
+  if (!bubbles.length) return { type: "text", text: "ตอนนี้ไม่มีเรื่องรอคุณพิจารณา ✓" };
+  return flex(`เรื่องรอคุณพิจารณา ${bubbles.length} รายการ`, { type: "carousel", contents: bubbles });
+}
+
+// ---------------------------------------------------------------- แจ้งซ่อมงานอาคารสถานที่
+export type RepairDecision = "agree" | "urgent" | "defer";
+export type Repair = {
+  id: number;
+  title: string;
+  detail: string | null;
+  location: string;
+  category: string;
+  priority: string;
+  status: string;
+  plan_start: string | null;
+  plan_end: string | null;
+  proposal: string | null;
+  exec_decision: string | null;
+  exec_note: string | null;
+  done_note: string | null;
+  reporter: { full_name: string | null; email?: string | null; line_user_id?: string | null } | null;
+};
+const DECISIONS: RepairDecision[] = ["agree", "urgent", "defer"];
+
+export const PRIORITY_TH: Record<string, string> = { urgent: "ด่วนมาก", high: "ด่วน", normal: "ปกติ", low: "ไม่เร่งด่วน" };
+export const CATEGORY_TH: Record<string, string> = {
+  electric: "ไฟฟ้า", water: "ประปา/สุขา", building: "อาคาร/โครงสร้าง", furniture: "เครื่องเรือน", aircon: "เครื่องปรับอากาศ", other: "อื่นๆ",
+};
+
+/** postback ของปุ่มผู้บริหารในการ์ดแจ้งซ่อม (k=r แยกจากปุ่มคำขอใช้รถ) */
+export function repairPostbackData(d: RepairDecision, id: number, expected: string): string {
+  return new URLSearchParams({ v: "1", k: "r", a: d, id: String(id), s: expected }).toString();
+}
+export function parseRepairPostback(data: string): { a: RepairDecision; id: number; s: string } | null {
+  const p = new URLSearchParams(data);
+  const a = p.get("a") as RepairDecision;
+  const id = Number(p.get("id"));
+  const s = p.get("s") ?? "";
+  if (p.get("v") !== "1" || p.get("k") !== "r" || !DECISIONS.includes(a) || !Number.isInteger(id) || id <= 0 || !s) return null;
+  return { a, id, s };
+}
+
+const dateFmt = new Intl.DateTimeFormat("th-TH", { timeZone: TZ, day: "numeric", month: "short", year: "2-digit" });
+/** "27 พ.ย. 69" หรือ "27 พ.ย. 69 – 28 พ.ย. 69" (รับวันที่ YYYY-MM-DD) */
+export function planRange(start: string | null, end: string | null): string {
+  if (!start) return "-";
+  const f = (d: string) => dateFmt.format(new Date(`${d}T12:00:00+07:00`));
+  return end && end !== start ? `${f(start)} – ${f(end)}` : f(start);
+}
+
+export function repairBubble(r: Repair, title: string, buttons: Btn[], extra?: { label: string; value: string }) {
+  const rows = [
+    row("เร่งด่วน", PRIORITY_TH[r.priority] ?? r.priority),
+    row("สถานที่", r.location),
+    row("ประเภท", CATEGORY_TH[r.category] ?? r.category),
+    ...(r.detail ? [row("รายละเอียด", r.detail.length > 120 ? `${r.detail.slice(0, 117)}…` : r.detail)] : []),
+    row("ผู้แจ้ง", r.reporter?.full_name || r.reporter?.email || "-"),
+    ...(r.plan_start ? [row("กำหนดซ่อม", planRange(r.plan_start, r.plan_end))] : []),
+    ...(r.proposal ? [row("หมายเหตุ", r.proposal)] : []),
+    ...(extra ? [row(extra.label, extra.value)] : []),
+  ];
+  return {
+    type: "bubble", size: "mega",
+    header: {
+      type: "box", layout: "vertical", backgroundColor: BURGUNDY, paddingAll: "16px", spacing: "xs",
+      contents: [
+        { type: "text", text: title, color: GOLD, size: "sm", weight: "bold", wrap: true },
+        { type: "text", text: r.title, color: "#ffffff", size: "lg", weight: "bold", wrap: true },
+      ],
+    },
+    body: { type: "box", layout: "vertical", spacing: "sm", paddingAll: "16px", contents: rows },
+    ...(buttons.length ? {
+      footer: {
+        type: "box", layout: "vertical", spacing: "sm", paddingAll: "12px",
+        contents: buttons.map((x) => ({
+          type: "button", style: x.style, height: "sm", action: x.action,
+          ...(x.style === "primary" ? { color: BURGUNDY } : {}),
+        })),
+      },
+    } : {}),
+  };
+}
+
+const repairBtn = (label: string, style: Btn["style"], d: RepairDecision, r: Repair, displayText: string): Btn =>
+  ({ label, style, action: { type: "postback", label, data: repairPostbackData(d, r.id, r.status), displayText } });
+
+/** การ์ดแจ้งซ่อมตามขั้น: รอผู้บริหาร = 3 ปุ่มตัดสิน, อื่นๆ = ลิงก์เปิดระบบ */
+export function repairCard(r: Repair, appUrl: string, title?: string) {
+  const open = (style: Btn["style"] = "link") => uriBtn(style === "primary" ? "เปิดระบบเพื่อลงวันที่" : "ดูรายละเอียดในระบบ", `${appUrl}/facilities`, style);
+  if (r.status === "proposed") {
+    return repairBubble(r, title ?? "เรื่องแจ้งซ่อม รอคุณพิจารณา", [
+      repairBtn("เห็นควรตามที่เสนอ", "primary", "agree", r, `เห็นควรตามที่เสนอ: ${r.title}`),
+      repairBtn("ให้ด่วน", "secondary", "urgent", r, `ให้ด่วน: ${r.title}`),
+      repairBtn("ให้ทำงานอื่นก่อน", "secondary", "defer", r, `ให้ทำงานอื่นก่อน: ${r.title}`),
+      open(),
+    ]);
+  }
+  if (r.status === "new") return repairBubble(r, title ?? "แจ้งซ่อมใหม่ รอลงวันที่", [open("primary")]);
+  return repairBubble(r, title ?? "เรื่องแจ้งซ่อม", [open()]);
+}
+
+/** ใครต้องได้ LINE เมื่อเรื่องแจ้งซ่อมเปลี่ยนสถานะ (from = สถานะก่อนหน้า, null = สร้างใหม่) */
+export function repairNotifyPlan(r: Repair, from: string | null, appUrl: string): Plan[] {
+  const s = r.status;
+  const msg = (alt: string, bubble: unknown) => [flex(alt.slice(0, 400), bubble)];
+  if (s === "new" && from === null) {
+    const t = `แจ้งซ่อมใหม่ · ${PRIORITY_TH[r.priority] ?? r.priority}`;
+    return [{ to: { role: "facilities_head" }, messages: msg(`${t}: ${r.title}`, repairCard(r, appUrl, t)) }];
+  }
+  if (s === "new" && from === "proposed") {
+    const t = r.exec_decision === "urgent" ? "ผู้บริหารให้ด่วน เสนอวันใหม่" : "ผู้บริหารให้ทำงานอื่นก่อน เสนอวันใหม่";
+    const bubble = repairBubble(r, t, [uriBtn("เปิดระบบเพื่อลงวันที่", `${appUrl}/facilities`, "primary")],
+      r.exec_note ? { label: "ผู้บริหาร", value: r.exec_note } : undefined);
+    return [{ to: { role: "facilities_head" }, messages: msg(`${t}: ${r.title}`, bubble) }];
+  }
+  if (s === "proposed") {
+    return [{ to: { role: "deputy" }, messages: msg(`เรื่องแจ้งซ่อมรอคุณพิจารณา: ${r.title}`, repairCard(r, appUrl)) }];
+  }
+  if (s === "scheduled") {
+    return [{ to: "requester", messages: msg(`กำหนดซ่อมแล้ว: ${r.title}`,
+      repairBubble(r, "กำหนดวันซ่อมแล้ว ✓", [uriBtn("ดูในระบบ", `${appUrl}/facilities`)])) }];
+  }
+  if (s === "done") {
+    return [{ to: "requester", messages: msg(`ซ่อมเสร็จแล้ว: ${r.title}`,
+      repairBubble(r, "ซ่อมเสร็จแล้ว ✓", [], r.done_note ? { label: "ผลการซ่อม", value: r.done_note } : undefined)) }];
+  }
+  if (s === "cancelled" && from === "proposed") {
+    return [{ to: { role: "deputy" }, messages: [{ type: "text", text: `เรื่องแจ้งซ่อม "${r.title}" ถูกยกเลิกแล้ว ไม่ต้องพิจารณาต่อ` }] }];
+  }
+  return [];
+}
+
+export function repairDoneText(d: RepairDecision, title: string): string {
+  if (d === "agree") return `✓ เห็นควรตามที่เสนอแล้ว: ${title}\nลงปฏิทินและแจ้งผู้แจ้งแล้ว`;
+  if (d === "urgent") return `⚡ สั่งให้ด่วนแล้ว: ${title}\nส่งกลับหัวหน้างานอาคารสถานที่เสนอวันใหม่`;
+  return `↩ ให้ทำงานอื่นก่อนแล้ว: ${title}\nส่งกลับหัวหน้างานอาคารสถานที่เสนอวันใหม่`;
 }
 
 // ---------------------------------------------------------------- ข้อความตอบกลับ
@@ -234,4 +370,4 @@ export const WELCOME_TEXT =
   "เชื่อมบัญชีเพื่อรับแจ้งเตือนและอนุมัติผ่าน LINE:\n1. เข้าระบบ → ข้อมูลของฉัน → เชื่อม LINE\n2. ส่งรหัส 6 หลักที่ได้มาที่แชทนี้";
 
 export const HELP_TEXT =
-  "คำสั่งที่ใช้ได้\n• งาน — ดูคำขอใช้รถที่รอคุณพิจารณา\n• รหัส 6 หลัก — เชื่อมบัญชีกับระบบ\n\nคำขอใหม่จะส่งมาให้เองพร้อมปุ่มอนุมัติ";
+  "คำสั่งที่ใช้ได้\n• งาน — ดูคำขอใช้รถและเรื่องแจ้งซ่อมที่รอคุณพิจารณา\n• รหัส 6 หลัก — เชื่อมบัญชีกับระบบ\n\nคำขอใหม่จะส่งมาให้เองพร้อมปุ่มอนุมัติ";
