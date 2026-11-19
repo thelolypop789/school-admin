@@ -1,0 +1,153 @@
+// Edge function line-bot (deploy ด้วย verify_jwt = false)
+// รับ 2 แบบ:
+//   1. LINE webhook — เชื่อถือเมื่อ x-line-signature ตรงกับ LINE_CHANNEL_SECRET เท่านั้น
+//      รหัส 6 หลัก = ผูกบัญชี · ปุ่ม (postback) = เห็นชอบ/อนุมัติ/ส่งกลับ/ไม่อนุมัติ · "งาน" = ดูคำขอที่รอ
+//   2. แจ้งเตือนจาก trigger ใน DB (pg_net) — เชื่อถือเมื่อ x-notify-secret ตรงกับ private.config (ตรวจผ่าน line_notify_secret_ok)
+// สิทธิ์ทุกอย่างตรวจใน DB (line_decide) — ที่นี่แค่แปลงข้อความ
+// secrets: LINE_CHANNEL_SECRET, LINE_CHANNEL_ACCESS_TOKEN; ตัวเลือก APP_URL (ค่าเริ่มต้นคือ URL ของ Vercel)
+import { createClient } from "npm:@supabase/supabase-js@2";
+import * as L from "./logic.ts";
+
+const SECRET = (Deno.env.get("LINE_CHANNEL_SECRET") ?? "").trim();
+const TOKEN = (Deno.env.get("LINE_CHANNEL_ACCESS_TOKEN") ?? "").trim();
+const APP_URL = (Deno.env.get("APP_URL") ?? "https://school-admin-fromauto.vercel.app").replace(/\/+$/, "");
+const REASON_TTL_MS = 10 * 60_000;
+
+const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
+
+const BOOKING_SELECT =
+  "id,destination,purpose,passengers,starts_at,ends_at,status,approver_note,travelers," +
+  "requester:profiles!vehicle_bookings_booked_by_fkey(full_name,email,line_user_id),vehicle:vehicles(name,plate),driver:drivers(full_name)";
+
+async function hmacB64(body: string): Promise<string> {
+  const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(SECRET), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  const sig = new Uint8Array(await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(body)));
+  return btoa(String.fromCharCode(...sig));
+}
+
+async function lineApi(path: string, payload: unknown) {
+  if (!TOKEN) { console.error("LINE_CHANNEL_ACCESS_TOKEN ยังไม่ได้ตั้ง"); return; }
+  const res = await fetch(`https://api.line.me/v2/bot/message/${path}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${TOKEN}` },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) console.error(`LINE ${path} ${res.status}: ${await res.text()}`);
+}
+const reply = (replyToken: string, messages: unknown[]) => lineApi("reply", { replyToken, messages });
+const replyText = (replyToken: string, text: string, quick?: string[]) =>
+  reply(replyToken, [{
+    type: "text", text,
+    ...(quick ? { quickReply: { items: quick.map((q) => ({ type: "action", action: { type: "message", label: q, text: q } })) } } : {}),
+  }]);
+
+async function loadBooking(id: number): Promise<L.Booking | null> {
+  const { data, error } = await sb.from("vehicle_bookings").select(BOOKING_SELECT).eq("id", id).maybeSingle();
+  if (error) console.error("loadBooking", error.message);
+  return (data as unknown as L.Booking) ?? null;
+}
+
+// ---------------------------------------------------------------- แจ้งเตือนจาก trigger
+async function notify(evt: { booking_id: number; status: string; from: string | null }) {
+  const b = await loadBooking(evt.booking_id);
+  if (!b || b.status !== evt.status) return; // สถานะเปลี่ยนไปแล้วระหว่างรอคิว — ตัวใหม่จะส่งเอง
+  for (const plan of L.notifyPlan(b, evt.from ?? null, APP_URL)) {
+    let to: string[] = [];
+    if (plan.to === "requester") {
+      if (b.requester?.line_user_id) to = [b.requester.line_user_id];
+    } else {
+      const { data } = await sb.from("profiles").select("line_user_id").eq("role", plan.to.role).not("line_user_id", "is", null);
+      to = (data ?? []).map((r: { line_user_id: string }) => r.line_user_id);
+    }
+    if (to.length === 1) await lineApi("push", { to: to[0], messages: plan.messages });
+    else if (to.length > 1) await lineApi("multicast", { to, messages: plan.messages });
+  }
+}
+
+// ---------------------------------------------------------------- LINE webhook
+type LineEvent = {
+  type: string; replyToken?: string; source?: { type: string; userId?: string };
+  message?: { type: string; text?: string }; postback?: { data: string };
+};
+
+async function decide(replyToken: string, user: string, a: L.Action, id: number, expected: string, note?: string) {
+  const { data, error } = await sb.rpc("line_decide", { p_line_user: user, p_id: id, p_action: a, p_expected: expected, p_note: note ?? null });
+  if (error) return replyText(replyToken, L.errorText(error.message));
+  const r = data as { status: string; destination: string };
+  return replyText(replyToken, L.doneText(a, r.status, r.destination));
+}
+
+async function handle(ev: LineEvent) {
+  const user = ev.source?.userId;
+  if (ev.source?.type !== "user" || !user || !ev.replyToken) return; // กลุ่ม/ห้อง: ไม่ตอบ
+  const rt = ev.replyToken;
+
+  if (ev.type === "follow") return replyText(rt, L.WELCOME_TEXT);
+
+  if (ev.type === "postback" && ev.postback) {
+    const p = L.parsePostback(ev.postback.data);
+    if (!p) return replyText(rt, "ปุ่มนี้ใช้ไม่ได้แล้ว พิมพ์ งาน เพื่อดูคำขอล่าสุด");
+    if (p.a === "forward") return decide(rt, user, p.a, p.id, p.s);
+    // ส่งกลับ/ไม่อนุมัติ: ต้องมีเหตุผล → เช็กก่อนว่ายังทำได้ แล้วรอข้อความถัดไป
+    const [{ data: me }, b] = await Promise.all([
+      sb.from("profiles").select("id").eq("line_user_id", user).maybeSingle(),
+      loadBooking(p.id),
+    ]);
+    if (!me) return replyText(rt, L.errorText("not_linked"));
+    if (!b || b.status !== p.s) return replyText(rt, L.errorText("not_pending"));
+    await sb.from("line_pending_reasons").upsert({ line_user_id: user, booking_id: p.id, action: p.a, expected: p.s, created_at: new Date().toISOString() });
+    return replyText(rt, L.askReasonText(p.a, b.destination), ["ยกเลิก"]);
+  }
+
+  if (ev.type !== "message" || ev.message?.type !== "text") return replyText(rt, L.HELP_TEXT);
+  const text = (ev.message.text ?? "").trim();
+
+  // กำลังรอเหตุผลอยู่ → ข้อความนี้คือเหตุผล
+  const { data: pending } = await sb.from("line_pending_reasons").select("*").eq("line_user_id", user).maybeSingle();
+  if (pending) {
+    await sb.from("line_pending_reasons").delete().eq("line_user_id", user);
+    const fresh = Date.now() - Date.parse(pending.created_at) < REASON_TTL_MS;
+    if (fresh && L.isCancel(text)) return replyText(rt, "ยกเลิกแล้ว ไม่ได้ทำรายการ");
+    if (fresh && !L.isLinkCode(text) && !L.isQueueCommand(text)) {
+      return decide(rt, user, pending.action as L.Action, pending.booking_id, pending.expected, text);
+    }
+  }
+
+  if (L.isLinkCode(text)) {
+    const { data, error } = await sb.rpc("line_link_account", { p_line_user: user, p_code: text });
+    if (error) return replyText(rt, L.errorText(error.message));
+    const r = data as { full_name: string; role: string };
+    return replyText(rt, L.LINKED_TEXT(r.full_name, r.role));
+  }
+
+  if (L.isQueueCommand(text)) {
+    const { data: me } = await sb.from("profiles").select("id").eq("line_user_id", user).maybeSingle();
+    if (!me) return replyText(rt, L.errorText("not_linked"));
+    const { data: rows } = await sb.rpc("line_my_queue", { p_line_user: user });
+    const ids = ((rows ?? []) as { id: number }[]).map((r) => r.id);
+    const full = (await Promise.all(ids.map(loadBooking))).filter((b): b is L.Booking => !!b);
+    return reply(rt, [L.queueMessage(full, APP_URL)]);
+  }
+
+  return replyText(rt, L.HELP_TEXT, ["งาน"]);
+}
+
+Deno.serve(async (req) => {
+  if (req.method !== "POST") return new Response("ok");
+  const body = await req.text();
+
+  const sig = req.headers.get("x-line-signature");
+  if (sig) {
+    if (!SECRET || !L.signatureOk(await hmacB64(body), sig)) return new Response("bad signature", { status: 401 });
+    const events: LineEvent[] = JSON.parse(body).events ?? [];
+    await Promise.all(events.map((ev) => handle(ev).catch((e) => console.error("event", e))));
+    return new Response("ok");
+  }
+
+  const ns = req.headers.get("x-notify-secret");
+  if (ns && (await sb.rpc("line_notify_secret_ok", { p_secret: ns })).data === true) {
+    try { await notify(JSON.parse(body)); } catch (e) { console.error("notify", e); }
+    return new Response("ok");
+  }
+  return new Response("unauthorized", { status: 401 });
+});

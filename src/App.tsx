@@ -4,6 +4,7 @@ import { errText, isConfigured, ROLE_LABEL, SCHOOL_DOMAIN, supabase, type Profil
 import { Field, Modal } from "./components/ui";
 import { APP_NAME, initials, LOGO, SCHOOL_NAME } from "./lib/brand";
 import { Mark } from "./components/Mark";
+import { LineLink } from "./components/LineLink";
 import { CarFront, House, LogOut, Presentation, Settings, Toilet, UserPen, type LucideIcon } from "lucide-react";
 import { navigate, usePath } from "./lib/router";
 import { MeContext } from "./lib/me";
@@ -43,7 +44,7 @@ export default function App() {
   useEffect(() => {
     if (!uid) return;
     let alive = true;
-    supabase.from("profiles").select("id,email,full_name,role,line_user_id,position").eq("id", uid).maybeSingle()
+    supabase.from("profiles").select("id,email,full_name,role,line_linked,position").eq("id", uid).maybeSingle()
       .then(({ data, error }) => {
         if (!alive) return;
         if (error) setLoadErr(true); // เน็ตหลุด/เซิร์ฟเวอร์มีปัญหา — อย่าบอกว่าไม่ใช่บุคลากร
@@ -71,6 +72,7 @@ export default function App() {
   else page = <Home onEditProfile={openProfile} />;
 
   const signOut = () => supabase.auth.signOut();
+  const onLinked = (linked: boolean) => setMe((m) => (m ? { ...m, line_linked: linked } : m));
   const go = (p: string) => { setAccount(false); navigate(p); };
 
   return (
@@ -136,13 +138,13 @@ export default function App() {
           </div>
         </Modal>
       )}
-      {editProfile && <ProfileForm me={me} onClose={() => setEditProfile(false)} onSaved={(p) => { setMe(p); setEditProfile(false); }} />}
+      {editProfile && <ProfileForm me={me} onClose={() => setEditProfile(false)} onSaved={(p) => { setMe(p); setEditProfile(false); }} onLinked={onLinked} />}
     </MeContext.Provider>
   );
 }
 
 /** ชื่อ-นามสกุล (มีคำนำหน้า) และตำแหน่ง ใช้พิมพ์ในคำสั่งไปราชการ */
-function ProfileForm({ me, onClose, onSaved }: { me: Profile; onClose: () => void; onSaved: (p: Profile) => void }) {
+function ProfileForm({ me, onClose, onSaved, onLinked }: { me: Profile; onClose: () => void; onSaved: (p: Profile) => void; onLinked: (linked: boolean) => void }) {
   const [fullName, setFullName] = useState(me.full_name);
   const [position, setPosition] = useState(me.position ?? "");
   const [saving, setSaving] = useState(false);
@@ -165,8 +167,9 @@ function ProfileForm({ me, onClose, onSaved }: { me: Profile; onClose: () => voi
           <input id="pf-position" maxLength={120} value={position} onChange={(e) => setPosition(e.target.value)} />
         </Field>
         {err && <p className="error">{err}</p>}
-        <button className="btn primary big" disabled={saving}>{saving ? "กำลังบันทึก…" : "บันทึก"}</button>
+        <button className="btn primary big" disabled={saving}>{saving ? "กำลังบันทึก…" : "บันทึกชื่อและตำแหน่ง"}</button>
       </form>
+      <LineLink userId={me.id} linked={me.line_linked} onChange={onLinked} />
     </Modal>
   );
 }

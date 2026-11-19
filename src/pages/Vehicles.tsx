@@ -189,7 +189,7 @@ function Steps({ bookingId }: { bookingId: number }) {
       {steps.map((s) => (
         <li key={s.id} className={s.action === "return" ? "ret" : ""}>
           <b>{stepText(s)}</b> · {STAGE_LABEL[s.stage]} {s.actor?.full_name || s.actor?.email}
-          <div className="small muted">{fmtDateTime(s.acted_at)}</div>
+          <div className="small muted">{fmtDateTime(s.acted_at)}{s.channel === "line" && " · ผ่าน LINE"}</div>
           {s.note && <div className="small">“{s.note}”</div>}
         </li>
       ))}

@@ -48,10 +48,10 @@ export const STAGE_LABEL: Record<string, string> = {
 
 export type Step = {
   id: number; booking_id: number; stage: string; action: "submit" | "forward" | "return" | "reject" | "depart" | "close";
-  note: string | null; acted_at: string; actor: { full_name: string; email: string } | null;
+  note: string | null; acted_at: string; channel?: "app" | "line"; actor: { full_name: string; email: string } | null;
 };
 
-export const STEP_SELECT = "id,booking_id,stage,action,note,acted_at,actor:profiles!vehicle_booking_steps_actor_id_fkey(full_name,email)";
+export const STEP_SELECT = "id,booking_id,stage,action,note,acted_at,channel,actor:profiles!vehicle_booking_steps_actor_id_fkey(full_name,email)";
 
 export function stepText(s: Step): string {
   if (s.action === "submit") return "ส่งคำขอ";

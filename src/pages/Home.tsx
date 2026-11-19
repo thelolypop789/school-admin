@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ArrowRight, CarFront, ChevronRight, ClipboardCheck, Gauge, Presentation, Toilet, Undo2, type LucideIcon } from "lucide-react";
+import { ArrowRight, CarFront, ChevronRight, MessageCircle, ClipboardCheck, Gauge, Presentation, Toilet, Undo2, type LucideIcon } from "lucide-react";
 import { Mark } from "../components/Mark";
 import { ROLE_LABEL, supabase } from "../lib/supabase";
 import { useMe } from "../lib/me";
@@ -85,6 +85,14 @@ export default function Home({ onEditProfile }: { onEditProfile: () => void }) {
           </button>
         </div>
       </section>
+
+      {!me.line_linked && (me.role === "deputy" || me.role === "director" || me.role === "vehicle_head") && (
+        <button className="line-nudge" onClick={onEditProfile}>
+          <MessageCircle size={22} />
+          <span><b>อนุมัติคำขอใช้รถผ่าน LINE ได้แล้ว</b><small>เชื่อม LINE ครั้งเดียว แล้วคำขอที่รอคุณจะส่งเข้าแชทพร้อมปุ่มอนุมัติ</small></span>
+          <ChevronRight size={20} />
+        </button>
+      )}
 
       {todos.length > 0 && (
         <>
