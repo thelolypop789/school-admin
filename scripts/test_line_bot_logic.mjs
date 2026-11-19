@@ -67,5 +67,8 @@ t('queue → carousel', q.type === 'flex' && q.contents.type === 'carousel' && q
 t('empty queue → text', L.queueMessage([], 'x').type === 'text');
 t('altText ≤ 400', plan('pending_director', null, { destination: 'ก'.repeat(500) })[0].messages[0].altText.length <= 400);
 
+const uris = [...card('pending_deputy').matchAll(/"uri":"([^"]+)"/g)].map((m) => m[1]);
+t('app links open in external browser (Google blocks LINE webview login)', uris.length > 0 && uris.every((u) => u.endsWith('openExternalBrowser=1')));
+t('externalUrl keeps existing query', L.externalUrl('https://a/b?x=1') === 'https://a/b?x=1&openExternalBrowser=1');
 console.log(`${n - bad}/${n} passed`);
 process.exit(bad ? 1 : 0);

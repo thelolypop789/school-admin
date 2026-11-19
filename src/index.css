@@ -220,7 +220,7 @@ button.chip { cursor: pointer; margin: 0; }
 
 /* modal = bottom sheet บนมือถือ */
 .modal-bg { position: fixed; inset: 0; background: rgb(30 8 15 / .55); z-index: 50; display: grid; place-items: center; padding: 16px; animation: fade .15s ease-out; }
-.modal { background: var(--surface); border-radius: 18px; width: min(540px, 100%); max-height: 90vh; overflow: auto; padding: 1.15rem 1.25rem 1.4rem; box-shadow: var(--shadow-lg); border-top: 4px solid var(--gold); }
+.modal { color: var(--ink); text-align: left; background: var(--surface); border-radius: 18px; width: min(540px, 100%); max-height: 90vh; overflow: auto; padding: 1.15rem 1.25rem 1.4rem; box-shadow: var(--shadow-lg); border-top: 4px solid var(--gold); }
 .modal-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: .9rem; gap: .5rem; }
 .modal-head h3 { margin: 0; font-size: 1.3rem; }
 @media (max-width: 560px) {
@@ -553,3 +553,22 @@ td select { min-height: 36px; padding: .3rem .5rem; width: auto; }
 .table-toggle summary { cursor: pointer; color: var(--burgundy); font-weight: 600; font-size: .88rem; }
 .table-toggle table { margin-top: .5rem; }
 td.num { font-variant-numeric: tabular-nums; }
+
+/* ติดตั้งแอป */
+.install-nudge {
+  display: flex; align-items: center; gap: .75rem; margin: -0.75rem 0 1.75rem; padding: .75rem .85rem;
+  background: var(--burgundy-900); color: #fff; border-radius: var(--radius);
+}
+.install-icon { width: 46px; height: 46px; border-radius: 12px; background: var(--burgundy); color: var(--gold); display: grid; place-items: center; flex-shrink: 0; }
+.install-text { flex: 1; display: grid; line-height: 1.35; min-width: 0; }
+.install-text small { color: rgb(255 255 255 / .72); }
+.install-nudge .btn.gold { min-height: 40px; padding: .4rem .9rem; }
+.install-nudge .icon-btn { background: rgb(255 255 255 / .12); color: #fff; flex-shrink: 0; }
+.install-help { display: grid; gap: .8rem; }
+.install-help a.btn { text-decoration: none; }
+.install-steps { margin: 0; padding-left: 1.3rem; display: grid; gap: .6rem; }
+.install-steps li { line-height: 1.5; }
+.inline-ic { vertical-align: -3px; color: var(--burgundy); margin: 0 .1rem; }
+.side-install { width: 100%; min-height: 38px; font-size: .85rem; background: var(--gold); color: var(--burgundy-900); border-color: var(--gold); }
+.side-install:hover { background: var(--gold-light); color: var(--burgundy-900); border-color: var(--gold-light); }
+.login-foot .link { display: inline-flex; align-items: center; gap: .3rem; margin-top: .3rem; }
