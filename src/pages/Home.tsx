@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { ArrowRight, CarFront, ChevronRight, MessageCircle, ClipboardCheck, Gauge, Presentation, Toilet, Undo2, type LucideIcon } from "lucide-react";
 import { Mark } from "../components/Mark";
+import { InstallNudge } from "../components/Install";
 import { ROLE_LABEL, supabase } from "../lib/supabase";
 import { useMe } from "../lib/me";
 import { navigate } from "../lib/router";
@@ -93,6 +94,8 @@ export default function Home({ onEditProfile }: { onEditProfile: () => void }) {
           </button>
         </div>
       </section>
+
+      <InstallNudge />
 
       {!me.line_linked && (me.role === "deputy" || me.role === "director" || me.role === "vehicle_head") && (
         <button className="line-nudge" onClick={onEditProfile}>

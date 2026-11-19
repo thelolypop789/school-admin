@@ -5,6 +5,8 @@ import { Field, Modal } from "./components/ui";
 import { APP_NAME, initials, LOGO, SCHOOL_NAME } from "./lib/brand";
 import { Mark } from "./components/Mark";
 import { LineLink } from "./components/LineLink";
+import { InstallButton } from "./components/Install";
+import { detectPlatform, externalBrowserUrl } from "./lib/install";
 import { CarFront, House, LogOut, Presentation, Settings, Toilet, UserPen, type LucideIcon } from "lucide-react";
 import { navigate, usePath } from "./lib/router";
 import { MeContext } from "./lib/me";
@@ -96,6 +98,7 @@ export default function App() {
               <span className="avatar" aria-hidden>{initials(me.full_name, me.email)}</span>
               <span className="me-name"><b>{me.full_name || me.email}</b><span>{ROLE_LABEL[me.role]}</span></span>
             </div>
+            <InstallButton className="btn side-install" label="ติดตั้งแอป" />
             <div className="me-actions">
               <button className="btn" onClick={openProfile}><UserPen size={16} />ข้อมูลของฉัน</button>
               <button className="btn" onClick={signOut} title="ออกจากระบบ"><LogOut size={16} />ออก</button>
@@ -134,6 +137,7 @@ export default function App() {
             </div>
             <p className="muted small">{me.email}</p>
             <button className="btn big" onClick={() => { setAccount(false); openProfile(); }}><UserPen size={18} />แก้ไขชื่อและตำแหน่ง</button>
+            <InstallButton className="btn big" />
             <button className="btn big danger" onClick={signOut}><LogOut size={18} />ออกจากระบบ</button>
           </div>
         </Modal>
@@ -181,6 +185,8 @@ function Center({ children }: { children: React.ReactNode }) {
 function Login() {
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
+  const p = detectPlatform();
+  const inApp = p === "line" || p === "inapp" ? p : null;
   const signIn = async () => {
     setErr(""); setBusy(true);
     const { error } = await supabase.auth.signInWithOAuth({
@@ -198,11 +204,17 @@ function Login() {
         <h1>{APP_NAME}</h1>
         <div className="school">{SCHOOL_NAME}</div>
         <p className="lead">จองห้องประชุม ขอใช้รถไปราชการ และบันทึกผลตรวจห้องน้ำ ในที่เดียว</p>
+        {inApp && (
+          <div className="warn-box">เปิดอยู่ในแอป{inApp === "line" ? " LINE" : ""} ซึ่ง Google ไม่ให้เข้าสู่ระบบ
+            {inApp === "line" ? <a className="btn primary big" href={externalBrowserUrl()} style={{ marginTop: ".6rem" }}>เปิดใน Safari / Chrome</a> : <> กด ⋯ มุมขวาบน → เปิดในเบราว์เซอร์</>}
+          </div>
+        )}
         <button className="btn primary big" onClick={signIn} disabled={busy}>
           <span className="g" aria-hidden><GoogleG /></span>{busy ? "กำลังไปหน้า Google…" : "เข้าสู่ระบบด้วย Google"}
         </button>
         <div className="login-foot">
           <p className="muted small">ใช้บัญชีอีเมล @{SCHOOL_DOMAIN} ของโรงเรียน</p>
+          <InstallButton className="link" />
         </div>
         {err && <p className="error">{err}</p>}
       </div>

@@ -88,7 +88,11 @@ export function fmtRange(startIso: string, endIso: string): string {
 type Btn = { label: string; style: "primary" | "secondary" | "link"; action: Record<string, string> };
 const postbackBtn = (label: string, style: Btn["style"], a: Action, b: Booking, displayText: string): Btn =>
   ({ label, style, action: { type: "postback", label, data: postbackData(a, b.id, b.status), displayText } });
-const uriBtn = (label: string, uri: string, style: Btn["style"] = "link"): Btn => ({ label, style, action: { type: "uri", label, uri } });
+/** เปิดลิงก์ในเบราว์เซอร์ภายนอก — Google ไม่ให้ล็อกอินในเบราว์เซอร์ของแอป LINE */
+export function externalUrl(uri: string): string {
+  return uri + (uri.includes("?") ? "&" : "?") + "openExternalBrowser=1";
+}
+const uriBtn = (label: string, uri: string, style: Btn["style"] = "link"): Btn => ({ label, style, action: { type: "uri", label, uri: externalUrl(uri) } });
 
 function row(label: string, value: string) {
   return {

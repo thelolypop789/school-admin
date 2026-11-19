@@ -1,6 +1,7 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import "./index.css";
+import "./lib/install"; // จับ beforeinstallprompt ให้ทันก่อน React render
 import App from "./App.tsx";
 
 // หลัง deploy ใหม่ หน้าที่เปิดค้างอยู่จะหา chunk เก่าไม่เจอ → reload ครั้งเดียว
