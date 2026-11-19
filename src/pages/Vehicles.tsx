@@ -5,7 +5,8 @@ import { navigate } from "../lib/router";
 import { dayRange, fmtDateTime, fmtRange, hhmm, toISO, todayISO } from "../lib/time";
 import { EXPENSES, LEAD_DAYS, licenseDaysLeft, OPEN, PRINTABLE, RESERVED, REVIEW_STATUS, STAGE_LABEL, STEP_SELECT, stepText, type Step, type Traveler } from "../lib/vehicle";
 import VehicleTrips from "./VehicleTrips";
-import { DateNav, Empty, Field, Modal, StatusChip, Timeline } from "../components/ui";
+import { DateNav, Empty, Field, Modal, PageHeader, StatusChip, Timeline } from "../components/ui";
+import { Check, CarFront, Plus, Printer, X } from "lucide-react";
 
 export type Vehicle = { id: number; name: string; plate: string | null; seats: number | null; active: boolean };
 export type Driver = { id: number; full_name: string; phone: string | null; license_expiry: string | null; active: boolean };
@@ -74,11 +75,10 @@ export default function Vehicles() {
 
   return (
     <>
-      <div className="page-head">
-        <h1>จองรถ</h1>
-        <button className="btn primary" onClick={() => setForm({ edit: null })}>+ ขอใช้รถ</button>
-      </div>
-      <p className="muted small">ขั้นตอน: ผู้ขอ → หัวหน้างานยานพาหนะ (จัดรถ) → รอง ผอ. ฝ่ายบริหารทั่วไป → ผู้อำนวยการ (อนุมัติ) → พิมพ์ใบขออนุญาต → ออกเดินทาง → ปิดงาน (เจ้าหน้าที่บันทึกเลขไมล์)</p>
+      <PageHeader icon={CarFront} tone="vehicles" title="ขอใช้รถไปราชการ"
+        desc="ยื่นคำขอ → งานยานพาหนะจัดรถ → รอง ผอ. → ผอ. อนุมัติ → พิมพ์คำสั่ง → เดินทาง → ปิดงาน">
+        <button className="btn primary" onClick={() => setForm({ edit: null })}><Plus size={18} />ขอใช้รถ</button>
+      </PageHeader>
       <div className="tabs scroll">
         {reviewStatus && <button className={tab === "review" ? "on" : ""} onClick={() => setTab("review")}>{reviewTitle} {toReview.length > 0 && <span className="badge">{toReview.length}</span>}</button>}
         <button className={tab === "mine" ? "on" : ""} onClick={() => setTab("mine")}>คำขอของฉัน</button>
@@ -96,7 +96,7 @@ export default function Vehicles() {
               <p className="muted">{b.purpose} · {b.passengers} คน</p>
               {b.travelers?.length > 0 && <p className="small muted">{b.travelers.map((t) => t.name).join(", ")}</p>}
               <p className="small">ผู้ขอ: {b.requester?.full_name || b.requester?.email}</p>
-              {b.vehicle_id && <p className="small">🚐 {vname(b.vehicle_id)}{b.driver_id ? ` · คนขับ ${dname(b.driver_id)}` : ""}</p>}
+              {b.vehicle_id && <p className="small"><CarFront size={14} style={{ verticalAlign: "-2px" }} /> {vname(b.vehicle_id)}{b.driver_id ? ` · คนขับ ${dname(b.driver_id)}` : ""}</p>}
               {b.approver_note && <p className="small muted">หมายเหตุล่าสุด: {b.approver_note}</p>}
               <button className="btn primary" onClick={() => setReviewing(b)}>พิจารณา</button>
             </section>
@@ -109,15 +109,17 @@ export default function Vehicles() {
           <ul className="list">
             {mine.map((b) => (
               <li key={b.id}>
-                <div>
-                  <b>{fmtRange(b.starts_at, b.ends_at)}</b> · {b.destination} <StatusChip status={b.status} />
-                  {RESERVED.includes(b.status) && b.vehicle_id && <div className="small">🚐 {vname(b.vehicle_id)}{b.driver_id ? ` · คนขับ ${dname(b.driver_id)}` : ""}</div>}
+                <div className="req">
+                  <div className="req-head"><b>{b.destination}</b> <StatusChip status={b.status} /></div>
+                  <div className="small muted">{fmtRange(b.starts_at, b.ends_at)}</div>
+                  <Progress status={b.status} />
+                  {RESERVED.includes(b.status) && b.vehicle_id && <div className="small"><CarFront size={14} style={{ verticalAlign: "-2px" }} /> {vname(b.vehicle_id)}{b.driver_id ? ` · คนขับ ${dname(b.driver_id)}` : ""}</div>}
                   {b.status === "returned" && b.approver_note && <div className="small error">เหตุผลที่ส่งกลับ: {b.approver_note}</div>}
                   {b.status === "rejected" && b.approver_note && <div className="small error">เหตุผลที่ไม่อนุมัติ: {b.approver_note}</div>}
                   <div className="actions">
                     <button className="link" onClick={() => setHistory(b)}>ดูขั้นตอน</button>
                     {b.status === "returned" && new Date(b.ends_at) > new Date() && <button className="link" onClick={() => setForm({ edit: b })}>แก้ไขแล้วส่งใหม่</button>}
-                    {PRINTABLE.includes(b.status) && <button className="link" onClick={() => navigate(`/vehicles/print/${b.id}`)}>🖨️ พิมพ์ใบขออนุญาต</button>}
+                    {PRINTABLE.includes(b.status) && <button className="link" onClick={() => navigate(`/vehicles/print/${b.id}`)}><Printer size={14} style={{ verticalAlign: "-2px" }} /> พิมพ์ใบขออนุญาต</button>}
                     {OPEN.includes(b.status) && b.status !== "returned" && new Date(b.ends_at) > new Date() && (
                       <button className="link" onClick={() => setForm({ edit: null, copy: b })} title="คนไม่พอรถคันเดียว: ส่งคำขอคันที่ 2 ด้วยข้อมูลเดิม">+ ขอเพิ่มอีกคัน</button>
                     )}
@@ -351,7 +353,7 @@ function ReviewForm({ booking, role, vehicles, drivers, onClose, onDone }: {
           <b>{booking.destination}</b>
           <div>{fmtRange(booking.starts_at, booking.ends_at)}</div>
           <div className="muted small">{booking.purpose} · {booking.passengers} คน · ผู้ขอ {booking.requester?.full_name || booking.requester?.email}</div>
-          {!isHead && vname && <div className="small">🚐 {vname}{dname ? ` · คนขับ ${dname}` : ""}</div>}
+          {!isHead && vname && <div className="small"><CarFront size={14} style={{ verticalAlign: "-2px" }} /> {vname}{dname ? ` · คนขับ ${dname}` : ""}</div>}
           {booking.travelers?.length > 0 && (
             <ol className="small trav-list">{booking.travelers.map((t, i) => <li key={i}>{t.name} <span className="muted">· {t.position}</span></li>)}</ol>
           )}
@@ -410,4 +412,26 @@ function LeadChip({ b }: { b: VBooking }) {
   const days = (new Date(b.starts_at).getTime() - new Date(b.created_at).getTime()) / 86400000;
   if (days >= LEAD_DAYS) return null;
   return <span className="chip warn">ยื่นล่วงหน้า {days < 1 ? "ไม่ถึง 1" : Math.floor(days)} วัน</span>;
+}
+
+/** ลำดับขั้นของคำขอ (ตรงกับ flow ใน DB): ยื่นคำขอ → จัดรถ → รอง ผอ. → ผอ. → เดินทาง → ปิดงาน */
+const PROGRESS = ["ยื่นคำขอ", "จัดรถ", "รอง ผอ.", "ผอ.", "เดินทาง", "ปิดงาน"];
+const AT: Record<string, number> = { returned: 0, pending: 1, pending_deputy: 2, pending_director: 3, rejected: 3, approved: 4, on_trip: 4, completed: 6 };
+function Progress({ status }: { status: string }) {
+  if (status === "cancelled") return null;
+  const at = AT[status] ?? 0;
+  const stop = status === "returned" || status === "rejected";
+  return (
+    <ol className="progress" aria-label="ขั้นตอนของคำขอ">
+      {PROGRESS.map((label, i) => {
+        const cls = i < at ? "done" : i === at ? (stop ? "stop" : "now") : "";
+        return (
+          <li key={label} className={cls} aria-current={i === at ? "step" : undefined}>
+            <span className="dot">{i < at ? <Check size={12} strokeWidth={3} /> : i === at && stop ? <X size={12} strokeWidth={3} /> : null}</span>
+            {label}
+          </li>
+        );
+      })}
+    </ol>
+  );
 }

@@ -1,4 +1,5 @@
 import { useEffect, type ReactNode } from "react";
+import type { LucideIcon } from "lucide-react";
 
 export function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
   useEffect(() => {
@@ -98,4 +99,22 @@ export function StatusChip({ status }: { status: string }) {
   };
   const [label, tone] = map[status] ?? [status, "mute"];
   return <span className={`chip ${tone}`}>{label}</span>;
+}
+
+export type Tone = "rooms" | "vehicles" | "toilets" | "admin" | "brand";
+
+/** หัวหน้า: ไอคอนสีประจำงาน + ชื่อหน้า + บอกว่าหน้านี้ทำอะไร + ปุ่มหลักของหน้า */
+export function PageHeader({ icon: Icon, tone, title, desc, children }: {
+  icon: LucideIcon; tone: Tone; title: string; desc?: ReactNode; children?: ReactNode;
+}) {
+  return (
+    <header className="page-head">
+      <div className={`ph-icon tone-${tone}`} aria-hidden><Icon size={24} /></div>
+      <div className="ph-text">
+        <h1>{title}</h1>
+        {desc && <p>{desc}</p>}
+      </div>
+      {children && <div className="ph-actions">{children}</div>}
+    </header>
+  );
 }
