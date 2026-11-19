@@ -4,6 +4,8 @@ import { errText, ROLE_LABEL, supabase, type Profile, type Role } from "../lib/s
 import { useMe } from "../lib/me";
 import { Empty, Modal } from "../components/ui";
 import { CAT_LABEL, GENDER_LABEL } from "../lib/toilet";
+import { licenseDaysLeft } from "../lib/vehicle";
+import { fmtDate } from "../lib/time";
 
 type Tab = "rooms" | "vehicles" | "drivers" | "toilets" | "checklist" | "users";
 const TABS: [Tab, string][] = [
@@ -12,7 +14,7 @@ const TABS: [Tab, string][] = [
 ];
 
 // ช่องข้อมูลของแต่ละตารางหลัก
-type Col = { key: string; label: string; type?: "text" | "number" | "list" | "select"; options?: Record<string, string>; required?: boolean };
+type Col = { key: string; label: string; type?: "text" | "number" | "list" | "select" | "date"; options?: Record<string, string>; required?: boolean };
 const TABLES: Record<Exclude<Tab, "users">, { table: string; order: string; cols: Col[] }> = {
   rooms: { table: "rooms", order: "name", cols: [
     { key: "name", label: "ชื่อห้อง", required: true },
@@ -28,6 +30,7 @@ const TABLES: Record<Exclude<Tab, "users">, { table: string; order: string; cols
   drivers: { table: "drivers", order: "full_name", cols: [
     { key: "full_name", label: "ชื่อ-สกุล", required: true },
     { key: "phone", label: "เบอร์โทร" },
+    { key: "license_expiry", label: "ใบขับขี่หมดอายุ", type: "date" },
   ] },
   toilets: { table: "toilets", order: "name", cols: [
     { key: "name", label: "ชื่อจุด", required: true },
@@ -82,6 +85,10 @@ function TableEditor({ kind }: { kind: Exclude<Tab, "users"> }) {
     if (v === null || v === undefined || v === "") return "—";
     if (c.type === "list") return (v as string[]).join(", ") || "—";
     if (c.type === "select") return c.options?.[String(v)] ?? String(v);
+    if (c.type === "date") {
+      const left = licenseDaysLeft(String(v));
+      return <>{fmtDate(String(v))}{left !== null && left < 0 ? <span className="chip bad">หมดอายุ</span> : left !== null && left <= 30 ? <span className="chip warn">อีก {left} วัน</span> : null}</>;
+    }
     return String(v);
   };
 
@@ -154,7 +161,7 @@ function RowForm({ cfg, row, onClose, onSaved }: {
                 {Object.entries(c.options ?? {}).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
               </select>
             ) : (
-              <input type={c.type === "number" ? "number" : "text"} required={c.required} value={String(v[c.key] ?? "")}
+              <input type={c.type === "number" ? "number" : c.type === "date" ? "date" : "text"} required={c.required} value={String(v[c.key] ?? "")}
                 onChange={(e) => setV({ ...v, [c.key]: e.target.value })} />
             )}
           </label>
@@ -204,7 +211,7 @@ function Users() {
   const [q, setQ] = useState("");
   const [err, setErr] = useState("");
   const load = useCallback(async () => {
-    const { data, error } = await supabase.from("profiles").select("id,email,full_name,role,line_user_id").order("full_name");
+    const { data, error } = await supabase.from("profiles").select("id,email,full_name,role,line_user_id,position").order("full_name");
     if (error) setErr(errText(error));
     setRows((data as Profile[]) ?? []);
   }, []);
