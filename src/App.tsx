@@ -21,14 +21,15 @@ const Facilities = lazy(() => import("./pages/Facilities"));
 const Inspect = lazy(() => import("./pages/Inspect"));
 const Admin = lazy(() => import("./pages/Admin"));
 
-type NavItem = { path: string; label: string; long: string; icon: LucideIcon; show?: (p: Profile) => boolean };
+type NavItem = { path: string; label: string; long: string; icon: LucideIcon; mod: string; show?: (p: Profile) => boolean };
 const NAV: NavItem[] = [
-  { path: "/", label: "หน้าแรก", long: "หน้าแรก", icon: House },
-  { path: "/rooms", label: "ห้องประชุม", long: "จองห้องประชุม", icon: Presentation },
-  { path: "/vehicles", label: "รถ", long: "ขอใช้รถไปราชการ", icon: CarFront },
-  { path: "/toilets", label: "ห้องน้ำ", long: "ห้องน้ำ (สุขาดี มีความสุข)", icon: Toilet },
-  { path: "/facilities", label: "แจ้งซ่อม", long: "งานอาคารสถานที่ (แจ้งซ่อม)", icon: Wrench },
-  { path: "/admin", label: "จัดการ", long: "จัดการระบบ", icon: Settings, show: (p) => p.role === "admin" },
+  // mod = สีประจำงาน (index.css .c-*) ใช้ทั้งไอคอนเมนู แผ่นสีหน้าแรก และหัวหน้าของหน้านั้น
+  { path: "/", label: "หน้าแรก", long: "หน้าแรก", icon: House, mod: "c-ga" },
+  { path: "/rooms", label: "ห้องประชุม", long: "จองห้องประชุม", icon: Presentation, mod: "c-room" },
+  { path: "/vehicles", label: "รถ", long: "ขอใช้รถไปราชการ", icon: CarFront, mod: "c-car" },
+  { path: "/facilities", label: "แจ้งซ่อม", long: "แจ้งซ่อม · ปฏิทินงานฝ่าย", icon: Wrench, mod: "c-fix" },
+  { path: "/toilets", label: "ห้องน้ำ", long: "ห้องน้ำ (สุขาดี มีความสุข)", icon: Toilet, mod: "c-wc" },
+  { path: "/admin", label: "จัดการ", long: "จัดการระบบ", icon: Settings, mod: "c-ga", show: (p) => p.role === "admin" },
 ];
 
 export default function App() {
@@ -84,6 +85,7 @@ export default function App() {
   return (
     <MeContext.Provider value={me}>
       <div className="shell">
+        <div className="wm" aria-hidden />
         {/* คอมพิวเตอร์: แถบข้าง */}
         <aside className="sidebar">
           <button className="side-brand" onClick={() => go("/")}>
@@ -93,7 +95,7 @@ export default function App() {
           <nav className="sidenav" aria-label="เมนูหลัก">
             {nav.map((n) => (
               <button key={n.path} className={active(n.path) ? "on" : ""} aria-current={active(n.path) ? "page" : undefined} onClick={() => go(n.path)}>
-                <n.icon size={19} />{n.long}
+                <span className={`gloss ${n.mod}`}><n.icon size={18} /></span>{n.long}
               </button>
             ))}
           </nav>
@@ -113,8 +115,8 @@ export default function App() {
         {/* มือถือ: แถบบน */}
         <header className="appbar">
           <button className="brand" onClick={() => go("/")}>
-            <Mark size={34} className="mark" />
-            <span className="brand-text"><b>{APP_NAME}</b><span>{SCHOOL_NAME}</span></span>
+            <span className="seal"><img src={LOGO} alt={`ตรา${SCHOOL_NAME}`} /></span>
+            <span className="brand-text"><b>บริหารทั่วไป</b><span>{SCHOOL_NAME}</span></span>
           </button>
           <button className="avatar" onClick={() => setAccount(true)} aria-label="บัญชีของฉัน">{initials(me.full_name, me.email)}</button>
         </header>
@@ -126,8 +128,8 @@ export default function App() {
 
       <nav className="bottomnav" aria-label="เมนูหลัก">
         {nav.map((n) => (
-          <button key={n.path} className={active(n.path) ? "on" : ""} aria-current={active(n.path) ? "page" : undefined} onClick={() => go(n.path)}>
-            <n.icon size={22} strokeWidth={active(n.path) ? 2.4 : 1.9} />{n.label}
+          <button key={n.path} className={`${n.mod} ${active(n.path) ? "on" : ""}`} aria-current={active(n.path) ? "page" : undefined} onClick={() => go(n.path)}>
+            <span className="nav-ic"><n.icon size={20} strokeWidth={active(n.path) ? 2.2 : 1.9} /></span>{n.label}
           </button>
         ))}
       </nav>

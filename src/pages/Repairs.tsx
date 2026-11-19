@@ -26,8 +26,10 @@ export function PriorityChip({ p }: { p: Priority }) {
   return <span className={`chip ${PRIORITY[p].tone}`}>{PRIORITY[p].label}</span>;
 }
 
+export type RepairStats = { urgent: number; plan: number; scheduled: number };
+
 /** แจ้งซ่อมงานอาคารสถานที่: ผู้แจ้งเลือกความเร่งด่วน → หัวหน้างานอาคารฯ ลงวันที่ เสนอผู้บริหาร → ผู้บริหารตัดสิน → ซ่อมเสร็จ */
-export default function Repairs() {
+export default function Repairs({ onStats }: { onStats?: (s: RepairStats) => void }) {
   const me = useMe();
   const head = isRepairHead(me), exec = isRepairExec(me);
   const [rows, setRows] = useState<Repair[] | null>(null);
@@ -46,6 +48,14 @@ export default function Repairs() {
   useEffect(() => { load(); }, [load]);
 
   const all = rows ?? [];
+  useEffect(() => {
+    if (!rows || !onStats) return;
+    onStats({
+      urgent: rows.filter((r) => OPEN_STATUSES.includes(r.status) && r.priority === "urgent").length,
+      plan: rows.filter((r) => r.status === "new").length,
+      scheduled: rows.filter((r) => r.status === "scheduled").length,
+    });
+  }, [rows, onStats]);
   const shown = filter === "open" ? sortByPriority(all.filter((r) => OPEN_STATUSES.includes(r.status)))
     : filter === "mine" ? all.filter((r) => r.reported_by === me.id)
     : all.filter((r) => !OPEN_STATUSES.includes(r.status));
@@ -54,15 +64,12 @@ export default function Repairs() {
 
   return (
     <>
-      <div className="row wrap" style={{ marginBottom: "1rem", justifyContent: "flex-end" }}>
-        <button className="btn primary" onClick={() => setForm(true)}><Plus size={18} />แจ้งซ่อม</button>
-      </div>
       <div className="tabs scroll">
         <button className={filter === "open" ? "on" : ""} onClick={() => setFilter("open")}>
-          กำลังดำเนินการ{todo > 0 && <span className="badge">{todo} รอคุณ</span>}
+          กำลังทำ{todo > 0 && <span className="badge">{todo} รอคุณ</span>}
         </button>
         <button className={filter === "mine" ? "on" : ""} onClick={() => setFilter("mine")}>ของฉัน</button>
-        <button className={filter === "closed" ? "on" : ""} onClick={() => setFilter("closed")}>เสร็จแล้ว/ยกเลิก</button>
+        <button className={filter === "closed" ? "on" : ""} onClick={() => setFilter("closed")}>เสร็จแล้ว</button>
       </div>
       {err && <p className="error">{err}</p>}
 
@@ -71,24 +78,25 @@ export default function Repairs() {
       ) : (
         <div className="repair-list">
           {shown.map((r) => (
-            <button key={r.id} className={`repair p-${r.priority} ${r.status === "done" || r.status === "cancelled" ? "closed" : ""}`} onClick={() => setOpenId(r.id)}>
-              <span className="repair-top">
-                <b>{r.title}</b>
-                <span>
-                  {OPEN_STATUSES.includes(r.status) && <PriorityChip p={r.priority} />}
-                  <span className={`chip ${STATUS[r.status].tone}`}>{STATUS[r.status].label}</span>
-                  {waitingForMe(r, head, exec) && <span className="chip bad">รอคุณ</span>}
-                </span>
+            <button key={r.id} className={`repair ${r.status === "done" || r.status === "cancelled" ? "closed" : ""}`} onClick={() => setOpenId(r.id)}>
+              <span className={`prio-pill p-${OPEN_STATUSES.includes(r.status) ? r.priority : "low"}`}>
+                {OPEN_STATUSES.includes(r.status) ? PRIORITY[r.priority].label : r.status === "done" ? "เสร็จ" : "ยกเลิก"}
               </span>
-              <span className="small muted">{r.location} · {CATEGORY_LABEL[r.category] ?? r.category}</span>
-              <span className="small muted">
-                {planText(r) ? `กำหนดซ่อม ${planText(r)} · ` : ""}แจ้งโดย {r.reporter?.full_name || r.reporter?.email} · {fmtDate(r.created_at)}
+              <span className="rp-body">
+                <b>{r.title}</b>
+                <span className="small muted">{r.location} · {CATEGORY_LABEL[r.category] ?? r.category} · {fmtDate(r.created_at)}</span>
+                <span className="tags">
+                  <span className={`chip ${STATUS[r.status].tone}`}>{r.status === "scheduled" && r.plan_start ? `ซ่อม ${planText(r)}` : STATUS[r.status].label}</span>
+                  {waitingForMe(r, head, exec) && <span className="chip bad">รอคุณ</span>}
+                  {filter !== "mine" && r.reported_by === me.id && <span className="chip">ของฉัน</span>}
+                </span>
               </span>
             </button>
           ))}
         </div>
       )}
 
+      <button className="fab" onClick={() => setForm(true)}><Plus size={20} />แจ้งซ่อม</button>
       {form && <RepairForm onClose={() => setForm(false)} onSaved={() => { setForm(false); setFilter("mine"); load(); }} />}
       {opened && <RepairDetail r={opened} onClose={() => setOpenId(null)} onChanged={load} />}
     </>
