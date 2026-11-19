@@ -91,6 +91,8 @@ export function StatusChip({ status }: { status: string }) {
     pending_deputy: ["รอรอง ผอ.", "warn"],
     pending_director: ["รอ ผอ.", "warn"],
     approved: ["อนุมัติแล้ว", "ok"],
+    on_trip: ["กำลังเดินทาง", "warn"],
+    completed: ["ปิดงานแล้ว", "mute"],
     rejected: ["ไม่อนุมัติ", "bad"],
     cancelled: ["ยกเลิก", "mute"],
   };

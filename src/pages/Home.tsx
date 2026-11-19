@@ -23,7 +23,7 @@ export default function Home({ onEditProfile }: { onEditProfile: () => void }) {
       supabase.from("room_bookings").select("id,title,starts_at,ends_at,rooms(name)").eq("status", "confirmed")
         .lt("starts_at", to).gt("ends_at", from).order("starts_at"),
       supabase.from("room_bookings").select("id,title,starts_at,ends_at,status").eq("booked_by", me.id).eq("status", "confirmed").gt("ends_at", now).order("starts_at").limit(5),
-      supabase.from("vehicle_bookings").select("id,destination,starts_at,ends_at,status").eq("booked_by", me.id).in("status", OPEN).gt("ends_at", now).order("starts_at").limit(5),
+      supabase.from("vehicle_bookings").select("id,destination,starts_at,ends_at,status").eq("booked_by", me.id).in("status", [...OPEN, "on_trip"]).gt("ends_at", now).order("starts_at").limit(5),
       reviewStatus ? supabase.from("vehicle_bookings").select("id", { count: "exact", head: true }).eq("status", reviewStatus) : Promise.resolve({ count: 0 }),
       supabase.rpc("toilet_status"),
     ]).then(([tr, rb, vb, pc, ts]) => {

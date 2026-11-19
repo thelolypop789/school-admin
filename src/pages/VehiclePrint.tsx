@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { errText, supabase } from "../lib/supabase";
 import { navigate } from "../lib/router";
 import { fmtDate } from "../lib/time";
-import { EXPENSES, STEP_SELECT, type Step, type Traveler } from "../lib/vehicle";
+import { EXPENSES, PRINTABLE, STEP_SELECT, type Step, type Traveler } from "../lib/vehicle";
 import { VB_SELECT, type VBooking } from "./Vehicles";
 
 const SCHOOL = "โรงเรียนวังหลวงพิทยาสรรพ์";
@@ -47,7 +47,7 @@ export default function VehiclePrint({ id }: { id: number }) {
 
   if (err) return <p className="error">{err}</p>;
   if (!b) return <div className="spinner" />;
-  if (b.status !== "approved") {
+  if (!PRINTABLE.includes(b.status)) {
     return (
       <div className="card">
         <p>คำสั่งไปราชการพิมพ์ได้เมื่อผู้อำนวยการอนุมัติแล้วเท่านั้น</p>

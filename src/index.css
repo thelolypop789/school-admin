@@ -236,7 +236,7 @@ td select { min-height: 36px; padding: .3rem .5rem; width: auto; }
 .fs legend { font-weight: 600; padding: 0 .25rem; }
 .trav-row { display: grid; grid-template-columns: auto minmax(0, 3fr) minmax(0, 2fr) auto; gap: .4rem; align-items: center; }
 .check { display: flex; gap: .5rem; align-items: flex-start; font-size: .92rem; }
-.check input { margin-top: .3rem; }
+.check input { margin-top: .3rem; width: 1.15rem; height: 1.15rem; min-height: 0; flex-shrink: 0; accent-color: var(--brand); }
 .trav-list { margin: .35rem 0; padding-left: 1.4rem; }
 .actions { display: flex; flex-wrap: wrap; gap: .25rem 1rem; margin-top: .15rem; }
 
@@ -255,3 +255,4 @@ td select { min-height: 36px; padding: .3rem .5rem; width: auto; }
 
 .spinner { width: 32px; height: 32px; margin: 3rem auto; border: 3px solid var(--line); border-top-color: var(--brand); border-radius: 50%; animation: spin .8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
+.plain { margin: .35rem 0 0; padding-left: 1.1rem; font-size: .92rem; }

@@ -3,25 +3,27 @@ import { errText, supabase } from "../lib/supabase";
 import { useMe } from "../lib/me";
 import { navigate } from "../lib/router";
 import { dayRange, fmtDateTime, fmtRange, hhmm, toISO, todayISO } from "../lib/time";
-import { EXPENSES, OPEN, RESERVED, REVIEW_STATUS, STAGE_LABEL, STEP_SELECT, stepText, type Step, type Traveler } from "../lib/vehicle";
+import { EXPENSES, LEAD_DAYS, licenseDaysLeft, OPEN, PRINTABLE, RESERVED, REVIEW_STATUS, STAGE_LABEL, STEP_SELECT, stepText, type Step, type Traveler } from "../lib/vehicle";
+import VehicleTrips from "./VehicleTrips";
 import { DateNav, Empty, Field, Modal, StatusChip, Timeline } from "../components/ui";
 
 export type Vehicle = { id: number; name: string; plate: string | null; seats: number | null; active: boolean };
-export type Driver = { id: number; full_name: string; phone: string | null; active: boolean };
+export type Driver = { id: number; full_name: string; phone: string | null; license_expiry: string | null; active: boolean };
 export type VBooking = {
   id: number; booked_by: string; destination: string; purpose: string; passengers: number;
-  starts_at: string; ends_at: string; status: string;
+  starts_at: string; ends_at: string; status: string; created_at: string;
   vehicle_id: number | null; driver_id: number | null; approver_note: string | null;
   travelers: Traveler[]; expenses: string[];
   requester: { full_name: string; email: string } | null;
 };
 
-export const VB_SELECT = "id,booked_by,destination,purpose,passengers,starts_at,ends_at,status,vehicle_id,driver_id,approver_note,travelers,expenses,requester:profiles!vehicle_bookings_booked_by_fkey(full_name,email)";
-type Tab = "mine" | "calendar" | "review";
+export const VB_SELECT = "id,booked_by,destination,purpose,passengers,starts_at,ends_at,status,created_at,vehicle_id,driver_id,approver_note,travelers,expenses,requester:profiles!vehicle_bookings_booked_by_fkey(full_name,email)";
+type Tab = "mine" | "calendar" | "review" | "trips";
 
 export default function Vehicles() {
   const me = useMe();
   const reviewStatus = REVIEW_STATUS[me.role];
+  const canLogTrips = me.role === "vehicle_head" || me.role === "admin";
   const [tab, setTab] = useState<Tab>(reviewStatus ? "review" : "mine");
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [drivers, setDrivers] = useState<Driver[]>([]);
@@ -29,7 +31,8 @@ export default function Vehicles() {
   const [toReview, setToReview] = useState<VBooking[]>([]);
   const [date, setDate] = useState(todayISO());
   const [day, setDay] = useState<VBooking[]>([]);
-  const [form, setForm] = useState<{ edit: VBooking | null } | null>(null);
+  // edit = แก้คำขอที่ถูกส่งกลับ; copy = ขอเพิ่มอีกคัน (ใช้ข้อมูลเดิมเป็นค่าเริ่มต้น)
+  const [form, setForm] = useState<{ edit: VBooking | null; copy?: VBooking } | null>(null);
   const [reviewing, setReviewing] = useState<VBooking | null>(null);
   const [history, setHistory] = useState<VBooking | null>(null);
   const [err, setErr] = useState("");
@@ -75,11 +78,12 @@ export default function Vehicles() {
         <h1>จองรถ</h1>
         <button className="btn primary" onClick={() => setForm({ edit: null })}>+ ขอใช้รถ</button>
       </div>
-      <p className="muted small">ขั้นตอน: ผู้ขอ → หัวหน้างานยานพาหนะ (จัดรถ) → รอง ผอ. ฝ่ายบริหารทั่วไป → ผู้อำนวยการ (อนุมัติ) → พิมพ์ใบขออนุญาต</p>
-      <div className="tabs">
+      <p className="muted small">ขั้นตอน: ผู้ขอ → หัวหน้างานยานพาหนะ (จัดรถ) → รอง ผอ. ฝ่ายบริหารทั่วไป → ผู้อำนวยการ (อนุมัติ) → พิมพ์ใบขออนุญาต → ออกเดินทาง → ปิดงาน (เจ้าหน้าที่บันทึกเลขไมล์)</p>
+      <div className="tabs scroll">
         {reviewStatus && <button className={tab === "review" ? "on" : ""} onClick={() => setTab("review")}>{reviewTitle} {toReview.length > 0 && <span className="badge">{toReview.length}</span>}</button>}
         <button className={tab === "mine" ? "on" : ""} onClick={() => setTab("mine")}>คำขอของฉัน</button>
         <button className={tab === "calendar" ? "on" : ""} onClick={() => setTab("calendar")}>ตารางรถ</button>
+        {canLogTrips && <button className={tab === "trips" ? "on" : ""} onClick={() => setTab("trips")}>บันทึกเดินทาง</button>}
       </div>
       {err && <p className="error">{err}</p>}
 
@@ -88,7 +92,7 @@ export default function Vehicles() {
           {toReview.map((b) => (
             <section key={b.id} className="card">
               <h3>{b.destination}</h3>
-              <p><b>{fmtRange(b.starts_at, b.ends_at)}</b></p>
+              <p><b>{fmtRange(b.starts_at, b.ends_at)}</b> <LeadChip b={b} /></p>
               <p className="muted">{b.purpose} · {b.passengers} คน</p>
               {b.travelers?.length > 0 && <p className="small muted">{b.travelers.map((t) => t.name).join(", ")}</p>}
               <p className="small">ผู้ขอ: {b.requester?.full_name || b.requester?.email}</p>
@@ -109,10 +113,14 @@ export default function Vehicles() {
                   <b>{fmtRange(b.starts_at, b.ends_at)}</b> · {b.destination} <StatusChip status={b.status} />
                   {RESERVED.includes(b.status) && b.vehicle_id && <div className="small">🚐 {vname(b.vehicle_id)}{b.driver_id ? ` · คนขับ ${dname(b.driver_id)}` : ""}</div>}
                   {b.status === "returned" && b.approver_note && <div className="small error">เหตุผลที่ส่งกลับ: {b.approver_note}</div>}
+                  {b.status === "rejected" && b.approver_note && <div className="small error">เหตุผลที่ไม่อนุมัติ: {b.approver_note}</div>}
                   <div className="actions">
                     <button className="link" onClick={() => setHistory(b)}>ดูขั้นตอน</button>
                     {b.status === "returned" && new Date(b.ends_at) > new Date() && <button className="link" onClick={() => setForm({ edit: b })}>แก้ไขแล้วส่งใหม่</button>}
-                    {b.status === "approved" && <button className="link" onClick={() => navigate(`/vehicles/print/${b.id}`)}>🖨️ พิมพ์ใบขออนุญาต</button>}
+                    {PRINTABLE.includes(b.status) && <button className="link" onClick={() => navigate(`/vehicles/print/${b.id}`)}>🖨️ พิมพ์ใบขออนุญาต</button>}
+                    {OPEN.includes(b.status) && b.status !== "returned" && new Date(b.ends_at) > new Date() && (
+                      <button className="link" onClick={() => setForm({ edit: null, copy: b })} title="คนไม่พอรถคันเดียว: ส่งคำขอคันที่ 2 ด้วยข้อมูลเดิม">+ ขอเพิ่มอีกคัน</button>
+                    )}
                   </div>
                 </div>
                 {OPEN.includes(b.status) && new Date(b.ends_at) > new Date() && (
@@ -150,7 +158,9 @@ export default function Vehicles() {
         </>
       )}
 
-      {form && <RequestForm edit={form.edit} onClose={() => setForm(null)} onSaved={() => { setForm(null); setTab("mine"); load(); }} />}
+      {tab === "trips" && canLogTrips && <VehicleTrips vehicles={vehicles} drivers={drivers} onChanged={load} />}
+
+      {form && <RequestForm edit={form.edit} copy={form.copy} onClose={() => setForm(null)} onSaved={() => { setForm(null); setTab("mine"); load(); }} />}
       {reviewing && (
         <ReviewForm booking={reviewing} role={me.role} vehicles={vehicles} drivers={drivers}
           onClose={() => setReviewing(null)} onDone={() => { setReviewing(null); load(); }} />
@@ -185,17 +195,21 @@ function Steps({ bookingId }: { bookingId: number }) {
   );
 }
 
-function RequestForm({ edit, onClose, onSaved }: { edit: VBooking | null; onClose: () => void; onSaved: () => void }) {
+function RequestForm({ edit, copy, onClose, onSaved }: { edit: VBooking | null; copy?: VBooking; onClose: () => void; onSaved: () => void }) {
   const me = useMe();
   const t = todayISO();
   const dateOf = (iso: string) => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Bangkok" }).format(new Date(iso));
-  const [v, setV] = useState(edit
-    ? { destination: edit.destination, purpose: edit.purpose, sDate: dateOf(edit.starts_at), sTime: hhmm(edit.starts_at), eDate: dateOf(edit.ends_at), eTime: hhmm(edit.ends_at) }
+  const base = edit ?? copy;
+  const [v, setV] = useState(base
+    ? { destination: base.destination, purpose: base.purpose, sDate: dateOf(base.starts_at), sTime: hhmm(base.starts_at), eDate: dateOf(base.ends_at), eTime: hhmm(base.ends_at) }
     : { destination: "", purpose: "", sDate: t, sTime: "08:00", eDate: t, eTime: "16:30" });
+  // คันที่ 2 เป็นคนละกลุ่มผู้เดินทาง → เริ่มรายชื่อว่าง
   const [travelers, setTravelers] = useState<Traveler[]>(
-    edit?.travelers?.length ? edit.travelers : [{ name: me.full_name, position: me.position ?? "" }],
+    edit?.travelers?.length ? edit.travelers : copy ? [{ name: "", position: "" }] : [{ name: me.full_name, position: me.position ?? "" }],
   );
-  const [expenses, setExpenses] = useState<string[]>(edit?.expenses ?? []);
+  const [expenses, setExpenses] = useState<string[]>(base?.expenses ?? []);
+  const [openedAt] = useState(() => Date.now()); // render ต้อง pure
+  const leadDays = (new Date(toISO(v.sDate, v.sTime)).getTime() - openedAt) / 86400000;
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState("");
   const set = (k: keyof typeof v) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -229,8 +243,9 @@ function RequestForm({ edit, onClose, onSaved }: { edit: VBooking | null; onClos
   };
 
   return (
-    <Modal title={edit ? "แก้ไขคำขอแล้วส่งใหม่" : "ขออนุญาตไปราชการและใช้รถ"} onClose={onClose}>
+    <Modal title={edit ? "แก้ไขคำขอแล้วส่งใหม่" : copy ? "ขอเพิ่มอีกคัน" : "ขออนุญาตไปราชการและใช้รถ"} onClose={onClose}>
       <form className="form" onSubmit={save}>
+        {copy && <p className="muted small">ใช้ข้อมูลจากคำขอไป “{copy.destination}” — ใส่รายชื่อผู้เดินทางของคันนี้ แล้วส่ง (เป็นคำขอแยก พิจารณาทีละคัน)</p>}
         {edit?.approver_note && <p className="error">เหตุผลที่ส่งกลับ: {edit.approver_note}</p>}
         <Field label="ไปราชการเพื่อ" hint="ข้อความนี้จะพิมพ์ต่อจากคำว่า “ไปราชการเพื่อ” ในคำสั่ง">
           <textarea id="vr-purpose" required rows={3} maxLength={1000} value={v.purpose} onChange={set("purpose")} placeholder="เช่น นำนักเรียนเข้าร่วมการแข่งขันวอลเลย์บอลระดับภูมิภาค (รอบโซน)" />
@@ -268,6 +283,9 @@ function RequestForm({ edit, onClose, onSaved }: { edit: VBooking | null; onClos
             </label>
           ))}
         </fieldset>
+        {leadDays > 0 && leadDays < LEAD_DAYS && (
+          <p className="warn-box">ยื่นล่วงหน้าน้อยกว่า {LEAD_DAYS} วัน — ผู้พิจารณาอาจจัดรถไม่ทัน ส่งได้ แต่ควรแจ้งงานยานพาหนะด้วย</p>
+        )}
         {err && <p className="error">{err}</p>}
         <button className="btn primary big" disabled={saving}>{saving ? "กำลังส่ง…" : edit ? "ส่งใหม่" : "ส่งคำขอ"}</button>
       </form>
@@ -298,6 +316,15 @@ function ReviewForm({ booking, role, vehicles, drivers, onClose, onDone }: {
   const busyD = new Set(busy?.map((b) => b.driver_id));
   const vname = vehicles.find((v) => v.id === booking.vehicle_id)?.name;
   const dname = drivers.find((d) => d.id === booking.driver_id)?.full_name;
+
+  const reject = async () => {
+    if (!note.trim()) return setErr("กรุณาระบุเหตุผลที่ไม่อนุมัติ");
+    if (!confirm("ไม่อนุมัติและยุติเรื่อง? ผู้ขอจะต้องยื่นคำขอใหม่ถ้าจะไป")) return;
+    setSaving(true); setErr("");
+    const { error } = await supabase.rpc("reject_vehicle_booking", { p_id: booking.id, p_note: note });
+    setSaving(false);
+    if (error) setErr(errText(error)); else onDone();
+  };
 
   const [backTo, forwardLabel] =
     role === "vehicle_head" ? ["ส่งกลับผู้ขอ", "จัดรถ ส่งรอง ผอ."]
@@ -350,9 +377,16 @@ function ReviewForm({ booking, role, vehicles, drivers, onClose, onDone }: {
             <Field label="คนขับ (ไม่บังคับ)">
               <select value={driverId} onChange={(e) => setDriverId(e.target.value)} disabled={!busy}>
                 <option value="">— ไม่ระบุ / ขับเอง —</option>
-                {drivers.map((d) => (
-                  <option key={d.id} value={d.id} disabled={busyD.has(d.id)}>{d.full_name}{busyD.has(d.id) ? " — ติดงาน" : ""}</option>
-                ))}
+                {drivers.map((d) => {
+                  // ใบขับขี่ต้องใช้ได้ถึงวันกลับ (DB ตรวจซ้ำ)
+                  const left = licenseDaysLeft(d.license_expiry, booking.ends_at);
+                  const expired = left !== null && left < 0;
+                  return (
+                    <option key={d.id} value={d.id} disabled={busyD.has(d.id) || expired}>
+                      {d.full_name}{busyD.has(d.id) ? " — ติดงาน" : ""}{expired ? " — ใบขับขี่หมดอายุ" : left === null ? " — ยังไม่กรอกวันหมดอายุใบขับขี่" : ""}
+                    </option>
+                  );
+                })}
               </select>
             </Field>
           </>
@@ -363,7 +397,17 @@ function ReviewForm({ booking, role, vehicles, drivers, onClose, onDone }: {
           <button className="btn danger big" disabled={saving} onClick={() => review(false)}>{backTo}</button>
           <button className="btn primary big" disabled={saving} onClick={() => review(true)}>{forwardLabel}</button>
         </div>
+        {role === "director" && (
+          <button className="link danger" disabled={saving} onClick={reject}>ไม่อนุมัติ (ยุติเรื่อง ไม่ต้องแก้ส่งใหม่)</button>
+        )}
       </div>
     </Modal>
   );
+}
+
+/** เตือนเมื่อยื่นล่วงหน้าน้อยกว่าเกณฑ์ */
+function LeadChip({ b }: { b: VBooking }) {
+  const days = (new Date(b.starts_at).getTime() - new Date(b.created_at).getTime()) / 86400000;
+  if (days >= LEAD_DAYS) return null;
+  return <span className="chip warn">ยื่นล่วงหน้า {days < 1 ? "ไม่ถึง 1" : Math.floor(days)} วัน</span>;
 }
