@@ -17,7 +17,7 @@ export type Profile = {
   email: string;
   full_name: string;
   role: Role;
-  line_user_id: string | null;
+  line_linked: boolean;  // LINE ID จริงอ่านไม่ได้จากแอป (เห็นแค่ว่าเชื่อมแล้วหรือยัง)
   position: string | null;
 };
 

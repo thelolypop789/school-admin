@@ -447,3 +447,18 @@ td select { min-height: 36px; padding: .3rem .5rem; width: auto; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+
+/* เชื่อม LINE (ในหน้า ข้อมูลของฉัน) */
+.line-link { margin-top: 1.25rem; padding-top: 1.1rem; border-top: 1px solid var(--line); display: grid; gap: .5rem; justify-items: start; }
+.line-link h3 { display: flex; align-items: center; gap: .4rem; margin: 0; }
+.line-link .form { width: 100%; }
+.line-link a.btn { text-decoration: none; }
+.ok-line { display: flex; gap: .45rem; align-items: flex-start; color: var(--ok); font-weight: 600; }
+.link-code { font-family: var(--font-display); font-stretch: 82%; font-weight: 750; font-size: 2.6rem; letter-spacing: .18em; color: var(--burgundy); line-height: 1.1; }
+.line-nudge {
+  width: 100%; display: flex; align-items: center; gap: .85rem; text-align: left; cursor: pointer; margin: -0.75rem 0 1.75rem;
+  padding: .85rem 1rem; border-radius: var(--radius); border: 1px solid var(--gold); background: var(--gold-50); color: var(--ink);
+}
+.line-nudge > svg:first-child { color: var(--burgundy); }
+.line-nudge span { flex: 1; display: grid; line-height: 1.35; }
+.line-nudge small { color: var(--muted); }

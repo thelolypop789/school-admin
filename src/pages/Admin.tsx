@@ -212,7 +212,7 @@ function Users() {
   const [q, setQ] = useState("");
   const [err, setErr] = useState("");
   const load = useCallback(async () => {
-    const { data, error } = await supabase.from("profiles").select("id,email,full_name,role,line_user_id,position").order("full_name");
+    const { data, error } = await supabase.from("profiles").select("id,email,full_name,role,line_linked,position").order("full_name");
     if (error) setErr(errText(error));
     setRows((data as Profile[]) ?? []);
   }, []);
@@ -233,12 +233,13 @@ function Users() {
       {err && <p className="error">{err}</p>}
       <div className="card table-wrap">
         <table>
-          <thead><tr><th>ชื่อ</th><th>อีเมล</th><th>บทบาท</th></tr></thead>
+          <thead><tr><th>ชื่อ</th><th>อีเมล</th><th>LINE</th><th>บทบาท</th></tr></thead>
           <tbody>
             {list.map((u) => (
               <tr key={u.id}>
                 <td>{u.full_name || "—"}</td>
                 <td className="small">{u.email}</td>
+                <td>{u.line_linked ? <span className="chip ok">เชื่อมแล้ว</span> : <span className="muted small">—</span>}</td>
                 <td>
                   <select value={u.role} disabled={u.id === me.id} onChange={(e) => setRole(u, e.target.value as Role)}>
                     {(Object.keys(ROLE_LABEL) as Role[]).map((r) => <option key={r} value={r}>{ROLE_LABEL[r]}</option>)}

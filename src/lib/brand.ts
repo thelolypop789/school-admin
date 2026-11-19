@@ -2,6 +2,8 @@
 export const APP_NAME = "ระบบจัดการงานบริหารทั่วไป";
 export const SCHOOL_NAME = "โรงเรียนวังหลวงพิทยาสรรพ์";
 export const LOGO = "/school-logo.png";
+/** LINE Official Account ของโรงเรียน เช่น "@123abcd" (ตั้งใน env VITE_LINE_OA_ID) */
+export const LINE_OA_ID: string = (import.meta.env.VITE_LINE_OA_ID ?? "").trim();
 
 /** อักษรย่อสำหรับรูปโปรไฟล์ (ข้ามคำนำหน้า เช่น นาย/นาง/นางสาว) */
 export function initials(name: string, email: string): string {
