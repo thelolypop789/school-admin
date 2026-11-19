@@ -245,6 +245,14 @@ exception when others then
 end $$;
 revoke execute on function private.notify_line() from public, anon, authenticated;
 
+-- (edge function) ตรวจ x-notify-secret กับค่าใน private.config (secret อยู่ที่ DB ที่เดียว ไม่ต้องตั้งซ้ำใน edge function)
+create or replace function public.line_notify_secret_ok(p_secret text) returns boolean
+language sql stable security definer set search_path = '' as $$
+  select coalesce(length(p_secret) >= 32 and p_secret = (select value from private.config where key = 'line_notify_secret'), false)
+$$;
+revoke execute on function public.line_notify_secret_ok(text) from public, anon, authenticated;
+grant execute on function public.line_notify_secret_ok(text) to service_role;
+
 create trigger vehicle_bookings_notify_line
   after insert or update of status on public.vehicle_bookings
   for each row execute function private.notify_line();

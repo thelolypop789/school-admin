@@ -2,15 +2,14 @@
 // รับ 2 แบบ:
 //   1. LINE webhook — เชื่อถือเมื่อ x-line-signature ตรงกับ LINE_CHANNEL_SECRET เท่านั้น
 //      รหัส 6 หลัก = ผูกบัญชี · ปุ่ม (postback) = เห็นชอบ/อนุมัติ/ส่งกลับ/ไม่อนุมัติ · "งาน" = ดูคำขอที่รอ
-//   2. แจ้งเตือนจาก trigger ใน DB (pg_net) — เชื่อถือเมื่อ x-notify-secret ตรงกับ LINE_NOTIFY_SECRET
+//   2. แจ้งเตือนจาก trigger ใน DB (pg_net) — เชื่อถือเมื่อ x-notify-secret ตรงกับ private.config (ตรวจผ่าน line_notify_secret_ok)
 // สิทธิ์ทุกอย่างตรวจใน DB (line_decide) — ที่นี่แค่แปลงข้อความ
-// secrets: LINE_CHANNEL_SECRET, LINE_CHANNEL_ACCESS_TOKEN, LINE_NOTIFY_SECRET, APP_URL
+// secrets: LINE_CHANNEL_SECRET, LINE_CHANNEL_ACCESS_TOKEN; ตัวเลือก APP_URL (ค่าเริ่มต้นคือ URL ของ Vercel)
 import { createClient } from "npm:@supabase/supabase-js@2";
 import * as L from "./logic.ts";
 
 const SECRET = (Deno.env.get("LINE_CHANNEL_SECRET") ?? "").trim();
 const TOKEN = (Deno.env.get("LINE_CHANNEL_ACCESS_TOKEN") ?? "").trim();
-const NOTIFY_SECRET = (Deno.env.get("LINE_NOTIFY_SECRET") ?? "").trim();
 const APP_URL = (Deno.env.get("APP_URL") ?? "https://school-admin-fromauto.vercel.app").replace(/\/+$/, "");
 const REASON_TTL_MS = 10 * 60_000;
 
@@ -146,7 +145,7 @@ Deno.serve(async (req) => {
   }
 
   const ns = req.headers.get("x-notify-secret");
-  if (ns && NOTIFY_SECRET && L.signatureOk(NOTIFY_SECRET, ns)) {
+  if (ns && (await sb.rpc("line_notify_secret_ok", { p_secret: ns })).data === true) {
     try { await notify(JSON.parse(body)); } catch (e) { console.error("notify", e); }
     return new Response("ok");
   }
