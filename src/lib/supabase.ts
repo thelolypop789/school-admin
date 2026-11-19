@@ -10,13 +10,14 @@ export const supabase = createClient(
 
 export const isConfigured = Boolean(import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_KEY);
 
-export type Role = "staff" | "inspector" | "vehicle_head" | "deputy" | "director" | "admin";
+export type Role = "staff" | "inspector" | "vehicle_head" | "facilities_head" | "ga_head" | "deputy" | "director" | "admin";
 
 export type Profile = {
   id: string;
   email: string;
   full_name: string;
   role: Role;
+  extra_roles: Role[];   // บทบาทเสริม (คนเดียวถือหลายหน้าที่)
   line_linked: boolean;  // LINE ID จริงอ่านไม่ได้จากแอป (เห็นแค่ว่าเชื่อมแล้วหรือยัง)
   position: string | null;
 };
@@ -24,7 +25,9 @@ export type Profile = {
 export const ROLE_LABEL: Record<Role, string> = {
   staff: "บุคลากร",
   inspector: "ผู้ตรวจห้องน้ำ",
-  vehicle_head: "หัวหน้าฝ่ายบริหารทั่วไป",  // ควบงานยานพาหนะ + งานอาคารสถานที่ (จัดรถ, ตรวจห้องน้ำ)
+  vehicle_head: "หัวหน้างานยานพาหนะ",
+  facilities_head: "หัวหน้างานอาคารสถานที่",
+  ga_head: "หัวหน้าฝ่ายบริหารทั่วไป",
   deputy: "รอง ผอ. ฝ่ายบริหารทั่วไป",
   director: "ผู้อำนวยการ",
   admin: "ผู้ดูแลระบบ",

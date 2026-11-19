@@ -572,3 +572,4 @@ td.num { font-variant-numeric: tabular-nums; }
 .side-install { width: 100%; min-height: 38px; font-size: .85rem; background: var(--gold); color: var(--burgundy-900); border-color: var(--gold); }
 .side-install:hover { background: var(--gold-light); color: var(--burgundy-900); border-color: var(--gold-light); }
 .login-foot .link { display: inline-flex; align-items: center; gap: .3rem; margin-top: .3rem; }
+.extra-roles { display: flex; flex-wrap: wrap; gap: .25rem; align-items: center; } .extra-roles .chip { margin-left: 0; }

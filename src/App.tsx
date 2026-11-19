@@ -1,11 +1,12 @@
 import { lazy, Suspense, useEffect, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
-import { errText, isConfigured, ROLE_LABEL, SCHOOL_DOMAIN, supabase, type Profile } from "./lib/supabase";
+import { errText, isConfigured, SCHOOL_DOMAIN, supabase, type Profile } from "./lib/supabase";
 import { Field, Modal } from "./components/ui";
 import { APP_NAME, initials, LOGO, SCHOOL_NAME } from "./lib/brand";
 import { Mark } from "./components/Mark";
 import { LineLink } from "./components/LineLink";
 import { InstallButton } from "./components/Install";
+import { rolesLabel } from "./lib/roles";
 import { detectPlatform, externalBrowserUrl } from "./lib/install";
 import { CarFront, House, LogOut, Presentation, Settings, Toilet, UserPen, type LucideIcon } from "lucide-react";
 import { navigate, usePath } from "./lib/router";
@@ -46,7 +47,7 @@ export default function App() {
   useEffect(() => {
     if (!uid) return;
     let alive = true;
-    supabase.from("profiles").select("id,email,full_name,role,line_linked,position").eq("id", uid).maybeSingle()
+    supabase.from("profiles").select("id,email,full_name,role,extra_roles,line_linked,position").eq("id", uid).maybeSingle()
       .then(({ data, error }) => {
         if (!alive) return;
         if (error) setLoadErr(true); // เน็ตหลุด/เซิร์ฟเวอร์มีปัญหา — อย่าบอกว่าไม่ใช่บุคลากร
@@ -96,7 +97,7 @@ export default function App() {
           <div className="me-card">
             <div className="me-row">
               <span className="avatar" aria-hidden>{initials(me.full_name, me.email)}</span>
-              <span className="me-name"><b>{me.full_name || me.email}</b><span>{ROLE_LABEL[me.role]}</span></span>
+              <span className="me-name"><b>{me.full_name || me.email}</b><span>{rolesLabel(me)}</span></span>
             </div>
             <InstallButton className="btn side-install" label="ติดตั้งแอป" />
             <div className="me-actions">
@@ -133,7 +134,7 @@ export default function App() {
           <div className="form">
             <div className="me-row">
               <span className="avatar" aria-hidden>{initials(me.full_name, me.email)}</span>
-              <span className="me-name"><b>{me.full_name || "ยังไม่ได้ตั้งชื่อ"}</b><span>{me.position ? `${me.position} · ` : ""}{ROLE_LABEL[me.role]}</span></span>
+              <span className="me-name"><b>{me.full_name || "ยังไม่ได้ตั้งชื่อ"}</b><span>{me.position ? `${me.position} · ` : ""}{rolesLabel(me)}</span></span>
             </div>
             <p className="muted small">{me.email}</p>
             <button className="btn big" onClick={() => { setAccount(false); openProfile(); }}><UserPen size={18} />แก้ไขชื่อและตำแหน่ง</button>

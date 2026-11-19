@@ -13,7 +13,7 @@ const MAX_PHOTOS = 3;
 /** หน้าตรวจห้องน้ำ: เปิดจาก QR ที่ติดหน้าห้องน้ำ (/t/<qr_token>) */
 export default function Inspect({ token }: { token: string }) {
   const me = useMe();
-  const canInspect = canInspectToilets(me.role);
+  const canInspect = canInspectToilets(me);
   const [toilet, setToilet] = useState<Toilet | null | undefined>(undefined);
   const [items, setItems] = useState<Item[]>([]);
   const [answers, setAnswers] = useState<Record<number, boolean>>({});

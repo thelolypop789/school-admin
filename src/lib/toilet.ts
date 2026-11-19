@@ -1,12 +1,14 @@
-import type { Role } from "./supabase";
+import type { Profile } from "./supabase";
+import { hasRole } from "./roles";
 
 /**
  * งานห้องน้ำเป็นของฝ่ายบริหารทั่วไป (งานอาคารสถานที่) — ตรงกับ RLS/RPC ใน DB
- * ตรวจได้: ผู้ตรวจ, หัวหน้าฝ่ายบริหารทั่วไป (vehicle_head ควบงานอาคารสถานที่), แอดมิน
- * เห็นรูป: + รอง ผอ., ผอ. · คนอื่นดูรายงานอย่างเดียว
+ * ตรวจได้: ผู้ตรวจ, หัวหน้างานอาคารสถานที่, แอดมิน
+ * เห็นรูป: + หัวหน้าฝ่ายบริหารทั่วไป, รอง ผอ., ผอ. · คนอื่นดูรายงานอย่างเดียว
  */
-export const canInspectToilets = (r: Role) => r === "inspector" || r === "vehicle_head" || r === "admin";
-export const isToiletTeam = (r: Role) => canInspectToilets(r) || r === "deputy" || r === "director";
+type P = Pick<Profile, "role" | "extra_roles">;
+export const canInspectToilets = (p: P) => hasRole(p, "inspector", "facilities_head", "admin");
+export const isToiletTeam = (p: P) => canInspectToilets(p) || hasRole(p, "ga_head", "deputy", "director");
 
 export type Item = { id: number; category: "H" | "A" | "S"; label: string; sort: number; active: boolean };
 
