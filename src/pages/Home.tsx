@@ -6,11 +6,11 @@ import { useMe } from "../lib/me";
 import { navigate } from "../lib/router";
 import { dayRange, fmtDate, fmtTime, todayISO } from "../lib/time";
 import { StatusChip, type Tone } from "../components/ui";
-import { OPEN, REVIEW_STATUS } from "../lib/vehicle";
+import { licenseDaysLeft, OPEN, REVIEW_STATUS, VEHICLE_DOCS } from "../lib/vehicle";
 
 type Upcoming = { kind: "room" | "vehicle"; id: number; title: string; starts_at: string; ends_at: string; status: string };
 type Todo = { key: string; icon: LucideIcon; tone: Tone; title: string; sub: string; count: number; path: string };
-type Counts = { review: number; returned: number; trips: number; toiletsLeft: number; toiletsTotal: number };
+type Counts = { review: number; returned: number; trips: number; toiletsLeft: number; toiletsTotal: number; docs: number };
 
 const HELLO_STRIP = /^(นางสาว|นาง|นาย|ว่าที่ร้อยตรี|ดร\.)\s*/;
 
@@ -38,7 +38,13 @@ export default function Home({ onEditProfile }: { onEditProfile: () => void }) {
       logsTrips ? (supabase.from("vehicle_bookings").select("id", { count: "exact", head: true }).eq("status", "approved").lte("starts_at", to)) : zero,
       logsTrips ? (supabase.from("vehicle_bookings").select("id", { count: "exact", head: true }).eq("status", "on_trip").lt("ends_at", now)) : zero,
       supabase.rpc("toilet_status"),
-    ]).then(([tr, rb, vb, rv, rt, td, tc, ts]) => {
+      logsTrips ? supabase.from("vehicles").select("act_expiry,tax_expiry,insurance_expiry").eq("active", true) : Promise.resolve({ data: [] }),
+      logsTrips ? supabase.from("drivers").select("license_expiry").eq("active", true) : Promise.resolve({ data: [] }),
+    ]).then(([tr, rb, vb, rv, rt, td, tc, ts, vd, dl]) => {
+      // เอกสารที่หมดแล้วหรือเหลือ ≤ 30 วัน: พ.ร.บ./ภาษี/ประกันของรถ + ใบขับขี่คนขับ
+      const soon = (d: string | null) => { const l = licenseDaysLeft(d); return l !== null && l <= 30; };
+      const docs = ((vd.data ?? []) as Record<string, string | null>[]).reduce((n, v) => n + VEHICLE_DOCS.filter((x) => soon(v[x.key])).length, 0)
+        + ((dl.data ?? []) as { license_expiry: string | null }[]).filter((d) => soon(d.license_expiry)).length;
       setTodayRooms((tr.data as unknown as NonNullable<typeof todayRooms>) ?? []);
       setMine([
         ...((rb.data ?? []) as { id: number; title: string; starts_at: string; ends_at: string; status: string }[]).map((r) => ({ kind: "room" as const, ...r })),
@@ -48,7 +54,7 @@ export default function Home({ onEditProfile }: { onEditProfile: () => void }) {
       const st = (ts.data as { checks_today: number }[] | null) ?? [];
       setCounts({
         review: rv.count ?? 0, returned: rt.count ?? 0, trips: (td.count ?? 0) + (tc.count ?? 0),
-        toiletsLeft: st.filter((s) => s.checks_today === 0).length, toiletsTotal: st.length,
+        toiletsLeft: st.filter((s) => s.checks_today === 0).length, toiletsTotal: st.length, docs,
       });
     });
   }, [me.id, reviewStatus, logsTrips]);
@@ -61,6 +67,8 @@ export default function Home({ onEditProfile }: { onEditProfile: () => void }) {
       title: "คำขอใช้รถของคุณถูกส่งกลับ", sub: "อ่านเหตุผล แก้ไข แล้วส่งใหม่" },
     { key: "trips", icon: Gauge, tone: "vehicles" as Tone, count: logsTrips ? counts.trips : 0, path: "/vehicles",
       title: "งานรถรอบันทึกเลขไมล์", sub: "บันทึกออกเดินทาง หรือปิดงานที่กลับมาแล้ว (แท็บ บันทึกเดินทาง)" },
+    { key: "docs", icon: Gauge, tone: "vehicles" as Tone, count: logsTrips ? counts.docs : 0, path: "/vehicles",
+      title: "เอกสารรถ/ใบขับขี่ใกล้หมดอายุ", sub: "พ.ร.บ. ภาษี ประกันภัย หรือใบขับขี่ หมดแล้วหรือเหลือไม่เกิน 30 วัน (ดูที่แท็บ รถ)" },
     { key: "toilets", icon: Toilet, tone: "toilets" as Tone, count: inspects ? counts.toiletsLeft : 0, path: "/toilets",
       title: "ห้องน้ำยังไม่ได้ตรวจวันนี้", sub: "สแกน QR หน้าห้องน้ำ หรือกด ตรวจ ในหน้าห้องน้ำ" },
   ].filter((t) => t.count > 0) : [];

@@ -2,13 +2,21 @@ import { useCallback, useEffect, useState } from "react";
 import { errText, supabase } from "../lib/supabase";
 import { useMe } from "../lib/me";
 import { navigate } from "../lib/router";
-import { dayRange, fmtDateTime, fmtRange, hhmm, toISO, todayISO } from "../lib/time";
-import { EXPENSES, LEAD_DAYS, licenseDaysLeft, OPEN, PRINTABLE, RESERVED, REVIEW_STATUS, STAGE_LABEL, STEP_SELECT, stepText, type Step, type Traveler } from "../lib/vehicle";
+import { fmtDateTime, fmtRange, hhmm, toISO, todayISO } from "../lib/time";
+import { EXPENSES, LEAD_DAYS, licenseDaysLeft, VEHICLE_DOCS, OPEN, PRINTABLE, RESERVED, REVIEW_STATUS, STAGE_LABEL, STEP_SELECT, stepText, type Step, type Traveler } from "../lib/vehicle";
 import VehicleTrips from "./VehicleTrips";
-import { DateNav, Empty, Field, Modal, PageHeader, StatusChip, Timeline } from "../components/ui";
+import VehicleCalendar from "./VehicleCalendar";
+import VehicleFleet from "./VehicleFleet";
+import VehicleDashboard from "./VehicleDashboard";
+import { useSignedUrls } from "../lib/photos";
+import { Empty, Field, Modal, PageHeader, StatusChip } from "../components/ui";
 import { Check, CarFront, Plus, Printer, X } from "lucide-react";
 
-export type Vehicle = { id: number; name: string; plate: string | null; seats: number | null; active: boolean };
+export type Vehicle = {
+  id: number; name: string; plate: string | null; seats: number | null; active: boolean;
+  photo_path: string | null; condition: "ready" | "maintenance"; condition_note: string | null;
+  insurance_expiry: string | null; act_expiry: string | null; tax_expiry: string | null;
+};
 export type Driver = { id: number; full_name: string; phone: string | null; license_expiry: string | null; active: boolean };
 export type VBooking = {
   id: number; booked_by: string; destination: string; purpose: string; passengers: number;
@@ -19,19 +27,18 @@ export type VBooking = {
 };
 
 export const VB_SELECT = "id,booked_by,destination,purpose,passengers,starts_at,ends_at,status,created_at,vehicle_id,driver_id,approver_note,travelers,expenses,requester:profiles!vehicle_bookings_booked_by_fkey(full_name,email)";
-type Tab = "mine" | "calendar" | "review" | "trips";
+type Tab = "mine" | "calendar" | "fleet" | "overview" | "review" | "trips";
 
 export default function Vehicles() {
   const me = useMe();
   const reviewStatus = REVIEW_STATUS[me.role];
   const canLogTrips = me.role === "vehicle_head" || me.role === "admin";
+  const isExec = ["vehicle_head", "deputy", "director", "admin"].includes(me.role);
   const [tab, setTab] = useState<Tab>(reviewStatus ? "review" : "mine");
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [mine, setMine] = useState<VBooking[]>([]);
   const [toReview, setToReview] = useState<VBooking[]>([]);
-  const [date, setDate] = useState(todayISO());
-  const [day, setDay] = useState<VBooking[]>([]);
   // edit = แก้คำขอที่ถูกส่งกลับ; copy = ขอเพิ่มอีกคัน (ใช้ข้อมูลเดิมเป็นค่าเริ่มต้น)
   const [form, setForm] = useState<{ edit: VBooking | null; copy?: VBooking } | null>(null);
   const [reviewing, setReviewing] = useState<VBooking | null>(null);
@@ -39,24 +46,21 @@ export default function Vehicles() {
   const [err, setErr] = useState("");
 
   const load = useCallback(async () => {
-    const [from, to] = dayRange(date);
-    const [v, d, m, p, c] = await Promise.all([
+    const [v, d, m, p] = await Promise.all([
       supabase.from("vehicles").select("*").eq("active", true).order("name"),
       supabase.from("drivers").select("*").eq("active", true).order("full_name"),
       supabase.from("vehicle_bookings").select(VB_SELECT).eq("booked_by", me.id).order("starts_at", { ascending: false }).limit(30),
       reviewStatus
         ? supabase.from("vehicle_bookings").select(VB_SELECT).eq("status", reviewStatus).order("starts_at")
         : Promise.resolve({ data: [], error: null }),
-      supabase.from("vehicle_bookings").select(VB_SELECT).in("status", [...RESERVED, "pending"]).lt("starts_at", to).gt("ends_at", from).order("starts_at"),
     ]);
-    const e = v.error || d.error || m.error || p.error || c.error;
+    const e = v.error || d.error || m.error || p.error;
     if (e) setErr(errText(e));
     setVehicles((v.data as Vehicle[]) ?? []);
     setDrivers((d.data as Driver[]) ?? []);
     setMine((m.data as unknown as VBooking[]) ?? []);
     setToReview((p.data as unknown as VBooking[]) ?? []);
-    setDay((c.data as unknown as VBooking[]) ?? []);
-  }, [date, me.id, reviewStatus]);
+  }, [me.id, reviewStatus]);
 
   // load() ตั้ง state หลัง await (ไม่ใช่ sync) — rule มองไม่เห็นข้าม async function
   // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -70,7 +74,8 @@ export default function Vehicles() {
 
   const vname = (id: number | null) => vehicles.find((v) => v.id === id)?.name ?? "";
   const dname = (id: number | null) => drivers.find((d) => d.id === id)?.full_name ?? "";
-  const range = dayRange(date);
+  const photos = useSignedUrls("vehicle-photos", vehicles.map((v) => v.photo_path));
+  const vphoto = (id: number | null) => { const p = vehicles.find((v) => v.id === id)?.photo_path; return p ? photos[p] : undefined; };
   const reviewTitle = me.role === "director" ? "รออนุมัติ" : "รอพิจารณา";
 
   return (
@@ -82,15 +87,18 @@ export default function Vehicles() {
       <div className="tabs scroll">
         {reviewStatus && <button className={tab === "review" ? "on" : ""} onClick={() => setTab("review")}>{reviewTitle} {toReview.length > 0 && <span className="badge">{toReview.length}</span>}</button>}
         <button className={tab === "mine" ? "on" : ""} onClick={() => setTab("mine")}>คำขอของฉัน</button>
-        <button className={tab === "calendar" ? "on" : ""} onClick={() => setTab("calendar")}>ตารางรถ</button>
+        <button className={tab === "calendar" ? "on" : ""} onClick={() => setTab("calendar")}>ปฏิทิน</button>
+        <button className={tab === "fleet" ? "on" : ""} onClick={() => setTab("fleet")}>รถ</button>
         {canLogTrips && <button className={tab === "trips" ? "on" : ""} onClick={() => setTab("trips")}>บันทึกเดินทาง</button>}
+        {isExec && <button className={tab === "overview" ? "on" : ""} onClick={() => setTab("overview")}>ภาพรวม</button>}
       </div>
       {err && <p className="error">{err}</p>}
 
       {tab === "review" && (toReview.length === 0 ? <Empty>ไม่มีคำขอที่รอคุณพิจารณา</Empty> : (
         <div className="grid">
           {toReview.map((b) => (
-            <section key={b.id} className="card">
+            <section key={b.id} className="card review-card">
+              {vphoto(b.vehicle_id) && <img className="review-photo" src={vphoto(b.vehicle_id)} alt={vname(b.vehicle_id)} loading="lazy" />}
               <h3>{b.destination}</h3>
               <p><b>{fmtRange(b.starts_at, b.ends_at)}</b> <LeadChip b={b} /></p>
               <p className="muted">{b.purpose} · {b.passengers} คน</p>
@@ -134,31 +142,9 @@ export default function Vehicles() {
         </div>
       ))}
 
-      {tab === "calendar" && (
-        <>
-          <DateNav date={date} onChange={setDate} />
-          {vehicles.length === 0 && <Empty>ยังไม่มีข้อมูลรถ</Empty>}
-          <div className="grid">
-            {vehicles.map((v) => {
-              const list = day.filter((b) => RESERVED.includes(b.status) && b.vehicle_id === v.id);
-              return (
-                <section key={v.id} className="card">
-                  <h3>{v.name} <span className="muted small">{v.plate} {v.seats ? `· ${v.seats} ที่นั่ง` : ""}</span></h3>
-                  <Timeline day={range} from={6} to={20} items={list.map((b) => ({ id: b.id, starts_at: b.starts_at, ends_at: b.ends_at, label: b.destination, tone: b.status === "approved" ? "busy" : "pending" }))} />
-                  {list.length === 0 ? <p className="muted small">ว่าง</p> : (
-                    <ul className="list">
-                      {list.map((b) => <li key={b.id}><b>{fmtRange(b.starts_at, b.ends_at)}</b> {b.destination} <span className="muted small">· {b.requester?.full_name}</span> {b.status !== "approved" && <StatusChip status={b.status} />}</li>)}
-                    </ul>
-                  )}
-                </section>
-              );
-            })}
-          </div>
-          {day.some((b) => b.status === "pending") && (
-            <p className="muted small">มีคำขอที่ยังไม่ได้จัดรถในวันนี้ {day.filter((b) => b.status === "pending").length} รายการ</p>
-          )}
-        </>
-      )}
+      {tab === "calendar" && <VehicleCalendar vehicles={vehicles} drivers={drivers} />}
+      {tab === "fleet" && <VehicleFleet vehicles={vehicles} photos={photos} isAdmin={me.role === "admin"} />}
+      {tab === "overview" && isExec && <VehicleDashboard vehicles={vehicles} />}
 
       {tab === "trips" && canLogTrips && <VehicleTrips vehicles={vehicles} drivers={drivers} onChanged={load} />}
 
@@ -368,12 +354,19 @@ function ReviewForm({ booking, role, vehicles, drivers, onClose, onDone }: {
             <Field label="รถ">
               <select value={vehicleId} onChange={(e) => setVehicleId(e.target.value)} disabled={!busy}>
                 <option value="">— เลือกรถ —</option>
-                {vehicles.map((v) => (
-                  <option key={v.id} value={v.id} disabled={busyV.has(v.id)}>
-                    {v.name}{v.seats ? ` (${v.seats} ที่นั่ง)` : ""}{busyV.has(v.id) ? " — ไม่ว่าง" : ""}
-                    {v.seats && v.seats < booking.passengers ? " — ที่นั่งไม่พอ" : ""}
-                  </option>
-                ))}
+                {vehicles.map((v) => {
+                  // พ.ร.บ./ภาษีต้องใช้ได้ถึงวันกลับ, รถต้องไม่ซ่อมบำรุง (DB ตรวจซ้ำ)
+                  const docsOut = VEHICLE_DOCS.filter((d) => d.required).some((d) => { const l = licenseDaysLeft(v[d.key], booking.ends_at); return l !== null && l < 0; });
+                  const insLeft = licenseDaysLeft(v.insurance_expiry, booking.ends_at);
+                  const why = v.condition !== "ready" ? " — ซ่อมบำรุง" : docsOut ? " — พ.ร.บ./ภาษีหมด" : busyV.has(v.id) ? " — ไม่ว่าง" : "";
+                  return (
+                    <option key={v.id} value={v.id} disabled={!!why}>
+                      {v.name}{v.seats ? ` (${v.seats} ที่นั่ง)` : ""}{why}
+                      {!why && v.seats && v.seats < booking.passengers ? " — ที่นั่งไม่พอ" : ""}
+                      {!why && insLeft !== null && insLeft < 0 ? " — ประกันภัยหมด" : ""}
+                    </option>
+                  );
+                })}
               </select>
             </Field>
             <Field label="คนขับ (ไม่บังคับ)">

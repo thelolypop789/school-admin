@@ -20,6 +20,7 @@ Stack: React 19 + TypeScript + Vite, Supabase (Auth Google / Postgres + RLS / St
    - `20261119000000_vehicle_trip_log.sql` — บันทึกเดินทาง/ปิดงาน (เลขไมล์ น้ำมัน), วันหมดอายุใบขับขี่, ผอ. ไม่อนุมัติแบบยุติเรื่อง
    - `20261119000001_harden_function_privileges.sql` — ปิดสิทธิ์เรียก trigger function ผ่าน RPC, ตั้ง search_path
    - `20261120000000_line_approval.sql` — อนุมัติ/ส่งกลับ/ไม่อนุมัติผ่าน LINE, ผูก LINE ด้วยรหัส, trigger แจ้งเตือน (ต้องตั้ง `private.config` และ deploy `line-bot`)
+   - `20261121000000_vehicle_fleet.sql` — รูปรถ (bucket `vehicle-photos`), สภาพรถ, วันหมดอายุประกันภัย/พ.ร.บ./ภาษี; จัดรถที่ซ่อมหรือ พ.ร.บ./ภาษีหมดไม่ได้
 3. `pongsarkon@wangluangpitt.ac.th` จะเป็น admin อัตโนมัติเมื่อล็อกอินครั้งแรก
 
 ### 2. ล็อกอิน Google
