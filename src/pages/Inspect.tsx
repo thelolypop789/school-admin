@@ -3,7 +3,8 @@ import { errText, supabase } from "../lib/supabase";
 import { useMe } from "../lib/me";
 import { navigate } from "../lib/router";
 import { compressImage } from "../lib/image";
-import { Empty } from "../components/ui";
+import { Empty, PageHeader } from "../components/ui";
+import { Camera, ClipboardCheck } from "lucide-react";
 import { CAT_LABEL, GENDER_LABEL, type Item } from "../lib/toilet";
 
 type Toilet = { id: number; name: string; building: string | null; gender: string };
@@ -92,13 +93,10 @@ export default function Inspect({ token }: { token: string }) {
 
   return (
     <>
-      <div className="page-head">
-        <div>
-          <h1>ตรวจห้องน้ำ</h1>
-          <p className="muted">{toilet.name}{toilet.building ? ` · ${toilet.building}` : ""} · {GENDER_LABEL[toilet.gender]}</p>
-        </div>
+      <PageHeader icon={ClipboardCheck} tone="toilets" title={`ตรวจ: ${toilet.name}`}
+        desc={<>{toilet.building ? `${toilet.building} · ` : ""}{GENDER_LABEL[toilet.gender]} · กด ✓ ผ่าน หรือ ✕ ไม่ผ่าน ให้ครบทุกข้อ</>}>
         <button className="btn" onClick={() => setAll(true)}>ผ่านทุกข้อ</button>
-      </div>
+      </PageHeader>
 
       {(["H", "A", "S"] as const).map((cat) => {
         const list = items.filter((i) => i.category === cat);
@@ -131,7 +129,7 @@ export default function Inspect({ token }: { token: string }) {
           ))}
           {photos.length < MAX_PHOTOS && (
             <label className="photo add">
-              📷<span>เพิ่มรูป</span>
+              <Camera size={26} /><span>เพิ่มรูป</span>
               <input type="file" accept="image/*" capture="environment" multiple hidden onChange={(e) => { addPhotos(e.target.files); e.target.value = ""; }} />
             </label>
           )}

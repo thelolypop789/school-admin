@@ -3,7 +3,8 @@ import { errText, supabase } from "../lib/supabase";
 import { useMe } from "../lib/me";
 import { navigate } from "../lib/router";
 import { addDays, fmtDateTime, todayISO } from "../lib/time";
-import { Empty, Field, Modal } from "../components/ui";
+import { Empty, Field, Modal, PageHeader } from "../components/ui";
+import { Camera, Toilet } from "lucide-react";
 import { CAT_LABEL, GENDER_LABEL, tone, type Item } from "../lib/toilet";
 
 type Status = {
@@ -41,12 +42,7 @@ export default function Toilets() {
 
   return (
     <>
-      <div className="page-head">
-        <div>
-          <h1>สุขาดี มีความสุข</h1>
-          <p className="muted">แบบตรวจห้องน้ำตามหลัก HAS · สะอาด เพียงพอ ปลอดภัย</p>
-        </div>
-      </div>
+      <PageHeader icon={Toilet} tone="toilets" title="ตรวจห้องน้ำ" desc="สุขาดี มีความสุข · ตรวจตามหลัก HAS: สะอาด เพียงพอ ปลอดภัย" />
       {canReport && (
         <div className="tabs">
           <button className={tab === "status" ? "on" : ""} onClick={() => setTab("status")}>สถานะวันนี้</button>
@@ -171,7 +167,7 @@ function Report({ toilets }: { toilets: Status[] }) {
               <li key={r.id} className="clickable" onClick={() => setOpen(r)}>
                 <span className={`score sm ${tone(r.score, r.safety_fail)}`}>{Math.round(r.score)}%</span>
                 <span><b>{tname(r.toilet_id)}</b> <span className="muted small">· {fmtDateTime(r.inspected_at)} · {r.inspector?.full_name || r.inspector?.email}</span>
-                  {r.photo_paths.length > 0 && " 📷"}{r.note && <div className="small muted">{r.note}</div>}</span>
+                  {r.photo_paths.length > 0 && <> <Camera size={14} style={{ verticalAlign: "-2px" }} aria-label="มีรูป" /></>}{r.note && <div className="small muted">{r.note}</div>}</span>
               </li>
             ))}
           </ul>

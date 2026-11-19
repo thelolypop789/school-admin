@@ -2,7 +2,8 @@ import { useCallback, useEffect, useState } from "react";
 import QRCode from "qrcode";
 import { errText, ROLE_LABEL, supabase, type Profile, type Role } from "../lib/supabase";
 import { useMe } from "../lib/me";
-import { Empty, Modal } from "../components/ui";
+import { Empty, Modal, PageHeader } from "../components/ui";
+import { Plus, Printer, Settings } from "lucide-react";
 import { CAT_LABEL, GENDER_LABEL } from "../lib/toilet";
 import { licenseDaysLeft } from "../lib/vehicle";
 import { fmtDate } from "../lib/time";
@@ -50,7 +51,7 @@ export default function Admin() {
   const [tab, setTab] = useState<Tab>("rooms");
   return (
     <>
-      <div className="page-head"><h1>จัดการระบบ</h1></div>
+      <PageHeader icon={Settings} tone="admin" title="จัดการระบบ" desc="ข้อมูลห้อง รถ คนขับ ห้องน้ำ รายการตรวจ และสิทธิ์ของผู้ใช้" />
       <div className="tabs scroll">
         {TABS.map(([k, l]) => <button key={k} className={tab === k ? "on" : ""} onClick={() => setTab(k)}>{l}</button>)}
       </div>
@@ -95,8 +96,8 @@ function TableEditor({ kind }: { kind: Exclude<Tab, "users"> }) {
   return (
     <>
       <div className="row">
-        <button className="btn primary" onClick={() => setEdit("new")}>+ เพิ่ม</button>
-        {kind === "toilets" && <button className="btn" onClick={() => setShowQr(true)} disabled={!rows.some((r) => r.active)}>🖨️ พิมพ์ QR ทุกจุด</button>}
+        <button className="btn primary" onClick={() => setEdit("new")}><Plus size={18} />เพิ่ม</button>
+        {kind === "toilets" && <button className="btn" onClick={() => setShowQr(true)} disabled={!rows.some((r) => r.active)}><Printer size={18} />พิมพ์ QR ทุกจุด</button>}
       </div>
       {kind === "checklist" && <p className="muted small">แก้ข้อความหรือปิดข้อที่ไม่ใช้ได้ (ผลตรวจเก่ายังเก็บไว้) · เทียบกับแบบประเมิน HAS ฉบับล่าสุดของกรมอนามัยก่อนใช้จริง</p>}
       {err && <p className="error">{err}</p>}

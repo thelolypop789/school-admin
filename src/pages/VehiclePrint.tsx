@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Printer } from "lucide-react";
 import { errText, supabase } from "../lib/supabase";
 import { navigate } from "../lib/router";
 import { fmtDate } from "../lib/time";
@@ -69,7 +70,7 @@ export default function VehiclePrint({ id }: { id: number }) {
     <>
       <div className="no-print print-toolbar">
         <button className="btn" onClick={() => navigate("/vehicles")}>‹ กลับ</button>
-        <button className="btn primary" onClick={() => window.print()}>🖨️ พิมพ์</button>
+        <button className="btn primary" onClick={() => window.print()}><Printer size={18} />พิมพ์</button>
         <span className="muted small">คำขอ #{b.id} · เลขที่คำสั่งเว้นไว้ให้งานสารบรรณกรอก</span>
       </div>
 

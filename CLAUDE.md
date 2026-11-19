@@ -1,6 +1,6 @@
 # school-admin — CLAUDE.md
 
-ระบบงานบริหารทั่วไปของโรงเรียนวังหลวงพิทยาสรรพ์ (จองห้องประชุม · จองรถ · ตรวจห้องน้ำ HAS) — แยกจาก FormAuto/SOBPREP ทั้ง repo, Supabase project และ Vercel project
+"ระบบจัดการงานบริหารทั่วไป โรงเรียนวังหลวงพิทยาสรรพ์" (ชื่อ/ตราอยู่ `src/lib/brand.ts`, ตรา `public/school-logo.png`) (จองห้องประชุม · จองรถ · ตรวจห้องน้ำ HAS) — แยกจาก FormAuto/SOBPREP ทั้ง repo, Supabase project และ Vercel project
 วิธีติดตั้ง/deploy อยู่ใน `README.md`
 
 ## Stack / โครงสร้าง
@@ -8,6 +8,7 @@
 - `src/App.tsx` = auth gate (Google, จำกัด @wangluangpitt.ac.th) + nav; หน้าอยู่ใน `src/pages/*` (lazy)
 - `src/lib/supabase.ts` = client (storageKey `school-admin-auth`), types, `errText()` แปล error เป็นไทย
 - จองรถ 3 ขั้น: `pending`(หัวหน้างานยานพาหนะ) → `pending_deputy` → `pending_director` → `approved`; ส่งกลับ = ขั้นก่อนหน้า (`returned` = กลับผู้ขอ); ทำผ่าน RPC `review_vehicle_booking` / `resubmit_vehicle_booking` เท่านั้น ประวัติอยู่ `vehicle_booking_steps`; หลังอนุมัติ: `approved` → `on_trip` (`start_vehicle_trip`: ไมล์ก่อนออก + checklist ครบ) → `completed` (`close_vehicle_trip`: ไมล์กลับ + น้ำมัน) บันทึกโดย vehicle_head/admin ใน `vehicle_trips` (คนขับไม่มีบัญชี); ผอ. ยุติเรื่องด้วย `reject_vehicle_booking` → `rejected`; คนขับใบขับขี่หมดก่อนวันกลับ → `license_expired`; ค่าคงที่ฝั่ง UI อยู่ `src/lib/vehicle.ts`
+- ดีไซน์ (`src/index.css`): สีจากตราโรงเรียน — แดง `--brand` (ปุ่มหลัก), ทอง `--gold` (รัศมี), เขียว `--leaf`, ฟ้า `--wave`; สีประจำงาน `tone-rooms` (ฟ้า) / `tone-vehicles` (ทอง) / `tone-toilets` (เขียว) / `tone-admin`; ฟอนต์ Anuphan = หัวเรื่อง, IBM Plex Sans Thai Looped = เนื้อหา (มีหัว อ่านง่ายสำหรับครูทุกวัย), Sarabun = เอกสารพิมพ์ราชการเท่านั้น; ไอคอน `lucide-react` (ไม่ใช้ emoji); ลายรัศมีทอง `.rays` ใช้เฉพาะหน้าแรกกับหน้าเข้าสู่ระบบ; ทุกหน้าเริ่มด้วย `<PageHeader>` (ไอคอนสีประจำงาน + บอกว่าหน้าทำอะไร); มือถือ = แถบบน + เมนูล่าง, จอ ≥ 900px = แถบข้าง
 - PWA: `public/manifest.webmanifest` + `public/sw.js` (เขียนเอง ไม่ใช้ plugin; ไม่ cache request ไป Supabase) ลงทะเบียนใน `src/main.tsx` เฉพาะ production — แก้ sw.js แล้วให้เพิ่ม `VERSION`
 - `src/lib/time.ts` = เวลาไทยเสมอ (`toISO(date, "HH:MM")` ใส่ +07:00) ห้ามใช้เขตเวลาเครื่อง
 - `supabase/migrations/` = SQL; project ref `rvoixpbaiwilpigcxeix` — Claude รัน SQL ได้ผ่าน Management API (`POST https://api.supabase.com/v1/projects/<ref>/database/query`, proxy ใส่ credential ให้) หรือรันเองใน SQL Editor; คำสั่งที่แก้ข้อมูล/schema บน production ต้องถามผู้ใช้ก่อน

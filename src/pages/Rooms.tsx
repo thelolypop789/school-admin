@@ -2,7 +2,8 @@ import { useCallback, useEffect, useState } from "react";
 import { errText, supabase } from "../lib/supabase";
 import { useMe } from "../lib/me";
 import { dayRange, fmtRange, fmtTime, hhmm, toISO, todayISO } from "../lib/time";
-import { DateNav, Empty, Field, Modal, StatusChip, Timeline } from "../components/ui";
+import { DateNav, Empty, Field, Modal, PageHeader, StatusChip, Timeline } from "../components/ui";
+import { Plus, Presentation } from "lucide-react";
 
 export type Room = { id: number; name: string; capacity: number | null; equipment: string[]; note: string | null; active: boolean };
 type Booking = {
@@ -50,10 +51,8 @@ export default function Rooms() {
   const range = dayRange(date);
   return (
     <>
-      <div className="page-head">
-        <h1>จองห้องประชุม</h1>
-        <DateNav date={date} onChange={setDate} />
-      </div>
+      <PageHeader icon={Presentation} tone="rooms" title="จองห้องประชุม" desc="เลือกวัน ดูช่วงที่ห้องว่าง แล้วกดจอง · ระบบไม่ให้จองเวลาซ้อนกัน" />
+      <DateNav date={date} onChange={setDate} />
       {err && <p className="error">{err}</p>}
       {rooms.length === 0 && <Empty>ยังไม่มีห้องประชุม{me.role === "admin" ? " — เพิ่มได้ที่เมนู จัดการ" : ""}</Empty>}
 
@@ -70,7 +69,7 @@ export default function Rooms() {
                     {room.equipment.length ? ` · ${room.equipment.join(", ")}` : ""}
                   </p>
                 </div>
-                <button className="btn primary" onClick={() => setForm({ room_id: room.id })}>+ จอง</button>
+                <button className="btn primary" onClick={() => setForm({ room_id: room.id })}><Plus size={18} />จอง</button>
               </div>
               <Timeline day={range} items={list.map((b) => ({ id: b.id, starts_at: b.starts_at, ends_at: b.ends_at, label: b.title }))} />
               {list.length === 0 ? <p className="muted small">ว่างทั้งวัน</p> : (

@@ -3,6 +3,7 @@ import { errText, supabase } from "../lib/supabase";
 import { addDays, fmtDate, fmtDateTime, fmtRange, todayISO } from "../lib/time";
 import { licenseDaysLeft, TRIP_CHECKLIST, type Trip } from "../lib/vehicle";
 import { Empty, Field, Modal, StatusChip } from "../components/ui";
+import { CarFront } from "lucide-react";
 import type { Driver, Vehicle } from "./Vehicles";
 
 // เจ้าหน้าที่/หัวหน้างานยานพาหนะบันทึกเอง: ออกเดินทาง (ไมล์ก่อนออก + checklist) → ปิดงาน (ไมล์กลับ + น้ำมัน)
@@ -55,7 +56,7 @@ export default function VehicleTrips({ vehicles, drivers, onChanged }: { vehicle
   const jobLine = (j: Job) => (
     <>
       <b>{fmtRange(j.starts_at, j.ends_at)}</b> · {j.destination}
-      <div className="small">🚐 {vname(j.vehicle_id)}{dname(j.driver_id) ? ` · คนขับ ${dname(j.driver_id)}` : ""} · {j.passengers} คน · ผู้ขอ {j.requester?.full_name || j.requester?.email}</div>
+      <div className="small"><CarFront size={14} style={{ verticalAlign: "-2px" }} /> {vname(j.vehicle_id)}{dname(j.driver_id) ? ` · คนขับ ${dname(j.driver_id)}` : ""} · {j.passengers} คน · ผู้ขอ {j.requester?.full_name || j.requester?.email}</div>
     </>
   );
 
