@@ -2,10 +2,10 @@
 // - หน้าเว็บ (navigation): ดึงจากเน็ตก่อน ถ้าออฟไลน์ใช้ตัวที่ cache ไว้
 // - /assets/* (ชื่อไฟล์มี hash): cache ก่อน
 // - ไม่แตะ request ไป Supabase หรือโดเมนอื่น ข้อมูลจริงต้องมาจากเซิร์ฟเวอร์เสมอ
-const VERSION = "v2"; // v2: หน้าตาใหม่ + ตราโรงเรียน
+const VERSION = "v3"; // v3: สีเบอร์กันดี-ทอง + โลโก้ใหม่
 const SHELL = `shell-${VERSION}`;
 const ASSETS = `assets-${VERSION}`;
-const PRECACHE = ["/", "/manifest.webmanifest", "/favicon.png", "/school-logo.png", "/icon-192.png", "/icon-512.png"];
+const PRECACHE = ["/", "/manifest.webmanifest", "/favicon.svg", "/favicon.png", "/school-logo.png", "/icon-192.png", "/icon-512.png"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(SHELL).then((c) => c.addAll(PRECACHE)).then(() => self.skipWaiting()));

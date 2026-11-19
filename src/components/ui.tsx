@@ -103,13 +103,13 @@ export function StatusChip({ status }: { status: string }) {
 
 export type Tone = "rooms" | "vehicles" | "toilets" | "admin" | "brand";
 
-/** หัวหน้า: ไอคอนสีประจำงาน + ชื่อหน้า + บอกว่าหน้านี้ทำอะไร + ปุ่มหลักของหน้า */
-export function PageHeader({ icon: Icon, tone, title, desc, children }: {
-  icon: LucideIcon; tone: Tone; title: string; desc?: ReactNode; children?: ReactNode;
+/** หัวหน้า: ชื่อหน้า + บอกว่าหน้านี้ทำอะไร + ปุ่มหลักของหน้า (icon/tone เก็บไว้ให้ผู้เรียกเดิม ยังไม่ได้แสดง) */
+export function PageHeader(props: {
+  icon?: LucideIcon; tone?: Tone; title: string; desc?: ReactNode; children?: ReactNode;
 }) {
+  const { title, desc, children } = props;
   return (
     <header className="page-head">
-      <div className={`ph-icon tone-${tone}`} aria-hidden><Icon size={24} /></div>
       <div className="ph-text">
         <h1>{title}</h1>
         {desc && <p>{desc}</p>}
