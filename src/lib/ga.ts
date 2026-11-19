@@ -3,8 +3,8 @@ import { hasRole } from "./roles";
 
 /** ปฏิทินงานฝ่ายบริหารทั่วไป — ตรงกับ RLS/RPC ใน DB (ga_events) */
 type P = Pick<Profile, "role" | "extra_roles">;
-/** ดูได้: ทีมฝ่ายบริหารทั่วไป (หัวหน้างาน หัวหน้าฝ่าย รอง ผอ. ผอ. แอดมิน) */
-export const canViewGaCalendar = (p: P) => hasRole(p, "vehicle_head", "facilities_head", "ga_head", "deputy", "director", "admin");
+/** ปฏิทินงานฝ่ายให้ทุกคนดูได้ · วันหมดอายุเอกสารรถ/ใบขับขี่ (ข้อมูลภายใน) เห็นเฉพาะทีมฝ่าย: หัวหน้างาน หัวหน้าฝ่าย รอง ผอ. ผอ. แอดมิน */
+export const isGaTeam = (p: P) => hasRole(p, "vehicle_head", "facilities_head", "ga_head", "deputy", "director", "admin");
 /** เพิ่ม/แก้กิจกรรมเอง: หัวหน้างานยานพาหนะ/อาคารสถานที่/แอดมิน (หัวหน้าฝ่ายดูอย่างเดียว) */
 export const canEditGaEvents = (p: P) => hasRole(p, "vehicle_head", "facilities_head", "admin");
 

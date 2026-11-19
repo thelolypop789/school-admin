@@ -1,7 +1,7 @@
 -- ปฏิทินงานฝ่ายบริหารทั่วไป: กิจกรรมที่หัวหน้างานเพิ่มเอง (ส่วนที่ดึงอัตโนมัติ — งานซ่อม รถ ห้องประชุม วันหมดอายุเอกสารรถ —
 -- อ่านจากตารางเดิมในแอป ไม่ซ้ำข้อมูล)
 -- เขียน: หัวหน้างานยานพาหนะ / หัวหน้างานอาคารสถานที่ / แอดมิน (หัวหน้าฝ่ายบริหารทั่วไปดูอย่างเดียว) ผ่าน RPC เท่านั้น
--- อ่าน: ทีมฝ่ายบริหารทั่วไป (หัวหน้างาน, หัวหน้าฝ่าย, รอง ผอ., ผอ., แอดมิน)
+-- อ่าน: บุคลากรทุกคนที่มีบัญชี (หน้าแรกแสดงให้ทุกคนเห็นว่างานฝ่ายบริหารทั่วไปทำอะไรบ้าง) — วันหมดอายุเอกสารรถ/ใบขับขี่เป็นข้อมูลภายใน แอปแสดงเฉพาะทีมฝ่าย
 -- รันหลัง 20261124000000_repairs.sql
 
 create table public.ga_events (
@@ -25,7 +25,7 @@ alter table public.ga_events enable row level security;
 revoke all on public.ga_events from anon, authenticated;
 grant select on public.ga_events to authenticated;
 create policy ga_events_read on public.ga_events for select to authenticated
-  using (public.my_roles() && array['vehicle_head','facilities_head','ga_head','deputy','director','admin']::text[]);
+  using (public.my_role() is not null);
 
 create or replace function public.ga_event_save(
   p_id bigint, p_title text, p_category text, p_start_date date, p_end_date date,

@@ -604,3 +604,5 @@ td.num { font-variant-numeric: tabular-nums; }
 .ga-item { display: grid; gap: .1rem; min-width: 0; }
 .ga-item .ag-kind { justify-self: start; }
 .ga-item b { overflow-wrap: anywhere; }
+.agenda li.clickable { cursor: pointer; }
+.agenda li.clickable:hover .ag-what { text-decoration: underline; text-decoration-color: var(--gold); text-underline-offset: 3px; }

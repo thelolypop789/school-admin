@@ -1,20 +1,17 @@
 import { lazy, Suspense } from "react";
 import { navigate, usePath } from "../lib/router";
-import { useMe } from "../lib/me";
 import { PageHeader } from "../components/ui";
-import { canViewGaCalendar } from "../lib/ga";
 import { Wrench } from "lucide-react";
 import Repairs from "./Repairs";
 
 const GaCalendar = lazy(() => import("./GaCalendar"));
 
-/** งานอาคารสถานที่: แจ้งซ่อม · ปฏิทินงานฝ่าย (ทีมฝ่ายบริหารทั่วไป) · (ต่อไป) เขตทำความสะอาด */
+/** งานอาคารสถานที่: แจ้งซ่อม · ปฏิทินงานฝ่าย (ทุกคนดูได้) · (ต่อไป) เขตทำความสะอาด */
 export default function Facilities() {
-  const me = useMe();
   const path = usePath();
   const tabs = [
     { path: "/facilities", label: "แจ้งซ่อม" },
-    ...(canViewGaCalendar(me) ? [{ path: "/facilities/calendar", label: "ปฏิทินงานฝ่าย" }] : []),
+    { path: "/facilities/calendar", label: "ปฏิทินงานฝ่าย" },
   ];
   const tab = tabs.find((t) => t.path !== "/facilities" && path.startsWith(t.path)) ?? tabs[0];
   return (
