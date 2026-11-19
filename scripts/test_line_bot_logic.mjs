@@ -110,5 +110,11 @@ t('queue only repairs', L.queueMessage([], 'https://app', [{ ...rep, status: 'pr
 t('queue caps at 10', L.queueMessage([], 'x', Array.from({ length: 14 }, () => ({ ...rep, status: 'proposed' }))).contents.contents.length === 10);
 t('repair done texts mention title', ['agree', 'urgent', 'defer'].every((d) => L.repairDoneText(d, 'เรื่องX').includes('เรื่องX')));
 t('bad_action has Thai text', L.errorText('ERROR: bad_action').includes('ปุ่ม'));
+// ดีไซน์รอบ 2: หัวการ์ดเป็นแผ่นสีประจำงาน
+const hb = JSON.parse(card('pending_deputy')).header;
+t('booking header is car gradient', hb.background?.type === 'linearGradient' && hb.background.endColor === L.MOD.car.end);
+const hr = JSON.parse(rcard('proposed')).header;
+t('repair header is orange gradient', hr.background?.type === 'linearGradient' && hr.background.endColor === L.MOD.fix.end);
+t('urgent priority value is red', JSON.stringify(L.repairCard({ ...rep, priority: 'urgent' }, 'x')).includes('#d92d20'));
 console.log(`${n - bad}/${n} passed`);
 process.exit(bad ? 1 : 0);
