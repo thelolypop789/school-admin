@@ -3,6 +3,7 @@ import type { Session } from "@supabase/supabase-js";
 import { errText, isConfigured, ROLE_LABEL, SCHOOL_DOMAIN, supabase, type Profile } from "./lib/supabase";
 import { Field, Modal } from "./components/ui";
 import { APP_NAME, initials, LOGO, SCHOOL_NAME } from "./lib/brand";
+import { Mark } from "./components/Mark";
 import { CarFront, House, LogOut, Presentation, Settings, Toilet, UserPen, type LucideIcon } from "lucide-react";
 import { navigate, usePath } from "./lib/router";
 import { MeContext } from "./lib/me";
@@ -77,14 +78,14 @@ export default function App() {
       <div className="shell">
         {/* คอมพิวเตอร์: แถบข้าง */}
         <aside className="sidebar">
-          <button className="brand" onClick={() => go("/")}>
-            <img src={LOGO} alt={`ตรา${SCHOOL_NAME}`} />
-            <span className="brand-text"><b>{APP_NAME}</b><span>{SCHOOL_NAME}</span></span>
+          <button className="side-brand" onClick={() => go("/")}>
+            <span className="seal" style={{ width: 76, height: 76 }}><img src={LOGO} alt={`ตรา${SCHOOL_NAME}`} /></span>
+            <b>{APP_NAME}</b><span>{SCHOOL_NAME}</span>
           </button>
           <nav className="sidenav" aria-label="เมนูหลัก">
             {nav.map((n) => (
               <button key={n.path} className={active(n.path) ? "on" : ""} aria-current={active(n.path) ? "page" : undefined} onClick={() => go(n.path)}>
-                <span className="nav-ic"><n.icon size={18} /></span>{n.long}
+                <n.icon size={19} />{n.long}
               </button>
             ))}
           </nav>
@@ -103,7 +104,7 @@ export default function App() {
         {/* มือถือ: แถบบน */}
         <header className="appbar">
           <button className="brand" onClick={() => go("/")}>
-            <img src={LOGO} alt={`ตรา${SCHOOL_NAME}`} />
+            <Mark size={34} className="mark" />
             <span className="brand-text"><b>{APP_NAME}</b><span>{SCHOOL_NAME}</span></span>
           </button>
           <button className="avatar" onClick={() => setAccount(true)} aria-label="บัญชีของฉัน">{initials(me.full_name, me.email)}</button>
@@ -188,15 +189,12 @@ function Login() {
   };
   return (
     <div className="login-wrap">
-      <div className="login rays">
-        <img src={LOGO} alt={`ตรา${SCHOOL_NAME}`} />
+      <Mark className="mark-bg" />
+      <div className="login">
+        <span className="seal"><img src={LOGO} alt={`ตรา${SCHOOL_NAME}`} /></span>
         <h1>{APP_NAME}</h1>
         <div className="school">{SCHOOL_NAME}</div>
-        <div className="login-mods" aria-label="งานในระบบ">
-          <span className="tone-rooms"><Presentation size={14} />จองห้องประชุม</span>
-          <span className="tone-vehicles"><CarFront size={14} />ขอใช้รถ</span>
-          <span className="tone-toilets"><Toilet size={14} />ตรวจห้องน้ำ</span>
-        </div>
+        <p className="lead">จองห้องประชุม ขอใช้รถไปราชการ และบันทึกผลตรวจห้องน้ำ ในที่เดียว</p>
         <button className="btn primary big" onClick={signIn} disabled={busy}>
           <span className="g" aria-hidden><GoogleG /></span>{busy ? "กำลังไปหน้า Google…" : "เข้าสู่ระบบด้วย Google"}
         </button>
@@ -223,8 +221,9 @@ function GoogleG() {
 function NotStaff({ email }: { email: string }) {
   return (
     <div className="login-wrap">
+      <Mark className="mark-bg" />
       <div className="login">
-        <img src={LOGO} alt={`ตรา${SCHOOL_NAME}`} />
+        <span className="seal"><img src={LOGO} alt={`ตรา${SCHOOL_NAME}`} /></span>
         <h1>บัญชีนี้ใช้ระบบไม่ได้</h1>
         <p><b>{email}</b> ไม่ใช่อีเมลของโรงเรียน</p>
         <p className="muted small">ออกจากระบบ แล้วเข้าใหม่ด้วยอีเมล @{SCHOOL_DOMAIN}</p>

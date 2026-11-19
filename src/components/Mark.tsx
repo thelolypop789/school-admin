@@ -1,0 +1,18 @@
+/**
+ * โลโก้ระบบ: ถอดรูปจากตราโรงเรียน (รัศมี · ยอด · วงเวียน · เรือ) เป็นเส้นสีเดียว
+ * สีตาม currentColor — ใช้สีทองบนพื้นเบอร์กันดี; ไอคอนแอปอยู่ public/icon-*.png (สร้างจาก SVG ชุดเดียวกัน)
+ */
+export function Mark({ size = 32, className, title }: { size?: number; className?: string; title?: string }) {
+  return (
+    <svg className={className} width={size} height={size} viewBox="96 38 320 404" fill="currentColor"
+      role={title ? "img" : undefined} aria-hidden={title ? undefined : true} aria-label={title}>
+      <path d="M217.0 150.2 L146.2 115.6 L137.5 142.2 L215.1 155.9 Z M226.8 135.7 L176.2 75.3 L157.5 96.1 L222.8 140.1 Z M241.7 126.4 L220.0 50.7 L194.4 62.1 L236.2 128.9 Z M259.0 124.0 L270.0 46.0 L242.0 46.0 L253.0 124.0 Z M275.8 128.9 L317.6 62.1 L292.0 50.7 L270.3 126.4 Z M289.2 140.1 L354.5 96.1 L335.8 75.3 L285.2 135.7 Z M296.9 155.9 L374.5 142.2 L365.8 115.6 L295.0 150.2 Z" />
+      <path d="M256 166 m-19 0 a19 19 0 1 0 38 0 a19 19 0 1 0 -38 0 Z" />
+      <path d="M256 194 C261 234 268 272 276 306 L236 306 C244 272 251 234 256 194 Z" />
+      <path d="M243 298 L176 394 L194 406 L256 318 L318 406 L336 394 L269 298 Z" />
+      <path d="M118 364 C168 448 344 448 394 364 C342 416 170 416 118 364 Z" />
+      <path d="M118 364 c-9 -13 -4 -28 11 -28 c9 0 13 9 7 15" fill="none" stroke="currentColor" strokeWidth={11} strokeLinecap="round" />
+      <path d="M394 364 c9 -13 4 -28 -11 -28 c-9 0 -13 9 -7 15" fill="none" stroke="currentColor" strokeWidth={11} strokeLinecap="round" />
+    </svg>
+  );
+}

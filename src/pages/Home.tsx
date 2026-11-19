@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
-import { CalendarDays, CarFront, CircleCheck, ClipboardCheck, Gauge, Presentation, Toilet, Undo2, UserPen, type LucideIcon } from "lucide-react";
+import { ArrowRight, CarFront, ChevronRight, ClipboardCheck, Gauge, Presentation, Toilet, Undo2, type LucideIcon } from "lucide-react";
+import { Mark } from "../components/Mark";
 import { ROLE_LABEL, supabase } from "../lib/supabase";
 import { useMe } from "../lib/me";
 import { navigate } from "../lib/router";
-import { LOGO, SCHOOL_NAME } from "../lib/brand";
 import { dayRange, fmtDate, fmtTime, todayISO } from "../lib/time";
 import { StatusChip, type Tone } from "../components/ui";
 import { OPEN, REVIEW_STATUS } from "../lib/vehicle";
@@ -65,64 +65,70 @@ export default function Home({ onEditProfile }: { onEditProfile: () => void }) {
       title: "ห้องน้ำยังไม่ได้ตรวจวันนี้", sub: "สแกน QR หน้าห้องน้ำ หรือกด ตรวจ ในหน้าห้องน้ำ" },
   ].filter((t) => t.count > 0) : [];
 
+  const waiting = todos.reduce((n, t) => n + t.count, 0);
+
   return (
     <>
-      <section className="hero rays">
-        <img src={LOGO} alt={`ตรา${SCHOOL_NAME}`} />
-        <div>
-          <h1>สวัสดี{firstName ? ` คุณ${firstName}` : ""}</h1>
-          <p className="when">{fmtDate(todayISO(), { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</p>
-          <div className="who-line">
-            <span className="chip">{ROLE_LABEL[me.role]}</span>
-            <button className="link small" onClick={onEditProfile}>
-              <UserPen size={14} style={{ verticalAlign: "-2px" }} /> {me.position ? me.position : "ตั้งชื่อและตำแหน่ง (ใช้ในเอกสารราชการ)"}
-            </button>
-          </div>
+      <section className="masthead">
+        <Mark className="mark-bg" />
+        <div className="date">{fmtDate(todayISO(), { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</div>
+        <h1>สวัสดี{firstName ? ` คุณ${firstName}` : ""}</h1>
+        <p className="summary">
+          {counts === null ? "กำลังดูว่ามีอะไรรอคุณ…" : waiting > 0
+            ? <>วันนี้มี <b>{waiting}</b> เรื่องรอคุณจัดการ</>
+            : "วันนี้ไม่มีงานค้าง เริ่มงานใหม่ได้จากด้านล่าง"}
+        </p>
+        <div className="who-line">
+          <span>{ROLE_LABEL[me.role]}{me.position ? ` · ${me.position}` : ""}</span>
+          <button className="link" onClick={onEditProfile}>
+            {me.position ? "แก้ไขชื่อและตำแหน่ง" : "ตั้งชื่อและตำแหน่ง (ใช้ในเอกสารราชการ)"}
+          </button>
         </div>
       </section>
 
-      {counts && (todos.length > 0 ? (
+      {todos.length > 0 && (
         <>
           <div className="section-title"><h2>สิ่งที่รอคุณ</h2></div>
           <ul className="todo">
             {todos.map((t) => (
               <li key={t.key}>
                 <button onClick={() => navigate(t.path)}>
-                  <span className={`todo-ic tone-${t.tone}`}><t.icon size={20} /></span>
-                  <span className="todo-text"><b>{t.title}</b><span>{t.sub}</span></span>
                   <span className="todo-count">{t.count}</span>
+                  <span className="todo-text"><b>{t.title}</b><span>{t.sub}</span></span>
+                  <ChevronRight size={20} className="chev" />
                 </button>
               </li>
             ))}
           </ul>
         </>
-      ) : (
-        <div className="all-clear"><CircleCheck size={20} />ไม่มีงานค้างที่ต้องทำตอนนี้</div>
-      ))}
+      )}
 
       <div className="section-title"><h2>เริ่มงาน</h2></div>
-      <div className="tiles">
-        <button className="tile" onClick={() => navigate("/rooms")}>
-          <span className="tile-ic tone-rooms"><Presentation size={24} /></span>
-          <span className="tile-text"><b>จองห้องประชุม</b><small>ดูห้องว่างตามวัน แล้วจองได้ทันที</small></span>
+      <div className="actions-grid">
+        <button className="action" onClick={() => navigate("/rooms")}>
+          <Presentation size={26} />
+          <span><b>จองห้องประชุม</b><small>ดูห้องว่างตามวัน แล้วจองได้ทันที</small></span>
+          <ArrowRight size={20} className="chev" />
         </button>
-        <button className="tile" onClick={() => navigate("/vehicles")}>
-          <span className="tile-ic tone-vehicles"><CarFront size={24} /></span>
-          <span className="tile-text"><b>ขอใช้รถไปราชการ</b><small>ยื่นคำขอ ติดตามการอนุมัติ พิมพ์คำสั่ง</small></span>
+        <button className="action" onClick={() => navigate("/vehicles")}>
+          <CarFront size={26} />
+          <span><b>ขอใช้รถไปราชการ</b><small>ยื่นคำขอ ติดตามการอนุมัติ พิมพ์คำสั่ง</small></span>
+          <ArrowRight size={20} className="chev" />
         </button>
-        <button className="tile" onClick={() => navigate("/toilets")}>
-          <span className="tile-ic tone-toilets"><Toilet size={24} /></span>
-          <span className="tile-text"><b>ตรวจห้องน้ำ</b>
+        <button className="action" onClick={() => navigate("/toilets")}>
+          <Toilet size={26} />
+          <span><b>ตรวจห้องน้ำ</b>
             <small>{counts && counts.toiletsTotal > 0
-              ? (counts.toiletsLeft ? `วันนี้ยังไม่ตรวจ ${counts.toiletsLeft} จาก ${counts.toiletsTotal} จุด` : `ตรวจครบทั้ง ${counts.toiletsTotal} จุดแล้ววันนี้`)
+              ? (counts.toiletsLeft ? `วันนี้ยังไม่ตรวจ ${counts.toiletsLeft} จาก ${counts.toiletsTotal} จุด` : `ตรวจครบ ${counts.toiletsTotal} จุดแล้ววันนี้`)
               : "สุขาดี มีความสุข · ผลตรวจรายวัน"}</small>
           </span>
+          <ArrowRight size={20} className="chev" />
         </button>
       </div>
 
       <div className="grid">
         <section className="card">
-          <h3><Presentation size={18} color="var(--wave)" /> ห้องประชุมวันนี้</h3>
+          <h3>ห้องประชุมวันนี้</h3>
           {todayRooms === null ? <div className="spinner" /> : todayRooms.length === 0 ? (
             <p className="muted small">วันนี้ยังไม่มีใครจองห้อง</p>
           ) : (
@@ -137,7 +143,7 @@ export default function Home({ onEditProfile }: { onEditProfile: () => void }) {
           )}
         </section>
         <section className="card">
-          <h3><CalendarDays size={18} color="var(--brand)" /> นัดหมายของฉัน</h3>
+          <h3>นัดหมายของฉัน</h3>
           {mine === null ? <div className="spinner" /> : mine.length === 0 ? (
             <p className="muted small">ไม่มีการจองห้องหรือคำขอใช้รถที่กำลังจะถึง</p>
           ) : (
@@ -146,7 +152,7 @@ export default function Home({ onEditProfile }: { onEditProfile: () => void }) {
                 <li key={`${u.kind}${u.id}`}>
                   <time>{fmtDate(u.starts_at, { day: "numeric", month: "short" })}<small>{fmtTime(u.starts_at)}</small></time>
                   <span className="ag-what">
-                    <span className={`ag-kind tone-${u.kind === "room" ? "rooms" : "vehicles"}`}>
+                    <span className="ag-kind tone-brand">
                       {u.kind === "room" ? <Presentation size={12} /> : <CarFront size={12} />}{u.kind === "room" ? "ห้องประชุม" : "รถ"}
                     </span>
                     {u.title}
