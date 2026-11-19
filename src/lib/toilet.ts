@@ -1,3 +1,9 @@
+import type { Role } from "./supabase";
+
+/** งานห้องน้ำเป็นของฝ่ายบริหารทั่วไป: ตรวจได้ / เห็นรูปห้องน้ำได้ — คนอื่นดูรายงานอย่างเดียว (ตรงกับ RLS) */
+export const canInspectToilets = (r: Role) => r === "inspector" || r === "admin";
+export const isToiletTeam = (r: Role) => r === "inspector" || r === "deputy" || r === "director" || r === "admin";
+
 export type Item = { id: number; category: "H" | "A" | "S"; label: string; sort: number; active: boolean };
 
 export const CAT_LABEL: Record<Item["category"], string> = { H: "H · สะอาด", A: "A · เพียงพอ", S: "S · ปลอดภัย" };

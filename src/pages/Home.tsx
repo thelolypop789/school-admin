@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { ArrowRight, CarFront, ChevronRight, MessageCircle, ClipboardCheck, Gauge, Presentation, Toilet, Undo2, type LucideIcon } from "lucide-react";
 import { Mark } from "../components/Mark";
 import { InstallNudge } from "../components/Install";
+import { isToiletTeam } from "../lib/toilet";
 import { ROLE_LABEL, supabase } from "../lib/supabase";
 import { useMe } from "../lib/me";
 import { navigate } from "../lib/router";
@@ -136,7 +137,7 @@ export default function Home({ onEditProfile }: { onEditProfile: () => void }) {
         </button>
         <button className="action" onClick={() => navigate("/toilets")}>
           <Toilet size={26} />
-          <span><b>ตรวจห้องน้ำ</b>
+          <span><b>{isToiletTeam(me.role) ? "ตรวจห้องน้ำ" : "รายงานห้องน้ำ"}</b>
             <small>{counts && counts.toiletsTotal > 0
               ? (counts.toiletsLeft ? `วันนี้ยังไม่ตรวจ ${counts.toiletsLeft} จาก ${counts.toiletsTotal} จุด` : `ตรวจครบ ${counts.toiletsTotal} จุดแล้ววันนี้`)
               : "สุขาดี มีความสุข · ผลตรวจรายวัน"}</small>

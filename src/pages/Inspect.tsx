@@ -5,7 +5,7 @@ import { navigate } from "../lib/router";
 import { compressImage } from "../lib/image";
 import { Empty, PageHeader } from "../components/ui";
 import { Camera, ClipboardCheck } from "lucide-react";
-import { CAT_LABEL, GENDER_LABEL, type Item } from "../lib/toilet";
+import { canInspectToilets, CAT_LABEL, GENDER_LABEL, type Item } from "../lib/toilet";
 
 type Toilet = { id: number; name: string; building: string | null; gender: string };
 const MAX_PHOTOS = 3;
@@ -13,7 +13,7 @@ const MAX_PHOTOS = 3;
 /** หน้าตรวจห้องน้ำ: เปิดจาก QR ที่ติดหน้าห้องน้ำ (/t/<qr_token>) */
 export default function Inspect({ token }: { token: string }) {
   const me = useMe();
-  const canInspect = me.role === "inspector" || me.role === "admin";
+  const canInspect = canInspectToilets(me.role);
   const [toilet, setToilet] = useState<Toilet | null | undefined>(undefined);
   const [items, setItems] = useState<Item[]>([]);
   const [answers, setAnswers] = useState<Record<number, boolean>>({});
@@ -39,7 +39,9 @@ export default function Inspect({ token }: { token: string }) {
   if (!canInspect) return (
     <div className="card">
       <h2>{toilet.name}</h2>
-      <p>บัญชีของคุณยังไม่มีสิทธิ์ตรวจห้องน้ำ ติดต่อผู้ดูแลระบบให้เพิ่มบทบาท "ผู้ตรวจห้องน้ำ"</p>
+      <p>การตรวจห้องน้ำเป็นงานของฝ่ายบริหารทั่วไป บัญชีของคุณดูผลตรวจได้อย่างเดียว</p>
+      <p className="muted small">ถ้าคุณได้รับมอบหมายให้ตรวจ ให้ผู้ดูแลระบบเพิ่มบทบาท "ผู้ตรวจห้องน้ำ"</p>
+      <button className="btn primary" onClick={() => navigate("/toilets")}>ดูรายงานห้องน้ำ</button>
     </div>
   );
 

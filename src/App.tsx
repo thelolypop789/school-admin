@@ -24,7 +24,7 @@ const NAV: NavItem[] = [
   { path: "/", label: "หน้าแรก", long: "หน้าแรก", icon: House },
   { path: "/rooms", label: "ห้องประชุม", long: "จองห้องประชุม", icon: Presentation },
   { path: "/vehicles", label: "รถ", long: "ขอใช้รถไปราชการ", icon: CarFront },
-  { path: "/toilets", label: "ห้องน้ำ", long: "ตรวจห้องน้ำ (HAS)", icon: Toilet },
+  { path: "/toilets", label: "ห้องน้ำ", long: "ห้องน้ำ (สุขาดี มีความสุข)", icon: Toilet },
   { path: "/admin", label: "จัดการ", long: "จัดการระบบ", icon: Settings, show: (p) => p.role === "admin" },
 ];
 
