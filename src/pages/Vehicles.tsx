@@ -3,12 +3,13 @@ import { errText, supabase } from "../lib/supabase";
 import { useMe } from "../lib/me";
 import { navigate } from "../lib/router";
 import { fmtDateTime, fmtRange, hhmm, toISO, todayISO } from "../lib/time";
-import { EXPENSES, LEAD_DAYS, licenseDaysLeft, VEHICLE_DOCS, OPEN, PRINTABLE, RESERVED, REVIEW_STATUS, STAGE_LABEL, STEP_SELECT, stepText, type Step, type Traveler } from "../lib/vehicle";
+import { EXPENSES, LEAD_DAYS, licenseDaysLeft, VEHICLE_DOCS, OPEN, PRINTABLE, RESERVED, STAGE_LABEL, STEP_SELECT, stepText, type Step, type Traveler } from "../lib/vehicle";
 import VehicleTrips from "./VehicleTrips";
 import VehicleCalendar from "./VehicleCalendar";
 import VehicleFleet from "./VehicleFleet";
 import VehicleDashboard from "./VehicleDashboard";
 import { useSignedUrls } from "../lib/photos";
+import { hasRole, reviewStatuses } from "../lib/roles";
 import { Empty, Field, Modal, PageHeader, StatusChip } from "../components/ui";
 import { Check, CarFront, Plus, Printer, X } from "lucide-react";
 
@@ -31,9 +32,12 @@ type Tab = "mine" | "calendar" | "fleet" | "overview" | "review" | "trips";
 
 export default function Vehicles() {
   const me = useMe();
-  const reviewStatus = REVIEW_STATUS[me.role];
-  const canLogTrips = me.role === "vehicle_head" || me.role === "admin";
-  const isExec = ["vehicle_head", "deputy", "director", "admin"].includes(me.role);
+  const reviewKey = reviewStatuses(me).join(",");
+  const reviewStatus = reviewKey || null;
+  const canLogTrips = hasRole(me, "vehicle_head", "admin");
+  // หัวหน้าฝ่ายบริหารทั่วไป/รอง ผอ./ผอ. ดูบันทึกเดินทางได้ (อ่านอย่างเดียว)
+  const canViewTrips = canLogTrips || hasRole(me, "ga_head", "deputy", "director");
+  const isExec = hasRole(me, "vehicle_head", "ga_head", "deputy", "director", "admin");
   const [tab, setTab] = useState<Tab>(reviewStatus ? "review" : "mine");
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [drivers, setDrivers] = useState<Driver[]>([]);
@@ -51,7 +55,7 @@ export default function Vehicles() {
       supabase.from("drivers").select("*").eq("active", true).order("full_name"),
       supabase.from("vehicle_bookings").select(VB_SELECT).eq("booked_by", me.id).order("starts_at", { ascending: false }).limit(30),
       reviewStatus
-        ? supabase.from("vehicle_bookings").select(VB_SELECT).eq("status", reviewStatus).order("starts_at")
+        ? supabase.from("vehicle_bookings").select(VB_SELECT).in("status", reviewStatus.split(",")).order("starts_at")
         : Promise.resolve({ data: [], error: null }),
     ]);
     const e = v.error || d.error || m.error || p.error;
@@ -76,7 +80,7 @@ export default function Vehicles() {
   const dname = (id: number | null) => drivers.find((d) => d.id === id)?.full_name ?? "";
   const photos = useSignedUrls("vehicle-photos", vehicles.map((v) => v.photo_path));
   const vphoto = (id: number | null) => { const p = vehicles.find((v) => v.id === id)?.photo_path; return p ? photos[p] : undefined; };
-  const reviewTitle = me.role === "director" ? "รออนุมัติ" : "รอพิจารณา";
+  const reviewTitle = reviewKey === "pending_director" ? "รออนุมัติ" : "รอพิจารณา";
 
   return (
     <>
@@ -89,7 +93,7 @@ export default function Vehicles() {
         <button className={tab === "mine" ? "on" : ""} onClick={() => setTab("mine")}>คำขอของฉัน</button>
         <button className={tab === "calendar" ? "on" : ""} onClick={() => setTab("calendar")}>ปฏิทิน</button>
         <button className={tab === "fleet" ? "on" : ""} onClick={() => setTab("fleet")}>รถ</button>
-        {canLogTrips && <button className={tab === "trips" ? "on" : ""} onClick={() => setTab("trips")}>บันทึกเดินทาง</button>}
+        {canViewTrips && <button className={tab === "trips" ? "on" : ""} onClick={() => setTab("trips")}>บันทึกเดินทาง</button>}
         {isExec && <button className={tab === "overview" ? "on" : ""} onClick={() => setTab("overview")}>ภาพรวม</button>}
       </div>
       {err && <p className="error">{err}</p>}
@@ -143,14 +147,14 @@ export default function Vehicles() {
       ))}
 
       {tab === "calendar" && <VehicleCalendar vehicles={vehicles} drivers={drivers} />}
-      {tab === "fleet" && <VehicleFleet vehicles={vehicles} photos={photos} isAdmin={me.role === "admin"} />}
+      {tab === "fleet" && <VehicleFleet vehicles={vehicles} photos={photos} isAdmin={hasRole(me, "admin")} />}
       {tab === "overview" && isExec && <VehicleDashboard vehicles={vehicles} />}
 
-      {tab === "trips" && canLogTrips && <VehicleTrips vehicles={vehicles} drivers={drivers} onChanged={load} />}
+      {tab === "trips" && canViewTrips && <VehicleTrips vehicles={vehicles} drivers={drivers} onChanged={load} readOnly={!canLogTrips} />}
 
       {form && <RequestForm edit={form.edit} copy={form.copy} onClose={() => setForm(null)} onSaved={() => { setForm(null); setTab("mine"); load(); }} />}
       {reviewing && (
-        <ReviewForm booking={reviewing} role={me.role} vehicles={vehicles} drivers={drivers}
+        <ReviewForm booking={reviewing} vehicles={vehicles} drivers={drivers}
           onClose={() => setReviewing(null)} onDone={() => { setReviewing(null); load(); }} />
       )}
       {history && (
@@ -281,9 +285,11 @@ function RequestForm({ edit, copy, onClose, onSaved }: { edit: VBooking | null; 
   );
 }
 
-function ReviewForm({ booking, role, vehicles, drivers, onClose, onDone }: {
-  booking: VBooking; role: string; vehicles: Vehicle[]; drivers: Driver[]; onClose: () => void; onDone: () => void;
+function ReviewForm({ booking, vehicles, drivers, onClose, onDone }: {
+  booking: VBooking; vehicles: Vehicle[]; drivers: Driver[]; onClose: () => void; onDone: () => void;
 }) {
+  // ขั้นมาจากสถานะคำขอ (คนเดียวถือหลายบทบาทได้)
+  const role = booking.status === "pending" ? "vehicle_head" : booking.status === "pending_deputy" ? "deputy" : "director";
   const isHead = role === "vehicle_head";
   const [busy, setBusy] = useState<{ vehicle_id: number | null; driver_id: number | null }[] | null>(isHead ? null : []);
   const [vehicleId, setVehicleId] = useState(booking.vehicle_id ? String(booking.vehicle_id) : "");

@@ -22,6 +22,7 @@ Stack: React 19 + TypeScript + Vite, Supabase (Auth Google / Postgres + RLS / St
    - `20261120000000_line_approval.sql` — อนุมัติ/ส่งกลับ/ไม่อนุมัติผ่าน LINE, ผูก LINE ด้วยรหัส, trigger แจ้งเตือน (ต้องตั้ง `private.config` และ deploy `line-bot`)
    - `20261121000000_vehicle_fleet.sql` — รูปรถ (bucket `vehicle-photos`), สภาพรถ, วันหมดอายุประกันภัย/พ.ร.บ./ภาษี; จัดรถที่ซ่อมหรือ พ.ร.บ./ภาษีหมดไม่ได้
    - `20261122000000_toilet_reports_readonly.sql` — บุคลากรทั่วไปดูรายงานห้องน้ำได้อย่างเดียว (ตรวจ/ดูรูปเฉพาะฝ่ายบริหารทั่วไป)
+   - `20261123000000_multi_roles.sql` — คนเดียวถือหลายบทบาท (บทบาทเสริม), เพิ่มหัวหน้างานอาคารสถานที่ / หัวหน้าฝ่ายบริหารทั่วไป
 3. `pongsarkon@wangluangpitt.ac.th` จะเป็น admin อัตโนมัติเมื่อล็อกอินครั้งแรก
 
 ### 2. ล็อกอิน Google

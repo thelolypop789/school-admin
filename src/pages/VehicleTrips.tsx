@@ -16,7 +16,7 @@ const JOB_SELECT = "id,destination,starts_at,ends_at,status,passengers,vehicle_i
 
 type TripRow = Trip & { booking: { destination: string; starts_at: string; ends_at: string; driver_id: number | null } | null };
 
-export default function VehicleTrips({ vehicles, drivers, onChanged }: { vehicles: Vehicle[]; drivers: Driver[]; onChanged: () => void }) {
+export default function VehicleTrips({ vehicles, drivers, onChanged, readOnly = false }: { vehicles: Vehicle[]; drivers: Driver[]; onChanged: () => void; readOnly?: boolean }) {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [trips, setTrips] = useState<Record<number, Trip>>({});
   const [lastOdo, setLastOdo] = useState<Record<number, number>>({});
@@ -81,7 +81,7 @@ export default function VehicleTrips({ vehicles, drivers, onChanged }: { vehicle
             {toDepart.map((j) => (
               <li key={j.id}>
                 <div>{jobLine(j)}{new Date(j.starts_at).getTime() < now && <span className="chip bad">เลยเวลาออกแล้ว ยังไม่บันทึก</span>}</div>
-                <button className="btn primary" onClick={() => setDepart(j)}>ออกเดินทาง</button>
+                {!readOnly && <button className="btn primary" onClick={() => setDepart(j)}>ออกเดินทาง</button>}
               </li>
             ))}
           </ul>
@@ -99,7 +99,7 @@ export default function VehicleTrips({ vehicles, drivers, onChanged }: { vehicle
                   <div className="small muted">ออก {trips[j.id] ? `${fmtDateTime(trips[j.id].departed_at)} · ไมล์ ${trips[j.id].start_odometer.toLocaleString()}` : ""}</div>
                   {new Date(j.ends_at).getTime() < now && <span className="chip bad">เลยกำหนดกลับ ยังไม่ปิดงาน</span>}
                 </div>
-                <button className="btn primary" onClick={() => setClosing(j)}>ปิดงาน</button>
+                {!readOnly && <button className="btn primary" onClick={() => setClosing(j)}>ปิดงาน</button>}
               </li>
             ))}
           </ul>

@@ -1,12 +1,3 @@
-import type { Role } from "./supabase";
-
-/** สถานะที่บทบาทนี้ต้องพิจารณา (ตามลำดับ หัวหน้างานยานพาหนะ → รอง ผอ. → ผอ.) */
-export const REVIEW_STATUS: Partial<Record<Role, string>> = {
-  vehicle_head: "pending",
-  deputy: "pending_deputy",
-  director: "pending_director",
-};
-
 /** สถานะที่รถ/คนขับถูกกันไว้แล้ว (ตรงกับ exclusion constraint ใน DB) */
 export const RESERVED = ["pending_deputy", "pending_director", "approved", "on_trip", "completed"];
 

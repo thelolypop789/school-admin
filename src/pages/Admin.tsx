@@ -8,6 +8,7 @@ import { CAT_LABEL, GENDER_LABEL } from "../lib/toilet";
 import { CONDITION_LABEL, licenseDaysLeft } from "../lib/vehicle";
 import { compressImage } from "../lib/image";
 import { useSignedUrls } from "../lib/photos";
+import { EXTRA_ROLES } from "../lib/roles";
 import { fmtDate } from "../lib/time";
 
 type Tab = "rooms" | "vehicles" | "drivers" | "toilets" | "checklist" | "users";
@@ -221,7 +222,7 @@ function Users() {
   const [q, setQ] = useState("");
   const [err, setErr] = useState("");
   const load = useCallback(async () => {
-    const { data, error } = await supabase.from("profiles").select("id,email,full_name,role,line_linked,position").order("full_name");
+    const { data, error } = await supabase.from("profiles").select("id,email,full_name,role,extra_roles,line_linked,position").order("full_name");
     if (error) setErr(errText(error));
     setRows((data as Profile[]) ?? []);
   }, []);
@@ -229,20 +230,21 @@ function Users() {
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { load(); }, [load]);
 
-  const setRole = async (u: Profile, role: Role) => {
-    const { error } = await supabase.rpc("admin_set_role", { p_user: u.id, p_role: role });
+  const [editing, setEditing] = useState<Profile | null>(null);
+  const setRoles = async (u: Profile, role: Role, extra: Role[]) => {
+    const { error } = await supabase.rpc("admin_set_roles", { p_user: u.id, p_role: role, p_extra: extra });
     if (error) alert(errText(error)); else load();
   };
 
   const list = rows.filter((r) => !q || `${r.full_name} ${r.email}`.toLowerCase().includes(q.toLowerCase()));
   return (
     <>
-      <p className="muted small">ครูจะปรากฏในรายการหลังเข้าสู่ระบบครั้งแรก · ทุกคนเริ่มเป็น "บุคลากร"</p>
+      <p className="muted small">ครูจะปรากฏในรายการหลังเข้าสู่ระบบครั้งแรก · ทุกคนเริ่มเป็น "บุคลากร" · คนที่ถือหลายหน้าที่ (เช่น หัวหน้าฝ่ายบริหารทั่วไปที่ควบงานยานพาหนะ) ให้เพิ่มเป็น "บทบาทเสริม" — เปลี่ยนคนเมื่อไหร่ก็ย้ายบทบาทได้เลย</p>
       <input className="search" placeholder="ค้นหาชื่อหรืออีเมล" value={q} onChange={(e) => setQ(e.target.value)} />
       {err && <p className="error">{err}</p>}
       <div className="card table-wrap">
         <table>
-          <thead><tr><th>ชื่อ</th><th>อีเมล</th><th>LINE</th><th>บทบาท</th></tr></thead>
+          <thead><tr><th>ชื่อ</th><th>อีเมล</th><th>LINE</th><th>บทบาทหลัก</th><th>บทบาทเสริม</th></tr></thead>
           <tbody>
             {list.map((u) => (
               <tr key={u.id}>
@@ -250,9 +252,15 @@ function Users() {
                 <td className="small">{u.email}</td>
                 <td>{u.line_linked ? <span className="chip ok">เชื่อมแล้ว</span> : <span className="muted small">—</span>}</td>
                 <td>
-                  <select value={u.role} disabled={u.id === me.id} onChange={(e) => setRole(u, e.target.value as Role)}>
+                  <select value={u.role} disabled={u.id === me.id} onChange={(e) => setRoles(u, e.target.value as Role, u.extra_roles ?? [])}>
                     {(Object.keys(ROLE_LABEL) as Role[]).map((r) => <option key={r} value={r}>{ROLE_LABEL[r]}</option>)}
                   </select>
+                </td>
+                <td>
+                  <div className="extra-roles">
+                    {(u.extra_roles ?? []).map((r) => <span key={r} className="chip">{ROLE_LABEL[r]}</span>)}
+                    <button className="link" onClick={() => setEditing(u)}>{u.extra_roles?.length ? "แก้ไข" : "+ เพิ่ม"}</button>
+                  </div>
                 </td>
               </tr>
             ))}
@@ -260,9 +268,38 @@ function Users() {
         </table>
       </div>
       {list.length === 0 && <Empty>ไม่พบผู้ใช้</Empty>}
+      {editing && (
+        <ExtraRolesForm user={editing} onClose={() => setEditing(null)}
+          onSave={async (extra) => { await setRoles(editing, editing.role, extra); setEditing(null); }} />
+      )}
     </>
   );
 }
+
+function ExtraRolesForm({ user, onClose, onSave }: { user: Profile; onClose: () => void; onSave: (extra: Role[]) => void }) {
+  const [sel, setSel] = useState<Role[]>(user.extra_roles ?? []);
+  const toggle = (r: Role) => setSel(sel.includes(r) ? sel.filter((x) => x !== r) : [...sel, r]);
+  return (
+    <Modal title={`บทบาทเสริม · ${user.full_name || user.email}`} onClose={onClose}>
+      <div className="form">
+        <p className="muted small">บทบาทหลัก: {ROLE_LABEL[user.role]} — เลือกหน้าที่อื่นที่คนนี้ทำควบด้วย</p>
+        {EXTRA_ROLES.filter((r) => r !== user.role).map((r) => (
+          <label key={r} className="check"><input type="checkbox" checked={sel.includes(r)} onChange={() => toggle(r)} /> {ROLE_LABEL[r]}<span className="muted small"> — {ROLE_HINT[r]}</span></label>
+        ))}
+        <button className="btn primary big" onClick={() => onSave(sel)}>บันทึกบทบาทเสริม</button>
+      </div>
+    </Modal>
+  );
+}
+
+const ROLE_HINT: Partial<Record<Role, string>> = {
+  vehicle_head: "จัดรถ เลือกคนขับ บันทึกเดินทาง",
+  facilities_head: "ตรวจห้องน้ำ อัปโหลดรูป",
+  ga_head: "ดูได้ทุกอย่างของฝ่ายบริหารทั่วไป (ไม่อนุมัติ/แก้ไข)",
+  inspector: "ตรวจห้องน้ำ",
+  deputy: "เห็นชอบคำขอใช้รถ ขั้นรอง ผอ.",
+  director: "อนุมัติคำขอใช้รถ",
+};
 
 /** รูปรถ: ย่อ/บีบก่อนอัปโหลด แล้วบันทึก path ลงแถวรถ (ลบรูปเก่าออก) */
 function VehiclePhoto({ row, url, onDone }: { row: Row; url?: string; onDone: () => void }) {

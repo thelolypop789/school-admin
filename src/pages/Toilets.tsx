@@ -20,8 +20,8 @@ type Inspection = {
 
 export default function Toilets() {
   const me = useMe();
-  const canInspect = canInspectToilets(me.role);
-  const team = isToiletTeam(me.role);
+  const canInspect = canInspectToilets(me);
+  const team = isToiletTeam(me);
   const [tab, setTab] = useState<"status" | "report">("status");
   const [status, setStatus] = useState<Status[]>([]);
   const [tokens, setTokens] = useState<Record<number, string>>({});

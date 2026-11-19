@@ -4,7 +4,7 @@
 export const BURGUNDY = "#6b1027";
 export const GOLD = "#dcb45a";
 
-export type Role = "staff" | "inspector" | "vehicle_head" | "deputy" | "director" | "admin";
+export type Role = "staff" | "inspector" | "vehicle_head" | "facilities_head" | "ga_head" | "deputy" | "director" | "admin";
 export type Action = "forward" | "return" | "reject";
 
 export type Booking = {
@@ -225,6 +225,7 @@ export const LINKED_TEXT = (name: string, role: string) =>
 
 export const ROLE_TH: Record<Role, string> = {
   staff: "บุคลากร", inspector: "ผู้ตรวจห้องน้ำ", vehicle_head: "หัวหน้างานยานพาหนะ",
+  facilities_head: "หัวหน้างานอาคารสถานที่", ga_head: "หัวหน้าฝ่ายบริหารทั่วไป",
   deputy: "รอง ผอ. ฝ่ายบริหารทั่วไป", director: "ผู้อำนวยการ", admin: "ผู้ดูแลระบบ",
 };
 

@@ -56,7 +56,9 @@ async function notify(evt: { booking_id: number; status: string; from: string | 
     if (plan.to === "requester") {
       if (b.requester?.line_user_id) to = [b.requester.line_user_id];
     } else {
-      const { data } = await sb.from("profiles").select("line_user_id").eq("role", plan.to.role).not("line_user_id", "is", null);
+      // บทบาทหลักหรือบทบาทเสริม (คนเดียวถือหลายหน้าที่ได้)
+      const r = plan.to.role;
+      const { data } = await sb.from("profiles").select("line_user_id").or(`role.eq.${r},extra_roles.cs.{${r}}`).not("line_user_id", "is", null);
       to = (data ?? []).map((r: { line_user_id: string }) => r.line_user_id);
     }
     if (to.length === 1) await lineApi("push", { to: to[0], messages: plan.messages });
