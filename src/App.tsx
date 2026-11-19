@@ -8,7 +8,7 @@ import { LineLink } from "./components/LineLink";
 import { InstallButton } from "./components/Install";
 import { rolesLabel } from "./lib/roles";
 import { detectPlatform, externalBrowserUrl } from "./lib/install";
-import { CarFront, House, LogOut, Presentation, Settings, Toilet, UserPen, type LucideIcon } from "lucide-react";
+import { CarFront, House, LogOut, Presentation, Settings, Toilet, UserPen, Wrench, type LucideIcon } from "lucide-react";
 import { navigate, usePath } from "./lib/router";
 import { MeContext } from "./lib/me";
 import Home from "./pages/Home";
@@ -17,6 +17,7 @@ const Rooms = lazy(() => import("./pages/Rooms"));
 const Vehicles = lazy(() => import("./pages/Vehicles"));
 const VehiclePrint = lazy(() => import("./pages/VehiclePrint"));
 const Toilets = lazy(() => import("./pages/Toilets"));
+const Facilities = lazy(() => import("./pages/Facilities"));
 const Inspect = lazy(() => import("./pages/Inspect"));
 const Admin = lazy(() => import("./pages/Admin"));
 
@@ -26,6 +27,7 @@ const NAV: NavItem[] = [
   { path: "/rooms", label: "ห้องประชุม", long: "จองห้องประชุม", icon: Presentation },
   { path: "/vehicles", label: "รถ", long: "ขอใช้รถไปราชการ", icon: CarFront },
   { path: "/toilets", label: "ห้องน้ำ", long: "ห้องน้ำ (สุขาดี มีความสุข)", icon: Toilet },
+  { path: "/facilities", label: "แจ้งซ่อม", long: "งานอาคารสถานที่ (แจ้งซ่อม)", icon: Wrench },
   { path: "/admin", label: "จัดการ", long: "จัดการระบบ", icon: Settings, show: (p) => p.role === "admin" },
 ];
 
@@ -71,6 +73,7 @@ export default function App() {
   else if (/^\/vehicles\/print\/\d+$/.test(path)) page = <VehiclePrint id={Number(path.split("/").pop())} />;
   else if (path.startsWith("/vehicles")) page = <Vehicles />;
   else if (path.startsWith("/toilets")) page = <Toilets />;
+  else if (path.startsWith("/facilities")) page = <Facilities />;
   else if (path.startsWith("/admin") && me.role === "admin") page = <Admin />;
   else page = <Home onEditProfile={openProfile} />;
 

@@ -573,3 +573,24 @@ td.num { font-variant-numeric: tabular-nums; }
 .side-install:hover { background: var(--gold-light); color: var(--burgundy-900); border-color: var(--gold-light); }
 .login-foot .link { display: inline-flex; align-items: center; gap: .3rem; margin-top: .3rem; }
 .extra-roles { display: flex; flex-wrap: wrap; gap: .25rem; align-items: center; } .extra-roles .chip { margin-left: 0; }
+
+/* ============================================================ แจ้งซ่อม */
+.repair-list { display: grid; gap: .6rem; }
+.repair {
+  display: grid; gap: .2rem; width: 100%; text-align: left; font: inherit; color: inherit; cursor: pointer;
+  background: var(--surface); border: 1px solid var(--line); border-left: 4px solid var(--line-strong); border-radius: var(--radius-sm); padding: .8rem 1rem;
+}
+.repair:hover { border-color: var(--line-strong); }
+.repair.p-urgent { border-left-color: var(--bad); }
+.repair.p-high { border-left-color: var(--gold); }
+.repair.closed { opacity: .75; }
+.repair-top { display: flex; flex-wrap: wrap; gap: .25rem .75rem; justify-content: space-between; align-items: flex-start; }
+.repair-top > b { font-size: 1.02rem; min-width: 0; overflow-wrap: anywhere; }
+.repair-top .chip:first-child { margin-left: 0; }
+.prio-pick { display: grid; gap: .4rem; }
+.prio-pick label { display: flex; gap: .6rem; align-items: flex-start; padding: .55rem .7rem; border: 1px solid var(--line); border-radius: var(--radius-sm); cursor: pointer; }
+.prio-pick label.on { border-color: var(--burgundy); background: var(--burgundy-50); }
+.prio-pick input { margin-top: .3rem; width: 1.15rem; height: 1.15rem; min-height: 0; padding: 0; flex-shrink: 0; accent-color: var(--burgundy); }
+.prio-pick span { display: grid; gap: .1rem; }
+.kv { display: grid; grid-template-columns: 6.5rem minmax(0, 1fr); gap: .3rem .75rem; margin: 0; }
+.kv dt { color: var(--muted); font-size: .9rem; } .kv dd { margin: 0; overflow-wrap: anywhere; }

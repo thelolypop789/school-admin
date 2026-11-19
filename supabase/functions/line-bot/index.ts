@@ -19,6 +19,10 @@ const BOOKING_SELECT =
   "id,destination,purpose,passengers,starts_at,ends_at,status,approver_note,travelers," +
   "requester:profiles!vehicle_bookings_booked_by_fkey(full_name,email,line_user_id),vehicle:vehicles(name,plate),driver:drivers(full_name)";
 
+const REPAIR_SELECT =
+  "id,title,detail,location,category,priority,status,plan_start,plan_end,proposal,exec_decision,exec_note,done_note," +
+  "reporter:profiles!repair_requests_reported_by_fkey(full_name,email,line_user_id)";
+
 async function hmacB64(body: string): Promise<string> {
   const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(SECRET), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
   const sig = new Uint8Array(await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(body)));
@@ -47,6 +51,22 @@ async function loadBooking(id: number): Promise<L.Booking | null> {
   return (data as unknown as L.Booking) ?? null;
 }
 
+async function loadRepair(id: number): Promise<L.Repair | null> {
+  const { data, error } = await sb.from("repair_requests").select(REPAIR_SELECT).eq("id", id).maybeSingle();
+  if (error) console.error("loadRepair", error.message);
+  return (data as unknown as L.Repair) ?? null;
+}
+
+// ผู้รับ LINE ตามบทบาท (บทบาทหลักหรือบทบาทเสริม — คนเดียวถือหลายหน้าที่ได้)
+async function lineIdsOfRole(r: string): Promise<string[]> {
+  const { data } = await sb.from("profiles").select("line_user_id").or(`role.eq.${r},extra_roles.cs.{${r}}`).not("line_user_id", "is", null);
+  return (data ?? []).map((x: { line_user_id: string }) => x.line_user_id);
+}
+async function sendTo(to: string[], messages: unknown[]) {
+  if (to.length === 1) await lineApi("push", { to: to[0], messages });
+  else if (to.length > 1) await lineApi("multicast", { to, messages });
+}
+
 // ---------------------------------------------------------------- แจ้งเตือนจาก trigger
 async function notify(evt: { booking_id: number; status: string; from: string | null }) {
   const b = await loadBooking(evt.booking_id);
@@ -56,13 +76,18 @@ async function notify(evt: { booking_id: number; status: string; from: string | 
     if (plan.to === "requester") {
       if (b.requester?.line_user_id) to = [b.requester.line_user_id];
     } else {
-      // บทบาทหลักหรือบทบาทเสริม (คนเดียวถือหลายหน้าที่ได้)
-      const r = plan.to.role;
-      const { data } = await sb.from("profiles").select("line_user_id").or(`role.eq.${r},extra_roles.cs.{${r}}`).not("line_user_id", "is", null);
-      to = (data ?? []).map((r: { line_user_id: string }) => r.line_user_id);
+      to = await lineIdsOfRole(plan.to.role);
     }
-    if (to.length === 1) await lineApi("push", { to: to[0], messages: plan.messages });
-    else if (to.length > 1) await lineApi("multicast", { to, messages: plan.messages });
+    await sendTo(to, plan.messages);
+  }
+}
+
+async function notifyRepair(evt: { repair_id: number; status: string; from: string | null }) {
+  const r = await loadRepair(evt.repair_id);
+  if (!r || r.status !== evt.status) return; // สถานะเปลี่ยนไปแล้วระหว่างรอคิว — ตัวใหม่จะส่งเอง
+  for (const plan of L.repairNotifyPlan(r, evt.from ?? null, APP_URL)) {
+    const to = plan.to === "requester" ? (r.reporter?.line_user_id ? [r.reporter.line_user_id] : []) : await lineIdsOfRole(plan.to.role);
+    await sendTo(to, plan.messages);
   }
 }
 
@@ -79,6 +104,12 @@ async function decide(replyToken: string, user: string, a: L.Action, id: number,
   return replyText(replyToken, L.doneText(a, r.status, r.destination));
 }
 
+async function decideRepair(replyToken: string, user: string, d: L.RepairDecision, id: number, expected: string) {
+  const { data, error } = await sb.rpc("line_repair_decide", { p_line_user: user, p_id: id, p_decision: d, p_expected: expected });
+  if (error) return replyText(replyToken, L.errorText(error.message));
+  return replyText(replyToken, L.repairDoneText(d, (data as { title: string }).title));
+}
+
 async function handle(ev: LineEvent) {
   const user = ev.source?.userId;
   if (ev.source?.type !== "user" || !user || !ev.replyToken) return; // กลุ่ม/ห้อง: ไม่ตอบ
@@ -87,6 +118,8 @@ async function handle(ev: LineEvent) {
   if (ev.type === "follow") return replyText(rt, L.WELCOME_TEXT);
 
   if (ev.type === "postback" && ev.postback) {
+    const rp = L.parseRepairPostback(ev.postback.data);
+    if (rp) return decideRepair(rt, user, rp.a, rp.id, rp.s);
     const p = L.parsePostback(ev.postback.data);
     if (!p) return replyText(rt, "ปุ่มนี้ใช้ไม่ได้แล้ว พิมพ์ งาน เพื่อดูคำขอล่าสุด");
     if (p.a === "forward") return decide(rt, user, p.a, p.id, p.s);
@@ -125,10 +158,14 @@ async function handle(ev: LineEvent) {
   if (L.isQueueCommand(text)) {
     const { data: me } = await sb.from("profiles").select("id").eq("line_user_id", user).maybeSingle();
     if (!me) return replyText(rt, L.errorText("not_linked"));
-    const { data: rows } = await sb.rpc("line_my_queue", { p_line_user: user });
+    const [{ data: rows }, { data: rrows }] = await Promise.all([
+      sb.rpc("line_my_queue", { p_line_user: user }),
+      sb.rpc("line_my_repair_queue", { p_line_user: user }),
+    ]);
     const ids = ((rows ?? []) as { id: number }[]).map((r) => r.id);
-    const full = (await Promise.all(ids.map(loadBooking))).filter((b): b is L.Booking => !!b);
-    return reply(rt, [L.queueMessage(full, APP_URL)]);
+    const rids = ((rrows ?? []) as { id: number }[]).map((r) => r.id);
+    const [full, fullRepairs] = await Promise.all([Promise.all(ids.map(loadBooking)), Promise.all(rids.map(loadRepair))]);
+    return reply(rt, [L.queueMessage(full.filter((b): b is L.Booking => !!b), APP_URL, fullRepairs.filter((r): r is L.Repair => !!r))]);
   }
 
   return replyText(rt, L.HELP_TEXT, ["งาน"]);
@@ -148,7 +185,10 @@ Deno.serve(async (req) => {
 
   const ns = req.headers.get("x-notify-secret");
   if (ns && (await sb.rpc("line_notify_secret_ok", { p_secret: ns })).data === true) {
-    try { await notify(JSON.parse(body)); } catch (e) { console.error("notify", e); }
+    try {
+      const evt = JSON.parse(body);
+      if (evt.type === "repair_status") await notifyRepair(evt); else await notify(evt);
+    } catch (e) { console.error("notify", e); }
     return new Response("ok");
   }
   return new Response("unauthorized", { status: 401 });

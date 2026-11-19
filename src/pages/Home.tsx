@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ArrowRight, CarFront, ChevronRight, MessageCircle, ClipboardCheck, Gauge, Presentation, Toilet, Undo2, type LucideIcon } from "lucide-react";
+import { ArrowRight, CarFront, ChevronRight, MessageCircle, ClipboardCheck, Gauge, Presentation, Toilet, Undo2, Wrench, type LucideIcon } from "lucide-react";
 import { Mark } from "../components/Mark";
 import { InstallNudge } from "../components/Install";
 import { canInspectToilets, isToiletTeam } from "../lib/toilet";
@@ -10,10 +10,11 @@ import { dayRange, fmtDate, fmtTime, todayISO } from "../lib/time";
 import { StatusChip, type Tone } from "../components/ui";
 import { licenseDaysLeft, OPEN, VEHICLE_DOCS } from "../lib/vehicle";
 import { hasRole, reviewStatuses, rolesLabel } from "../lib/roles";
+import { isRepairExec, isRepairHead } from "../lib/repair";
 
 type Upcoming = { kind: "room" | "vehicle"; id: number; title: string; starts_at: string; ends_at: string; status: string };
 type Todo = { key: string; icon: LucideIcon; tone: Tone; title: string; sub: string; count: number; path: string };
-type Counts = { review: number; returned: number; trips: number; toiletsLeft: number; toiletsTotal: number; docs: number };
+type Counts = { review: number; returned: number; trips: number; toiletsLeft: number; toiletsTotal: number; docs: number; repairsDecide: number; repairsPlan: number };
 
 const HELLO_STRIP = /^(นางสาว|นาง|นาย|ว่าที่ร้อยตรี|ดร\.)\s*/;
 
@@ -23,6 +24,7 @@ export default function Home({ onEditProfile }: { onEditProfile: () => void }) {
   const reviewKey = review.join(",");
   const logsTrips = hasRole(me, "vehicle_head", "admin");
   const inspects = canInspectToilets(me);
+  const repairExec = isRepairExec(me), repairHead = isRepairHead(me);
   const [todayRooms, setTodayRooms] = useState<{ id: number; title: string; starts_at: string; ends_at: string; rooms: { name: string } | null }[] | null>(null);
   const [mine, setMine] = useState<Upcoming[] | null>(null);
   const [counts, setCounts] = useState<Counts | null>(null);
@@ -44,7 +46,10 @@ export default function Home({ onEditProfile }: { onEditProfile: () => void }) {
       supabase.rpc("toilet_status"),
       logsTrips ? supabase.from("vehicles").select("act_expiry,tax_expiry,insurance_expiry").eq("active", true) : Promise.resolve({ data: [] }),
       logsTrips ? supabase.from("drivers").select("license_expiry").eq("active", true) : Promise.resolve({ data: [] }),
-    ]).then(([tr, rb, vb, rv, rt, td, tc, ts, vd, dl]) => {
+      // แจ้งซ่อม: ผู้บริหารรอตัดสิน · หัวหน้างานอาคารสถานที่รอลงวันที่
+      repairExec ? supabase.from("repair_requests").select("id", { count: "exact", head: true }).eq("status", "proposed") : zero,
+      repairHead ? supabase.from("repair_requests").select("id", { count: "exact", head: true }).eq("status", "new") : zero,
+    ]).then(([tr, rb, vb, rv, rt, td, tc, ts, vd, dl, rx, rh]) => {
       // เอกสารที่หมดแล้วหรือเหลือ ≤ 30 วัน: พ.ร.บ./ภาษี/ประกันของรถ + ใบขับขี่คนขับ
       const soon = (d: string | null) => { const l = licenseDaysLeft(d); return l !== null && l <= 30; };
       const docs = ((vd.data ?? []) as Record<string, string | null>[]).reduce((n, v) => n + VEHICLE_DOCS.filter((x) => soon(v[x.key])).length, 0)
@@ -59,9 +64,10 @@ export default function Home({ onEditProfile }: { onEditProfile: () => void }) {
       setCounts({
         review: rv.count ?? 0, returned: rt.count ?? 0, trips: (td.count ?? 0) + (tc.count ?? 0),
         toiletsLeft: st.filter((s) => s.checks_today === 0).length, toiletsTotal: st.length, docs,
+        repairsDecide: rx.count ?? 0, repairsPlan: rh.count ?? 0,
       });
     });
-  }, [me.id, reviewKey, logsTrips]);
+  }, [me.id, reviewKey, logsTrips, repairExec, repairHead]);
 
   const firstName = me.full_name.replace(HELLO_STRIP, "").split(" ")[0];
   const todos: Todo[] = counts ? [
@@ -73,6 +79,10 @@ export default function Home({ onEditProfile }: { onEditProfile: () => void }) {
       title: "งานรถรอบันทึกเลขไมล์", sub: "บันทึกออกเดินทาง หรือปิดงานที่กลับมาแล้ว (แท็บ บันทึกเดินทาง)" },
     { key: "docs", icon: Gauge, tone: "vehicles" as Tone, count: logsTrips ? counts.docs : 0, path: "/vehicles",
       title: "เอกสารรถ/ใบขับขี่ใกล้หมดอายุ", sub: "พ.ร.บ. ภาษี ประกันภัย หรือใบขับขี่ หมดแล้วหรือเหลือไม่เกิน 30 วัน (ดูที่แท็บ รถ)" },
+    { key: "repairDecide", icon: Wrench, tone: "brand" as Tone, count: repairExec ? counts.repairsDecide : 0, path: "/facilities",
+      title: "เรื่องแจ้งซ่อมรอคุณพิจารณา", sub: "หัวหน้างานอาคารสถานที่เสนอวันซ่อมแล้ว เห็นควรตามเสนอ ให้ด่วน หรือให้ทำงานอื่นก่อน" },
+    { key: "repairPlan", icon: Wrench, tone: "brand" as Tone, count: repairHead ? counts.repairsPlan : 0, path: "/facilities",
+      title: "เรื่องแจ้งซ่อมรอลงวันที่", sub: "ดูเรื่องที่เร่งด่วนก่อน แล้วลงวันที่ทำได้เสนอผู้บริหาร" },
     { key: "toilets", icon: Toilet, tone: "toilets" as Tone, count: inspects ? counts.toiletsLeft : 0, path: "/toilets",
       title: "ห้องน้ำยังไม่ได้ตรวจวันนี้", sub: "สแกน QR หน้าห้องน้ำ หรือกด ตรวจ ในหน้าห้องน้ำ" },
   ].filter((t) => t.count > 0) : [];
@@ -135,6 +145,11 @@ export default function Home({ onEditProfile }: { onEditProfile: () => void }) {
         <button className="action" onClick={() => navigate("/vehicles")}>
           <CarFront size={26} />
           <span><b>ขอใช้รถไปราชการ</b><small>ยื่นคำขอ ติดตามการอนุมัติ พิมพ์คำสั่ง</small></span>
+          <ArrowRight size={20} className="chev" />
+        </button>
+        <button className="action" onClick={() => navigate("/facilities")}>
+          <Wrench size={26} />
+          <span><b>แจ้งซ่อมอาคารสถานที่</b><small>ไฟฟ้า ประปา ห้องเรียน ฯลฯ เรียงตามความเร่งด่วน</small></span>
           <ArrowRight size={20} className="chev" />
         </button>
         <button className="action" onClick={() => navigate("/toilets")}>
