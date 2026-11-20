@@ -7,8 +7,9 @@ import { Mark } from "./components/Mark";
 import { LineLink } from "./components/LineLink";
 import { InstallButton } from "./components/Install";
 import { rolesLabel } from "./lib/roles";
+import { isNstViewer } from "./lib/nst";
 import { detectPlatform, externalBrowserUrl } from "./lib/install";
-import { CarFront, House, LogOut, Presentation, Settings, Toilet, UserPen, Wrench, type LucideIcon } from "lucide-react";
+import { CarFront, House, LogOut, Presentation, Settings, Shield, Toilet, UserPen, Wrench, type LucideIcon } from "lucide-react";
 import { navigate, usePath } from "./lib/router";
 import { MeContext } from "./lib/me";
 import Home from "./pages/Home";
@@ -20,6 +21,7 @@ const Toilets = lazy(() => import("./pages/Toilets"));
 const Facilities = lazy(() => import("./pages/Facilities"));
 const Inspect = lazy(() => import("./pages/Inspect"));
 const Admin = lazy(() => import("./pages/Admin"));
+const Nst = lazy(() => import("./pages/Nst"));
 
 type NavItem = { path: string; label: string; long: string; icon: LucideIcon; mod: string; show?: (p: Profile) => boolean };
 const NAV: NavItem[] = [
@@ -29,6 +31,7 @@ const NAV: NavItem[] = [
   { path: "/vehicles", label: "รถ", long: "ขอใช้รถไปราชการ", icon: CarFront, mod: "c-car" },
   { path: "/facilities", label: "อาคาร", long: "งานอาคารสถานที่", icon: Wrench, mod: "c-fix" },
   { path: "/toilets", label: "ห้องน้ำ", long: "ห้องน้ำ (สุขาดี มีความสุข)", icon: Toilet, mod: "c-wc" },
+  { path: "/nst", label: "นศท.", long: "นศท. เช็คชื่อ · เวรจราจร", icon: Shield, mod: "c-nst", show: (p) => isNstViewer(p) },
   { path: "/admin", label: "จัดการ", long: "จัดการระบบ", icon: Settings, mod: "c-ga", show: (p) => p.role === "admin" },
 ];
 
@@ -76,6 +79,7 @@ export default function App() {
   else if (path.startsWith("/toilets")) page = <Toilets />;
   else if (path.startsWith("/facilities")) page = <Facilities />;
   else if (path.startsWith("/admin") && me.role === "admin") page = <Admin />;
+  else if (path.startsWith("/nst") && isNstViewer(me)) page = <Nst />;
   else page = <Home onEditProfile={openProfile} />;
 
   const signOut = () => supabase.auth.signOut();

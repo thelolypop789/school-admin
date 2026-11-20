@@ -1,8 +1,13 @@
-import { StrictMode } from "react";
+import { lazy, StrictMode, Suspense } from "react";
 import { createRoot } from "react-dom/client";
 import "./index.css";
 import "./lib/install"; // จับ beforeinstallprompt ให้ทันก่อน React render
 import App from "./App.tsx";
+
+// นักเรียน นศท. (/s) ใช้แอปแยก: เข้าด้วยรหัสนักเรียน + PIN ไม่ใช่ Google ของบุคลากร
+// eslint-disable-next-line react-refresh/only-export-components -- ไฟล์เริ่มต้น ไม่ใช้ fast refresh
+const StudentApp = lazy(() => import("./nst/StudentApp.tsx"));
+const isStudent = /^\/s(\/|$)/.test(window.location.pathname);
 
 // หลัง deploy ใหม่ หน้าที่เปิดค้างอยู่จะหา chunk เก่าไม่เจอ → reload ครั้งเดียว
 window.addEventListener("vite:preloadError", (event) => {
@@ -24,6 +29,6 @@ if (import.meta.env.PROD && "serviceWorker" in navigator) {
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <App />
+    {isStudent ? <Suspense fallback={null}><StudentApp /></Suspense> : <App />}
   </StrictMode>,
 );

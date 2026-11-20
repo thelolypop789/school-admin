@@ -10,7 +10,7 @@ export const supabase = createClient(
 
 export const isConfigured = Boolean(import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_KEY);
 
-export type Role = "staff" | "inspector" | "vehicle_head" | "facilities_head" | "ga_head" | "deputy" | "director" | "admin";
+export type Role = "staff" | "inspector" | "vehicle_head" | "facilities_head" | "ga_head" | "nst_teacher" | "deputy" | "director" | "admin";
 
 export type Profile = {
   id: string;
@@ -28,6 +28,7 @@ export const ROLE_LABEL: Record<Role, string> = {
   vehicle_head: "หัวหน้างานยานพาหนะ",
   facilities_head: "หัวหน้างานอาคารสถานที่",
   ga_head: "หัวหน้าฝ่ายบริหารทั่วไป",
+  nst_teacher: "ครูผู้กำกับ นศท.",
   deputy: "รอง ผอ. ฝ่ายบริหารทั่วไป",
   director: "ผู้อำนวยการ",
   admin: "ผู้ดูแลระบบ",
