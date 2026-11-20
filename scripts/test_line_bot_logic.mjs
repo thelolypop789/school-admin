@@ -116,5 +116,16 @@ t('booking header is car gradient', hb.background?.type === 'linearGradient' && 
 const hr = JSON.parse(rcard('proposed')).header;
 t('repair header is orange gradient', hr.background?.type === 'linearGradient' && hr.background.endColor === L.MOD.fix.end);
 t('urgent priority value is red', JSON.stringify(L.repairCard({ ...rep, priority: 'urgent' }, 'x')).includes('#d92d20'));
+
+// เขตทำความสะอาด: แจ้งครูที่ปรึกษาเมื่อผล "ต้องปรับปรุง"
+const cf = { id: 5, date: '2026-11-20', result: 'fail', note: 'ขยะใต้ต้นไม้', class_name: 'ม.2/2', area: 'โดม', line_ids: ['U1', 'U2', 'U1'] };
+const cm = L.cleanFailMessages(cf, 'https://app');
+t('clean fail goes to advisors (deduped)', JSON.stringify(cm.to) === JSON.stringify(['U1', 'U2']) && cm.messages.length === 1);
+t('clean fail card has note + green header + link', (() => { const j = JSON.stringify(cm.messages[0]); return j.includes('ขยะใต้ต้นไม้') && j.includes('#3f8f1c') && j.includes('https://app/facilities/zones?openExternalBrowser=1'); })());
+t('clean fail alt text', cm.messages[0].altText.startsWith('เขต ม.2/2 ต้องปรับปรุง'));
+t('clean: result changed → no send', L.cleanFailMessages({ ...cf, result: 'pass' }, 'x').to.length === 0);
+t('clean: no linked advisor → no send', L.cleanFailMessages({ ...cf, line_ids: [] }, 'x').to.length === 0 && L.cleanFailMessages(null, 'x').to.length === 0);
+t('clean: long note truncated', JSON.stringify(L.cleanFailCard({ ...cf, note: 'ก'.repeat(500) }, 'x')).length < 4000);
+
 console.log(`${n - bad}/${n} passed`);
 process.exit(bad ? 1 : 0);

@@ -1,5 +1,5 @@
 // ตรรกะล้วนของบอท LINE (ไม่มี I/O) — เทสต์ด้วย node scripts/test_line_bot_logic.mjs
-// สีตรงกับแอป (ดีไซน์รอบ 2): หัวการ์ด = แผ่นสีประจำงาน (รถ = เขียวน้ำทะเล, แจ้งซ่อม = ส้ม) ปุ่มหลัก = เบอร์กันดี
+// สีตรงกับแอป (ดีไซน์รอบ 2): หัวการ์ด = แผ่นสีประจำงาน (รถ = เขียวน้ำทะเล, แจ้งซ่อม = ส้ม, เขตทำความสะอาด = เขียวใบไม้) ปุ่มหลัก = เบอร์กันดี
 
 export const BURGUNDY = "#8f1036";
 export const GOLD = "#dcb45a";
@@ -7,6 +7,7 @@ export const GOLD = "#dcb45a";
 export const MOD = {
   car: { start: "#3fd6b8", end: "#0c9a86", ink: "#08715f", tint: "#e3f8f3" },
   fix: { start: "#ffb23f", end: "#f0611c", ink: "#b8430b", tint: "#fff1e4" },
+  zone: { start: "#9bdc5a", end: "#3f8f1c", ink: "#2e6b12", tint: "#edf8e3" },
 } as const;
 type Mod = (typeof MOD)[keyof typeof MOD];
 
@@ -368,7 +369,7 @@ export const LINKED_TEXT = (name: string, role: string) =>
   `เชื่อมบัญชีแล้ว ✓\n${name || "(ยังไม่ได้ตั้งชื่อ)"} · ${ROLE_TH[role as Role] ?? role}\nต่อไปคำขอใช้รถที่รอคุณจะส่งมาที่แชทนี้ กดอนุมัติได้เลย`;
 
 export const ROLE_TH: Record<Role, string> = {
-  staff: "บุคลากร", inspector: "ผู้ตรวจห้องน้ำ", vehicle_head: "หัวหน้างานยานพาหนะ",
+  staff: "บุคลากร", inspector: "เจ้าหน้าที่อาคารสถานที่", vehicle_head: "หัวหน้างานยานพาหนะ",
   facilities_head: "หัวหน้างานอาคารสถานที่", ga_head: "หัวหน้าฝ่ายบริหารทั่วไป",
   deputy: "รอง ผอ. ฝ่ายบริหารทั่วไป", director: "ผู้อำนวยการ", admin: "ผู้ดูแลระบบ",
 };
@@ -379,3 +380,39 @@ export const WELCOME_TEXT =
 
 export const HELP_TEXT =
   "คำสั่งที่ใช้ได้\n• งาน — ดูคำขอใช้รถและเรื่องแจ้งซ่อมที่รอคุณพิจารณา\n• รหัส 6 หลัก — เชื่อมบัญชีกับระบบ\n\nคำขอใหม่จะส่งมาให้เองพร้อมปุ่มอนุมัติ";
+
+// ================================================================ เขตทำความสะอาด
+/** ข้อมูลจาก RPC line_clean_report_info เมื่อเจ้าหน้าที่ให้ผล "ต้องปรับปรุง" */
+export type CleanFail = {
+  id: number; date: string; result: string | null; note: string | null;
+  class_name: string; area: string; line_ids: string[];
+};
+
+/** การ์ดแจ้งครูที่ปรึกษา: เขตต้องปรับปรุง + สิ่งที่ต้องแก้ + ปุ่มเปิดระบบถ่ายรูปส่งใหม่ */
+export function cleanFailCard(c: CleanFail, appUrl: string) {
+  const note = c.note && c.note.length > 200 ? `${c.note.slice(0, 197)}…` : c.note;
+  return {
+    type: "bubble", size: "mega",
+    header: headerBox(MOD.zone, "เขตทำความสะอาด ต้องปรับปรุง", c.area ? `${c.class_name} · ${c.area}` : c.class_name),
+    body: {
+      type: "box", layout: "vertical", spacing: "sm", paddingAll: "16px", contents: [
+        row("วันที่", planRange(c.date, null)),
+        row("ผลตรวจ", "ต้องปรับปรุง", "#d92d20"),
+        row("ต้องแก้", note ?? "-"),
+        { type: "text", text: "แก้เสร็จแล้วถ่ายรูปส่งใหม่ในระบบ เจ้าหน้าที่จะตรวจอีกครั้ง", size: "xs", color: "#6b6774", wrap: true, margin: "md" },
+        BRAND_LINE,
+      ],
+    },
+    footer: {
+      type: "box", layout: "vertical", spacing: "sm", paddingAll: "12px",
+      contents: [{ type: "button", style: "primary", height: "sm", color: BURGUNDY, action: uriBtn("ถ่ายรูปส่งใหม่", `${appUrl}/facilities/zones`, "primary").action }],
+    },
+  };
+}
+
+/** ข้อความแจ้งครูที่ปรึกษา (ว่าง = ไม่ต้องส่ง: ผลเปลี่ยนไปแล้วระหว่างรอคิว หรือยังไม่มีใครผูก LINE) */
+export function cleanFailMessages(c: CleanFail | null, appUrl: string): { to: string[]; messages: unknown[] } {
+  if (!c || c.result !== "fail" || !c.line_ids?.length) return { to: [], messages: [] };
+  const alt = `เขต ${c.class_name} ต้องปรับปรุง${c.note ? `: ${c.note}` : ""}`;
+  return { to: [...new Set(c.line_ids)], messages: [flex(alt, cleanFailCard(c, appUrl))] };
+}

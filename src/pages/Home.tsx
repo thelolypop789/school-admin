@@ -3,6 +3,7 @@ import { Bell, CarFront, ChevronRight, MessageCircle, Presentation, Toilet, Wren
 import { InstallNudge } from "../components/Install";
 import { GaUpcoming } from "../components/GaUpcoming";
 import { canInspectToilets, isToiletTeam } from "../lib/toilet";
+import { canVerifyClean, isSchoolDay } from "../lib/clean";
 import { supabase } from "../lib/supabase";
 import { useMe } from "../lib/me";
 import { navigate } from "../lib/router";
@@ -18,6 +19,7 @@ type Todo = { key: string; title: string; sub: string; count: number; path: stri
 type Counts = {
   review: number; returned: number; trips: number; toiletsLeft: number; toiletsTotal: number; docs: number;
   repairsDecide: number; repairsPlan: number; repairsOpen: number; repairsUrgent: number; carsToday: number;
+  cleanMine: number; cleanVerify: number;
 };
 
 const HELLO_STRIP = /^(นางสาว|นาง|นาย|ว่าที่ร้อยตรี|ดร\.)\s*/;
@@ -29,6 +31,7 @@ export default function Home({ onEditProfile }: { onEditProfile: () => void }) {
   const reviewKey = review.join(",");
   const logsTrips = hasRole(me, "vehicle_head", "admin");
   const inspects = canInspectToilets(me);
+  const verifiesClean = canVerifyClean(me);
   const repairExec = isRepairExec(me), repairHead = isRepairHead(me);
   const [todayRooms, setTodayRooms] = useState<{ id: number; title: string; starts_at: string; ends_at: string; rooms: { name: string } | null }[] | null>(null);
   const [mine, setMine] = useState<Upcoming[] | null>(null);
@@ -60,7 +63,10 @@ export default function Home({ onEditProfile }: { onEditProfile: () => void }) {
       supabase.from("repair_requests").select("id", head).in("status", ["new", "proposed", "scheduled"]),
       supabase.from("repair_requests").select("id", head).in("status", ["new", "proposed", "scheduled"]).eq("priority", "urgent"),
       supabase.from("vehicle_bookings").select("id", head).in("status", ["approved", "on_trip"]).lt("starts_at", to).gt("ends_at", from),
-    ]).then(([tr, rb, vb, rv, rt, td, tc, ts, vd, dl, rx, rh, ro, ru, ct]) => {
+      // เขตทำความสะอาด: เขตของฉัน (ครูที่ปรึกษา) + รายงานวันนี้
+      supabase.from("clean_zones").select("id").eq("active", true).contains("advisor_ids", [me.id]),
+      supabase.from("clean_reports").select("zone_id,result,reported_by").eq("report_date", todayISO()),
+    ]).then(([tr, rb, vb, rv, rt, td, tc, ts, vd, dl, rx, rh, ro, ru, ct, cz, cr]) => {
       // เอกสารที่หมดแล้วหรือเหลือ ≤ 30 วัน: พ.ร.บ./ภาษี/ประกันของรถ + ใบขับขี่คนขับ
       const soon = (d: string | null) => { const l = licenseDaysLeft(d); return l !== null && l <= 30; };
       const docs = ((vd.data ?? []) as Record<string, string | null>[]).reduce((n, v) => n + VEHICLE_DOCS.filter((x) => soon(v[x.key])).length, 0)
@@ -72,11 +78,15 @@ export default function Home({ onEditProfile }: { onEditProfile: () => void }) {
           .map((v) => ({ kind: "vehicle" as const, id: v.id, title: v.destination, starts_at: v.starts_at, ends_at: v.ends_at, status: v.status })),
       ].sort((a, b) => a.starts_at.localeCompare(b.starts_at)));
       const st = (ts.data as { checks_today: number }[] | null) ?? [];
+      const creps = (cr.data ?? []) as { zone_id: number; result: string | null; reported_by: string | null }[];
+      const cleanMine = isSchoolDay(todayISO()) ? ((cz.data ?? []) as { id: number }[])
+        .filter((z) => { const r = creps.find((x) => x.zone_id === z.id); return !r || r.result === "fail"; }).length : 0;
       setCounts({
         review: rv.count ?? 0, returned: rt.count ?? 0, trips: (td.count ?? 0) + (tc.count ?? 0),
         toiletsLeft: st.filter((s) => s.checks_today === 0).length, toiletsTotal: st.length, docs,
         repairsDecide: rx.count ?? 0, repairsPlan: rh.count ?? 0,
         repairsOpen: ro.count ?? 0, repairsUrgent: ru.count ?? 0, carsToday: ct.count ?? 0,
+        cleanMine, cleanVerify: creps.filter((r) => r.reported_by && !r.result).length,
       });
     });
   }, [me.id, reviewKey, logsTrips, repairExec, repairHead]);
@@ -95,6 +105,10 @@ export default function Home({ onEditProfile }: { onEditProfile: () => void }) {
       title: "งานรถรอบันทึกเลขไมล์", sub: "บันทึกออกเดินทาง หรือปิดงานที่กลับมาแล้ว" },
     { key: "docs", count: logsTrips ? counts.docs : 0, path: "/vehicles",
       title: "เอกสารรถ/ใบขับขี่ใกล้หมดอายุ", sub: "หมดแล้วหรือเหลือไม่เกิน 30 วัน (ดูที่แท็บ รถ)" },
+    { key: "cleanMine", count: counts.cleanMine, path: "/facilities/zones",
+      title: "เขตทำความสะอาดของคุณยังไม่รายงาน", sub: "ถ่ายรูปเขตวันนี้ หรือแก้เขตที่ต้องปรับปรุงแล้วส่งใหม่" },
+    { key: "cleanVerify", count: verifiesClean ? counts.cleanVerify : 0, path: "/facilities/zones",
+      title: "เขตทำความสะอาดรอตรวจยืนยัน", sub: "ดูรูปที่ครูที่ปรึกษาส่งมา แล้วให้ผล สะอาด/พอใช้/ต้องปรับปรุง" },
     { key: "toilets", count: inspects ? counts.toiletsLeft : 0, path: "/toilets",
       title: "ห้องน้ำยังไม่ได้ตรวจวันนี้", sub: "สแกน QR หน้าห้องน้ำ หรือกด ตรวจ ในหน้าห้องน้ำ" },
   ].filter((t) => t.count > 0) : [];

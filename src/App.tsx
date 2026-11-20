@@ -27,7 +27,7 @@ const NAV: NavItem[] = [
   { path: "/", label: "หน้าแรก", long: "หน้าแรก", icon: House, mod: "c-ga" },
   { path: "/rooms", label: "ห้องประชุม", long: "จองห้องประชุม", icon: Presentation, mod: "c-room" },
   { path: "/vehicles", label: "รถ", long: "ขอใช้รถไปราชการ", icon: CarFront, mod: "c-car" },
-  { path: "/facilities", label: "แจ้งซ่อม", long: "แจ้งซ่อม · ปฏิทินงานฝ่าย", icon: Wrench, mod: "c-fix" },
+  { path: "/facilities", label: "อาคาร", long: "งานอาคารสถานที่", icon: Wrench, mod: "c-fix" },
   { path: "/toilets", label: "ห้องน้ำ", long: "ห้องน้ำ (สุขาดี มีความสุข)", icon: Toilet, mod: "c-wc" },
   { path: "/admin", label: "จัดการ", long: "จัดการระบบ", icon: Settings, mod: "c-ga", show: (p) => p.role === "admin" },
 ];
