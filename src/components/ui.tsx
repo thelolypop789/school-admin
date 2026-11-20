@@ -1,4 +1,5 @@
 import { useEffect, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import type { LucideIcon } from "lucide-react";
 
 export function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
@@ -8,7 +9,8 @@ export function Modal({ title, onClose, children }: { title: string; onClose: ()
     document.body.style.overflow = "hidden";
     return () => { window.removeEventListener("keydown", onKey); document.body.style.overflow = ""; };
   }, [onClose]);
-  return (
+  // portal ไปที่ body: หน้าอยู่ใน stacking context ของ .shell (z-index 1) ถ้าไม่ portal แถบเมนูล่างบนมือถือจะทับหน้าต่าง
+  return createPortal(
     <div className="modal-bg" onClick={onClose}>
       <div className="modal" role="dialog" aria-label={title} onClick={(e) => e.stopPropagation()}>
         <div className="modal-head">
@@ -17,7 +19,8 @@ export function Modal({ title, onClose, children }: { title: string; onClose: ()
         </div>
         {children}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
