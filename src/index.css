@@ -223,12 +223,12 @@ button.chip { cursor: pointer; margin: 0; }
 
 /* modal = bottom sheet บนมือถือ */
 .modal-bg { position: fixed; inset: 0; background: rgb(30 8 15 / .55); z-index: 50; display: grid; place-items: center; padding: 16px; animation: fade .15s ease-out; }
-.modal { color: var(--ink); text-align: left; background: var(--surface); border-radius: 18px; width: min(540px, 100%); max-height: 90vh; overflow: auto; padding: 1.15rem 1.25rem 1.4rem; box-shadow: var(--shadow-lg); border-top: 4px solid var(--gold); }
+.modal { color: var(--ink); text-align: left; background: var(--surface); border-radius: 18px; width: min(540px, 100%); max-height: 90vh; max-height: 90dvh; overflow: auto; padding: 1.15rem 1.25rem 1.4rem; box-shadow: var(--shadow-lg); border-top: 4px solid var(--gold); }
 .modal-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: .9rem; gap: .5rem; }
 .modal-head h3 { margin: 0; font-size: 1.3rem; }
 @media (max-width: 560px) {
   .modal-bg { place-items: end stretch; padding: 0; }
-  .modal { border-radius: 20px 20px 0 0; max-height: 92vh; padding-bottom: calc(1.4rem + env(safe-area-inset-bottom)); animation: rise .2s ease-out; }
+  .modal { border-radius: 20px 20px 0 0; max-height: 92vh; max-height: 92dvh; padding-bottom: calc(1.4rem + env(safe-area-inset-bottom)); animation: rise .2s ease-out; }
 }
 @keyframes fade { from { opacity: 0; } }
 @keyframes rise { from { transform: translateY(24px); opacity: .6; } }
