@@ -8,7 +8,7 @@ export const hasRole = (p: WithRoles, ...rs: Role[]): boolean => rolesOf(p).some
 export const rolesLabel = (p: WithRoles): string => rolesOf(p).map((r) => ROLE_LABEL[r]).join(" · ");
 
 /** บทบาทที่ใส่เป็นบทบาทเสริมได้ (admin ต้องเป็นบทบาทหลักเท่านั้น) */
-export const EXTRA_ROLES: Role[] = ["vehicle_head", "facilities_head", "ga_head", "inspector", "deputy", "director"];
+export const EXTRA_ROLES: Role[] = ["vehicle_head", "facilities_head", "ga_head", "inspector", "nst_teacher", "deputy", "director"];
 
 /** สถานะคำขอใช้รถที่คนนี้ต้องพิจารณา */
 const STAGE_OF: Partial<Record<Role, string>> = { vehicle_head: "pending", deputy: "pending_deputy", director: "pending_director" };
