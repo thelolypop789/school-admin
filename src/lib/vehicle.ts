@@ -87,3 +87,8 @@ export const STATUS_GROUP: Record<string, "waiting" | "approved" | "back" | "can
   approved: "approved", on_trip: "approved", completed: "approved",
   returned: "back", rejected: "back", cancelled: "cancelled",
 };
+
+/** ชื่อสำหรับเอกสารราชการ: ตัดชื่อเล่นในวงเล็บออก เช่น "นายสมชาย ใจดี(น้าชาย)" → "นายสมชาย ใจดี" */
+export function officialName(name: string): string {
+  return name.replace(/\s*[(（][^)）]*[)）]/g, "").replace(/\s+/g, " ").trim();
+}

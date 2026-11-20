@@ -11,6 +11,7 @@ import VehicleDashboard from "./VehicleDashboard";
 import { useSignedUrls } from "../lib/photos";
 import { hasRole, reviewStatuses } from "../lib/roles";
 import { Empty, Field, Modal, ModuleHero, StatusChip } from "../components/ui";
+import { useNotice } from "../lib/notice";
 import { Check, CarFront, Plus, Printer, X } from "lucide-react";
 
 export type Vehicle = {
@@ -18,7 +19,7 @@ export type Vehicle = {
   photo_path: string | null; condition: "ready" | "maintenance"; condition_note: string | null;
   insurance_expiry: string | null; act_expiry: string | null; tax_expiry: string | null;
 };
-export type Driver = { id: number; full_name: string; phone: string | null; license_expiry: string | null; active: boolean };
+export type Driver = { id: number; full_name: string; phone: string | null; license_expiry: string | null; active: boolean; photo_path?: string | null };
 export type VBooking = {
   id: number; booked_by: string; destination: string; purpose: string; passengers: number;
   starts_at: string; ends_at: string; status: string; created_at: string;
@@ -38,6 +39,7 @@ export default function Vehicles() {
   // หัวหน้าฝ่ายบริหารทั่วไป/รอง ผอ./ผอ. ดูบันทึกเดินทางได้ (อ่านอย่างเดียว)
   const canViewTrips = canLogTrips || hasRole(me, "ga_head", "deputy", "director");
   const isExec = hasRole(me, "vehicle_head", "ga_head", "deputy", "director", "admin");
+  const [notice, say] = useNotice();
   const [tab, setTab] = useState<Tab>(reviewStatus ? "review" : "mine");
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [drivers, setDrivers] = useState<Driver[]>([]);
@@ -156,7 +158,8 @@ export default function Vehicles() {
 
       {tab === "trips" && canViewTrips && <VehicleTrips vehicles={vehicles} drivers={drivers} onChanged={load} readOnly={!canLogTrips} />}
 
-      {form && <RequestForm edit={form.edit} copy={form.copy} onClose={() => setForm(null)} onSaved={() => { setForm(null); setTab("mine"); load(); }} />}
+      {form && <RequestForm edit={form.edit} copy={form.copy} onClose={() => setForm(null)} onSaved={() => { setForm(null); setTab("mine"); say("ส่งคำขอใช้รถแล้ว รอหัวหน้างานยานพาหนะจัดรถ"); load(); }} />}
+      {notice}
       {reviewing && (
         <ReviewForm booking={reviewing} vehicles={vehicles} drivers={drivers}
           onClose={() => setReviewing(null)} onDone={() => { setReviewing(null); load(); }} />
@@ -166,7 +169,7 @@ export default function Vehicles() {
           <Steps bookingId={history.id} />
         </Modal>
       )}
-      <button className="fab" onClick={() => setForm({ edit: null })}><Plus size={20} />ขอใช้รถ</button>
+      <><div className="fab-space" aria-hidden /><button className="fab" aria-label="ขอใช้รถ" onClick={() => setForm({ edit: null })}><Plus size={20} /><span>ขอใช้รถ</span></button></>
       </div>
     </>
   );

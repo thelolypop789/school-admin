@@ -2,13 +2,15 @@ import { lazy, Suspense, useEffect, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { errText, isConfigured, SCHOOL_DOMAIN, supabase, type Profile } from "./lib/supabase";
 import { Field, Modal } from "./components/ui";
+import { compressImage } from "./lib/image";
+import { useSignedUrls } from "./lib/photos";
 import { APP_NAME, initials, LOGO, SCHOOL_NAME } from "./lib/brand";
 import { Mark } from "./components/Mark";
 import { LineLink } from "./components/LineLink";
 import { InstallButton } from "./components/Install";
 import { rolesLabel } from "./lib/roles";
 import { detectPlatform, externalBrowserUrl } from "./lib/install";
-import { CarFront, House, LogOut, Presentation, Settings, Toilet, UserPen, Wrench, type LucideIcon } from "lucide-react";
+import { CalendarDays, CarFront, Ellipsis, House, LogOut, Presentation, Settings, Sparkles, Toilet, UserPen, Wrench, type LucideIcon } from "lucide-react";
 import { navigate, usePath } from "./lib/router";
 import { MeContext } from "./lib/me";
 import Home from "./pages/Home";
@@ -21,15 +23,18 @@ const Facilities = lazy(() => import("./pages/Facilities"));
 const Inspect = lazy(() => import("./pages/Inspect"));
 const Admin = lazy(() => import("./pages/Admin"));
 
-type NavItem = { path: string; label: string; long: string; icon: LucideIcon; mod: string; show?: (p: Profile) => boolean };
+// more = บนมือถือไม่มีที่พอในแถบล่าง ให้ไปอยู่ในเมนู "เพิ่มเติม"
+type NavItem = { path: string; label: string; long: string; icon: LucideIcon; mod: string; more?: boolean; show?: (p: Profile) => boolean };
 const NAV: NavItem[] = [
   // mod = สีประจำงาน (index.css .c-*) ใช้ทั้งไอคอนเมนู แผ่นสีหน้าแรก และหัวหน้าของหน้านั้น
   { path: "/", label: "หน้าแรก", long: "หน้าแรก", icon: House, mod: "c-ga" },
   { path: "/rooms", label: "ห้องประชุม", long: "จองห้องประชุม", icon: Presentation, mod: "c-room" },
   { path: "/vehicles", label: "รถ", long: "ขอใช้รถไปราชการ", icon: CarFront, mod: "c-car" },
   { path: "/facilities", label: "อาคาร", long: "งานอาคารสถานที่", icon: Wrench, mod: "c-fix" },
-  { path: "/toilets", label: "ห้องน้ำ", long: "ห้องน้ำ (สุขาดี มีความสุข)", icon: Toilet, mod: "c-wc" },
-  { path: "/admin", label: "จัดการ", long: "จัดการระบบ", icon: Settings, mod: "c-ga", show: (p) => p.role === "admin" },
+  { path: "/zones", label: "เขตทำความสะอาด", long: "เขตทำความสะอาด", icon: Sparkles, mod: "c-zone", more: true },
+  { path: "/calendar", label: "ปฏิทินงานฝ่าย", long: "ปฏิทินงานฝ่าย", icon: CalendarDays, mod: "c-ga", more: true },
+  { path: "/toilets", label: "ห้องน้ำ", long: "ห้องน้ำ (สุขาดี มีความสุข)", icon: Toilet, mod: "c-wc", more: true },
+  { path: "/admin", label: "จัดการ", long: "จัดการระบบ", icon: Settings, mod: "c-ga", more: true, show: (p) => p.role === "admin" },
 ];
 
 export default function App() {
@@ -38,7 +43,20 @@ export default function App() {
   const [loadErr, setLoadErr] = useState(false);
   const [editProfile, setEditProfile] = useState(false);
   const [account, setAccount] = useState(false);
+  const [more, setMore] = useState(false);
   const path = usePath();
+  // รูปโปรไฟล์ของตัวเอง: ขอ signed URL ครั้งเดียว แล้วส่งให้วงอักษรย่อทุกจุด
+  const avatarPath = me?.avatar_path ?? null;
+  const avatarUrl = useSignedUrls("avatars", [avatarPath])[avatarPath ?? ""];
+  const face = (me: Profile) => (avatarUrl ? <img src={avatarUrl} alt="" /> : initials(me.full_name, me.email));
+
+  // ลิงก์เก่า (การ์ด LINE ที่ส่งไปแล้ว) /facilities/zones และ /facilities/calendar → หน้าใหม่
+  useEffect(() => {
+    const m = path.match(/^\/facilities\/(zones|calendar)\/?$/);
+    if (!m) return;
+    window.history.replaceState(null, "", `/${m[1]}${window.location.search}`);
+    window.dispatchEvent(new PopStateEvent("popstate"));
+  }, [path]);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data.session));
@@ -54,7 +72,13 @@ export default function App() {
       .then(({ data, error }) => {
         if (!alive) return;
         if (error) setLoadErr(true); // เน็ตหลุด/เซิร์ฟเวอร์มีปัญหา — อย่าบอกว่าไม่ใช่บุคลากร
-        else setMe((data as Profile | null) ?? null);
+        else {
+          setMe((data as Profile | null) ?? null);
+          // รูปโปรไฟล์ดึงแยก: ถ้ายังไม่ได้รัน migration entity_photos (ไม่มีคอลัมน์) ก็ไม่ทำให้เข้าแอปไม่ได้
+          supabase.from("profiles").select("avatar_path").eq("id", uid).maybeSingle().then(({ data: a }) => {
+            if (alive && a) setMe((m) => (m ? { ...m, avatar_path: (a as { avatar_path: string | null }).avatar_path } : m));
+          });
+        }
       });
     return () => { alive = false; };
   }, [uid]);
@@ -74,13 +98,15 @@ export default function App() {
   else if (/^\/vehicles\/print\/\d+$/.test(path)) page = <VehiclePrint id={Number(path.split("/").pop())} />;
   else if (path.startsWith("/vehicles")) page = <Vehicles />;
   else if (path.startsWith("/toilets")) page = <Toilets />;
-  else if (path.startsWith("/facilities")) page = <Facilities />;
+  else if (path.startsWith("/facilities") || path.startsWith("/zones") || path.startsWith("/calendar")) page = <Facilities />;
   else if (path.startsWith("/admin") && me.role === "admin") page = <Admin />;
   else page = <Home onEditProfile={openProfile} />;
 
   const signOut = () => supabase.auth.signOut();
   const onLinked = (linked: boolean) => setMe((m) => (m ? { ...m, line_linked: linked } : m));
-  const go = (p: string) => { setAccount(false); navigate(p); };
+  const go = (p: string) => { setAccount(false); setMore(false); navigate(p); };
+  const main = nav.filter((n) => !n.more);
+  const rest = nav.filter((n) => n.more);
 
   return (
     <MeContext.Provider value={me}>
@@ -101,7 +127,7 @@ export default function App() {
           </nav>
           <div className="me-card">
             <div className="me-row">
-              <span className="avatar" aria-hidden>{initials(me.full_name, me.email)}</span>
+              <span className="avatar" aria-hidden>{face(me)}</span>
               <span className="me-name"><b>{me.full_name || me.email}</b><span>{rolesLabel(me)}</span></span>
             </div>
             <InstallButton className="btn side-install" label="ติดตั้งแอป" />
@@ -118,7 +144,7 @@ export default function App() {
             <span className="seal"><img src={LOGO} alt={`ตรา${SCHOOL_NAME}`} /></span>
             <span className="brand-text"><b>บริหารทั่วไป</b><span>{SCHOOL_NAME}</span></span>
           </button>
-          <button className="avatar" onClick={() => setAccount(true)} aria-label="บัญชีของฉัน">{initials(me.full_name, me.email)}</button>
+          <button className="avatar" onClick={() => setAccount(true)} aria-label="บัญชีของฉัน">{face(me)}</button>
         </header>
 
         <main className="page">
@@ -127,18 +153,35 @@ export default function App() {
       </div>
 
       <nav className="bottomnav" aria-label="เมนูหลัก">
-        {nav.map((n) => (
+        {main.map((n) => (
           <button key={n.path} className={`${n.mod} ${active(n.path) ? "on" : ""}`} aria-current={active(n.path) ? "page" : undefined} onClick={() => go(n.path)}>
             <span className="nav-ic"><n.icon size={20} strokeWidth={active(n.path) ? 2.2 : 1.9} /></span>{n.label}
           </button>
         ))}
+        {rest.length > 0 && (
+          <button className={`c-ga ${rest.some((n) => active(n.path)) ? "on" : ""}`} aria-haspopup="dialog" onClick={() => setMore(true)}>
+            <span className="nav-ic"><Ellipsis size={20} strokeWidth={1.9} /></span>เพิ่มเติม
+          </button>
+        )}
       </nav>
+
+      {more && (
+        <Modal title="เมนูเพิ่มเติม" onClose={() => setMore(false)}>
+          <nav className="more-list" aria-label="เมนูเพิ่มเติม">
+            {rest.map((n) => (
+              <button key={n.path} className={active(n.path) ? "on" : ""} aria-current={active(n.path) ? "page" : undefined} onClick={() => go(n.path)}>
+                <span className={`gloss ${n.mod}`}><n.icon size={18} /></span>{n.long}
+              </button>
+            ))}
+          </nav>
+        </Modal>
+      )}
 
       {account && (
         <Modal title="บัญชีของฉัน" onClose={() => setAccount(false)}>
           <div className="form">
             <div className="me-row">
-              <span className="avatar" aria-hidden>{initials(me.full_name, me.email)}</span>
+              <span className="avatar" aria-hidden>{face(me)}</span>
               <span className="me-name"><b>{me.full_name || "ยังไม่ได้ตั้งชื่อ"}</b><span>{me.position ? `${me.position} · ` : ""}{rolesLabel(me)}</span></span>
             </div>
             <p className="muted small">{me.email}</p>
@@ -148,17 +191,39 @@ export default function App() {
           </div>
         </Modal>
       )}
-      {editProfile && <ProfileForm me={me} onClose={() => setEditProfile(false)} onSaved={(p) => { setMe(p); setEditProfile(false); }} onLinked={onLinked} />}
+      {editProfile && <ProfileForm me={me} avatarUrl={avatarUrl} onAvatar={(p) => setMe((m) => (m ? { ...m, avatar_path: p } : m))} onClose={() => setEditProfile(false)} onSaved={(p) => { setMe(p); setEditProfile(false); }} onLinked={onLinked} />}
     </MeContext.Provider>
   );
 }
 
 /** ชื่อ-นามสกุล (มีคำนำหน้า) และตำแหน่ง ใช้พิมพ์ในคำสั่งไปราชการ */
-function ProfileForm({ me, onClose, onSaved, onLinked }: { me: Profile; onClose: () => void; onSaved: (p: Profile) => void; onLinked: (linked: boolean) => void }) {
+function ProfileForm({ me, avatarUrl, onAvatar, onClose, onSaved, onLinked }: { me: Profile; avatarUrl?: string; onAvatar: (path: string | null) => void; onClose: () => void; onSaved: (p: Profile) => void; onLinked: (linked: boolean) => void }) {
   const [fullName, setFullName] = useState(me.full_name);
   const [position, setPosition] = useState(me.position ?? "");
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState("");
+  const [photoBusy, setPhotoBusy] = useState(false);
+  // รูปโปรไฟล์: ย่อเหลือ 256px (~20 KB) เก็บที่ avatars/<uid>/<uuid>.jpg แล้วลบรูปเก่า
+  const setPhoto = async (file: File | undefined, remove = false) => {
+    if (!remove && !file) return;
+    setPhotoBusy(true); setErr("");
+    try {
+      let path: string | null = null;
+      if (file && !remove) {
+        path = `${me.id}/${crypto.randomUUID()}.jpg`;
+        const up = await supabase.storage.from("avatars").upload(path, await compressImage(file, 256, 0.8), { contentType: "image/jpeg" });
+        if (up.error) throw up.error;
+      }
+      const { error } = await supabase.from("profiles").update({ avatar_path: path }).eq("id", me.id);
+      if (error) throw error;
+      if (me.avatar_path) await supabase.storage.from("avatars").remove([me.avatar_path]);
+      onAvatar(path);
+    } catch (e) {
+      setErr(errText(e));
+    } finally {
+      setPhotoBusy(false);
+    }
+  };
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true); setErr("");
@@ -170,6 +235,16 @@ function ProfileForm({ me, onClose, onSaved, onLinked }: { me: Profile; onClose:
   return (
     <Modal title="ข้อมูลของฉัน" onClose={onClose}>
       <form className="form" onSubmit={save}>
+        <div className="avatar-edit">
+          <span className="avatar" aria-hidden>{avatarUrl ? <img src={avatarUrl} alt="" /> : initials(me.full_name, me.email)}</span>
+          <span className="avatar-act">
+            <label className="btn">
+              {photoBusy ? "กำลังอัปโหลด…" : avatarUrl ? "เปลี่ยนรูปโปรไฟล์" : "เพิ่มรูปโปรไฟล์"}
+              <input type="file" accept="image/*" hidden disabled={photoBusy} onChange={(e) => { setPhoto(e.target.files?.[0]); e.target.value = ""; }} />
+            </label>
+            {avatarUrl && <button type="button" className="link danger" disabled={photoBusy} onClick={() => setPhoto(undefined, true)}>ลบรูป</button>}
+          </span>
+        </div>
         <Field label="ชื่อ-นามสกุล (มีคำนำหน้า)" hint="ใช้พิมพ์ในคำสั่งไปราชการ เช่น นางสาววาสนา ศรียอด">
           <input id="pf-name" required maxLength={120} value={fullName} onChange={(e) => setFullName(e.target.value)} />
         </Field>

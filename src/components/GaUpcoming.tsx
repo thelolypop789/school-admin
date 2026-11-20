@@ -33,7 +33,7 @@ export function GaUpcoming() {
     <section>
       <div className="section-title">
         <h2>สัปดาห์นี้ของฝ่าย</h2>
-        <button className="link" onClick={() => navigate("/facilities/calendar")}>ปฏิทิน<ChevronRight size={14} style={{ verticalAlign: "-2px" }} /></button>
+        <button className="link" onClick={() => navigate("/calendar")}>ปฏิทิน<ChevronRight size={14} style={{ verticalAlign: "-2px" }} /></button>
       </div>
       <div className="week" role="tablist" aria-label="เลือกวัน">
         {days.map((d) => {
@@ -54,7 +54,7 @@ export function GaUpcoming() {
           {list.map((i) => {
             const K = KIND_STYLE[i.kind];
             return (
-              <button key={i.key} className="ev-row" onClick={() => navigate(i.path ?? "/facilities/calendar")}>
+              <button key={i.key} className="ev-row" onClick={() => navigate(i.path ?? "/calendar")}>
                 <span className={`gloss sm ${K.mod}`}><K.icon size={16} /></span>
                 <span className="ev-text">{i.title}<small>{i.sub || K.label}{i.start !== i.end ? ` · ${fmtDate(i.start, { day: "numeric", month: "short" })} – ${fmtDate(i.end, { day: "numeric", month: "short" })}` : ""}</small></span>
                 <time>{i.time ?? (i.start !== i.end ? "หลายวัน" : "ทั้งวัน")}</time>

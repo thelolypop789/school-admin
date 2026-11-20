@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Bell, CarFront, ChevronRight, MessageCircle, Presentation, Toilet, Wrench } from "lucide-react";
+import { Bell, CarFront, ChevronRight, MessageCircle, Presentation, Sparkles, Toilet, Wrench } from "lucide-react";
 import { InstallNudge } from "../components/Install";
 import { GaUpcoming } from "../components/GaUpcoming";
 import { canInspectToilets, isToiletTeam } from "../lib/toilet";
@@ -19,7 +19,7 @@ type Todo = { key: string; title: string; sub: string; count: number; path: stri
 type Counts = {
   review: number; returned: number; trips: number; toiletsLeft: number; toiletsTotal: number; docs: number;
   repairsDecide: number; repairsPlan: number; repairsOpen: number; repairsUrgent: number; carsToday: number;
-  cleanMine: number; cleanVerify: number;
+  cleanMine: number; cleanVerify: number; cleanTotal: number; cleanReported: number;
 };
 
 const HELLO_STRIP = /^(นางสาว|นาง|นาย|ว่าที่ร้อยตรี|ดร\.)\s*/;
@@ -66,7 +66,8 @@ export default function Home({ onEditProfile }: { onEditProfile: () => void }) {
       // เขตทำความสะอาด: เขตของฉัน (ครูที่ปรึกษา) + รายงานวันนี้
       supabase.from("clean_zones").select("id").eq("active", true).contains("advisor_ids", [me.id]),
       supabase.from("clean_reports").select("zone_id,result,reported_by").eq("report_date", todayISO()),
-    ]).then(([tr, rb, vb, rv, rt, td, tc, ts, vd, dl, rx, rh, ro, ru, ct, cz, cr]) => {
+      supabase.from("clean_zones").select("id", head).eq("active", true),
+    ]).then(([tr, rb, vb, rv, rt, td, tc, ts, vd, dl, rx, rh, ro, ru, ct, cz, cr, cn]) => {
       // เอกสารที่หมดแล้วหรือเหลือ ≤ 30 วัน: พ.ร.บ./ภาษี/ประกันของรถ + ใบขับขี่คนขับ
       const soon = (d: string | null) => { const l = licenseDaysLeft(d); return l !== null && l <= 30; };
       const docs = ((vd.data ?? []) as Record<string, string | null>[]).reduce((n, v) => n + VEHICLE_DOCS.filter((x) => soon(v[x.key])).length, 0)
@@ -87,6 +88,7 @@ export default function Home({ onEditProfile }: { onEditProfile: () => void }) {
         repairsDecide: rx.count ?? 0, repairsPlan: rh.count ?? 0,
         repairsOpen: ro.count ?? 0, repairsUrgent: ru.count ?? 0, carsToday: ct.count ?? 0,
         cleanMine, cleanVerify: creps.filter((r) => r.reported_by && !r.result).length,
+        cleanTotal: cn.count ?? 0, cleanReported: creps.filter((r) => r.reported_by).length,
       });
     });
   }, [me.id, reviewKey, logsTrips, repairExec, repairHead]);
@@ -105,9 +107,9 @@ export default function Home({ onEditProfile }: { onEditProfile: () => void }) {
       title: "งานรถรอบันทึกเลขไมล์", sub: "บันทึกออกเดินทาง หรือปิดงานที่กลับมาแล้ว" },
     { key: "docs", count: logsTrips ? counts.docs : 0, path: "/vehicles",
       title: "เอกสารรถ/ใบขับขี่ใกล้หมดอายุ", sub: "หมดแล้วหรือเหลือไม่เกิน 30 วัน (ดูที่แท็บ รถ)" },
-    { key: "cleanMine", count: counts.cleanMine, path: "/facilities/zones",
+    { key: "cleanMine", count: counts.cleanMine, path: "/zones",
       title: "เขตทำความสะอาดของคุณยังไม่รายงาน", sub: "ถ่ายรูปเขตวันนี้ หรือแก้เขตที่ต้องปรับปรุงแล้วส่งใหม่" },
-    { key: "cleanVerify", count: verifiesClean ? counts.cleanVerify : 0, path: "/facilities/zones",
+    { key: "cleanVerify", count: verifiesClean ? counts.cleanVerify : 0, path: "/zones",
       title: "เขตทำความสะอาดรอตรวจยืนยัน", sub: "ดูรูปที่ครูที่ปรึกษาส่งมา แล้วให้ผล สะอาด/พอใช้/ต้องปรับปรุง" },
     { key: "toilets", count: inspects ? counts.toiletsLeft : 0, path: "/toilets",
       title: "ห้องน้ำยังไม่ได้ตรวจวันนี้", sub: "สแกน QR หน้าห้องน้ำ หรือกด ตรวจ ในหน้าห้องน้ำ" },
@@ -181,11 +183,17 @@ export default function Home({ onEditProfile }: { onEditProfile: () => void }) {
           <b>ขอใช้รถ</b><small>{counts === null ? "…" : counts.carsToday ? `ออกวันนี้ ${counts.carsToday} คัน` : "วันนี้ไม่มีรถออก"}</small>
           <CarFront size={50} strokeWidth={1.6} className="bx-ic" />
         </button>
-        <button className="bx c-wc wide" onClick={() => navigate("/toilets")}>
-          <span><b>{isToiletTeam(me) ? "ตรวจห้องน้ำ" : "รายงานห้องน้ำ"}</b><br />
-            <small>{counts && counts.toiletsTotal ? `ตรวจแล้ว ${toiletsDone} จาก ${counts.toiletsTotal} จุด` : "สุขาดี มีความสุข"}</small></span>
+        <button className="bx c-wc" onClick={() => navigate("/toilets")}>
+          <b>{isToiletTeam(me) ? "ตรวจห้องน้ำ" : "รายงานห้องน้ำ"}</b>
+          <small>{counts && counts.toiletsTotal ? `ตรวจแล้ว ${toiletsDone}/${counts.toiletsTotal} จุด` : "สุขาดี มีความสุข"}</small>
           {counts && counts.toiletsTotal > 0 && <span className="bx-bar" aria-hidden><i style={{ width: `${(100 * toiletsDone) / counts.toiletsTotal}%` }} /></span>}
           <Toilet size={44} strokeWidth={1.6} className="bx-ic" />
+        </button>
+        <button className="bx c-zone" onClick={() => navigate("/zones")}>
+          <b>เขตทำความสะอาด</b>
+          <small>{counts === null ? "…" : !isSchoolDay(todayISO()) ? "วันนี้ไม่มีเรียน" : counts.cleanTotal ? `รายงานแล้ว ${counts.cleanReported}/${counts.cleanTotal} เขต` : "ครูที่ปรึกษาถ่ายรูปรายงาน"}</small>
+          {counts && counts.cleanTotal > 0 && isSchoolDay(todayISO()) && <span className="bx-bar" aria-hidden><i style={{ width: `${Math.min(100, (100 * counts.cleanReported) / counts.cleanTotal)}%` }} /></span>}
+          <Sparkles size={44} strokeWidth={1.6} className="bx-ic" />
         </button>
       </div>
 

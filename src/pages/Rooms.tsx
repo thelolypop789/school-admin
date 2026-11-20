@@ -3,9 +3,11 @@ import { errText, supabase } from "../lib/supabase";
 import { useMe } from "../lib/me";
 import { dayRange, fmtRange, fmtTime, hhmm, toISO, todayISO } from "../lib/time";
 import { DateNav, Empty, Field, Modal, ModuleHero, StatusChip, Timeline } from "../components/ui";
+import { useNotice } from "../lib/notice";
 import { Plus, Presentation } from "lucide-react";
+import { useSignedUrls } from "../lib/photos";
 
-export type Room = { id: number; name: string; capacity: number | null; equipment: string[]; note: string | null; active: boolean };
+export type Room = { id: number; name: string; capacity: number | null; equipment: string[]; note: string | null; active: boolean; photo_path?: string | null };
 type Booking = {
   id: number; room_id: number; booked_by: string; title: string; attendees: number | null;
   starts_at: string; ends_at: string; status: string;
@@ -15,6 +17,7 @@ type Booking = {
 const SELECT = "id,room_id,booked_by,title,attendees,starts_at,ends_at,status,profiles!room_bookings_booked_by_fkey(full_name,email)";
 
 export default function Rooms() {
+  const [notice, say] = useNotice();
   const me = useMe();
   const [date, setDate] = useState(todayISO());
   const [rooms, setRooms] = useState<Room[]>([]);
@@ -22,6 +25,7 @@ export default function Rooms() {
   const [mine, setMine] = useState<Booking[]>([]);
   const [form, setForm] = useState<{ room_id: number; start?: string } | null>(null);
   const [err, setErr] = useState("");
+  const roomPhotos = useSignedUrls("room-photos", rooms.map((r) => r.photo_path));
 
   const load = useCallback(async () => {
     const [from, to] = dayRange(date);
@@ -67,6 +71,7 @@ export default function Rooms() {
           const list = day.filter((b) => b.room_id === room.id);
           return (
             <section key={room.id} className="card">
+              {room.photo_path && roomPhotos[room.photo_path] && <img className="room-photo" src={roomPhotos[room.photo_path]} alt="" loading="lazy" />}
               <div className="row between">
                 <div>
                   <h3>{room.name}</h3>
@@ -112,9 +117,10 @@ export default function Rooms() {
 
       {form && (
         <BookRoomForm rooms={rooms} date={date} roomId={form.room_id} busy={day}
-          onClose={() => setForm(null)} onSaved={() => { setForm(null); load(); }} />
+          onClose={() => setForm(null)} onSaved={() => { setForm(null); say("จองห้องประชุมแล้ว"); load(); }} />
       )}
-      {rooms.length > 0 && <button className="fab" onClick={() => setForm({ room_id: rooms[0].id })}><Plus size={20} />จองห้อง</button>}
+      {notice}
+      {rooms.length > 0 && <><div className="fab-space" aria-hidden /><button className="fab" aria-label="จองห้อง" onClick={() => setForm({ room_id: rooms[0].id })}><Plus size={20} /><span>จองห้อง</span></button></>}
       </div>
     </>
   );
