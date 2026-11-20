@@ -3,6 +3,7 @@ import { errText, supabase } from "../lib/supabase";
 import { useMe } from "../lib/me";
 import { dayRange, fmtRange, fmtTime, hhmm, toISO, todayISO } from "../lib/time";
 import { DateNav, Empty, Field, Modal, ModuleHero, StatusChip, Timeline } from "../components/ui";
+import { useNotice } from "../lib/notice";
 import { Plus, Presentation } from "lucide-react";
 import { useSignedUrls } from "../lib/photos";
 
@@ -16,6 +17,7 @@ type Booking = {
 const SELECT = "id,room_id,booked_by,title,attendees,starts_at,ends_at,status,profiles!room_bookings_booked_by_fkey(full_name,email)";
 
 export default function Rooms() {
+  const [notice, say] = useNotice();
   const me = useMe();
   const [date, setDate] = useState(todayISO());
   const [rooms, setRooms] = useState<Room[]>([]);
@@ -115,8 +117,9 @@ export default function Rooms() {
 
       {form && (
         <BookRoomForm rooms={rooms} date={date} roomId={form.room_id} busy={day}
-          onClose={() => setForm(null)} onSaved={() => { setForm(null); load(); }} />
+          onClose={() => setForm(null)} onSaved={() => { setForm(null); say("จองห้องประชุมแล้ว"); load(); }} />
       )}
+      {notice}
       {rooms.length > 0 && <><div className="fab-space" aria-hidden /><button className="fab" aria-label="จองห้อง" onClick={() => setForm({ room_id: rooms[0].id })}><Plus size={20} /><span>จองห้อง</span></button></>}
       </div>
     </>

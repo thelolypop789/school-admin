@@ -11,6 +11,7 @@ import {
 import { PhotoPicker } from "../components/PhotoPicker";
 import { uploadPics, type Pic } from "../lib/upload";
 import { Empty, Field, Modal } from "../components/ui";
+import { useNotice } from "../lib/notice";
 
 type Filter = "open" | "mine" | "closed";
 
@@ -30,6 +31,7 @@ export type RepairStats = { urgent: number; plan: number; scheduled: number };
 
 /** แจ้งซ่อมงานอาคารสถานที่: ผู้แจ้งเลือกความเร่งด่วน → หัวหน้างานอาคารฯ ลงวันที่ เสนอผู้บริหาร → ผู้บริหารตัดสิน → ซ่อมเสร็จ */
 export default function Repairs({ onStats }: { onStats?: (s: RepairStats) => void }) {
+  const [notice, say] = useNotice();
   const me = useMe();
   const head = isRepairHead(me), exec = isRepairExec(me);
   const [rows, setRows] = useState<Repair[] | null>(null);
@@ -97,7 +99,8 @@ export default function Repairs({ onStats }: { onStats?: (s: RepairStats) => voi
       )}
 
       <><div className="fab-space" aria-hidden /><button className="fab" aria-label="แจ้งซ่อม" onClick={() => setForm(true)}><Plus size={20} /><span>แจ้งซ่อม</span></button></>
-      {form && <RepairForm onClose={() => setForm(false)} onSaved={() => { setForm(false); setFilter("mine"); load(); }} />}
+      {form && <RepairForm onClose={() => setForm(false)} onSaved={() => { setForm(false); setFilter("mine"); say("ส่งเรื่องแจ้งซ่อมแล้ว"); load(); }} />}
+      {notice}
       {opened && <RepairDetail r={opened} onClose={() => setOpenId(null)} onChanged={load} />}
     </>
   );

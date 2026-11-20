@@ -11,6 +11,7 @@ import VehicleDashboard from "./VehicleDashboard";
 import { useSignedUrls } from "../lib/photos";
 import { hasRole, reviewStatuses } from "../lib/roles";
 import { Empty, Field, Modal, ModuleHero, StatusChip } from "../components/ui";
+import { useNotice } from "../lib/notice";
 import { Check, CarFront, Plus, Printer, X } from "lucide-react";
 
 export type Vehicle = {
@@ -38,6 +39,7 @@ export default function Vehicles() {
   // หัวหน้าฝ่ายบริหารทั่วไป/รอง ผอ./ผอ. ดูบันทึกเดินทางได้ (อ่านอย่างเดียว)
   const canViewTrips = canLogTrips || hasRole(me, "ga_head", "deputy", "director");
   const isExec = hasRole(me, "vehicle_head", "ga_head", "deputy", "director", "admin");
+  const [notice, say] = useNotice();
   const [tab, setTab] = useState<Tab>(reviewStatus ? "review" : "mine");
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [drivers, setDrivers] = useState<Driver[]>([]);
@@ -156,7 +158,8 @@ export default function Vehicles() {
 
       {tab === "trips" && canViewTrips && <VehicleTrips vehicles={vehicles} drivers={drivers} onChanged={load} readOnly={!canLogTrips} />}
 
-      {form && <RequestForm edit={form.edit} copy={form.copy} onClose={() => setForm(null)} onSaved={() => { setForm(null); setTab("mine"); load(); }} />}
+      {form && <RequestForm edit={form.edit} copy={form.copy} onClose={() => setForm(null)} onSaved={() => { setForm(null); setTab("mine"); say("ส่งคำขอใช้รถแล้ว รอหัวหน้างานยานพาหนะจัดรถ"); load(); }} />}
+      {notice}
       {reviewing && (
         <ReviewForm booking={reviewing} vehicles={vehicles} drivers={drivers}
           onClose={() => setReviewing(null)} onDone={() => { setReviewing(null); load(); }} />

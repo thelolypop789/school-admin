@@ -993,3 +993,14 @@ td.num { font-variant-numeric: tabular-nums; }
 .avatar-edit { display: flex; align-items: center; gap: .9rem; }
 .avatar-edit .avatar { width: 64px; height: 64px; font-size: 1.4rem; flex-shrink: 0; margin: 0; }
 .avatar-edit .avatar-act { display: grid; gap: .35rem; justify-items: start; }
+
+/* แจ้งผลหลังทำรายการสำเร็จ (useNotice) — อยู่เหนือแถบล่าง/ปุ่มลอยบนมือถือ */
+.toast {
+  position: fixed; z-index: 60; left: 50%; transform: translateX(-50%); width: max-content; max-width: calc(100vw - 32px);
+  bottom: calc(var(--bottomnav) + 84px + env(safe-area-inset-bottom)); display: flex; align-items: center; gap: .5rem;
+  padding: .7rem 1.1rem; border-radius: 999px; background: var(--ink); color: #fff; font-weight: 600; font-size: .95rem;
+  box-shadow: 0 14px 30px -12px rgb(0 0 0 / .5); animation: toast-in .2s ease-out; cursor: pointer;
+}
+.toast svg { color: #7ee2a8; flex-shrink: 0; }
+@media (min-width: 900px) { .toast { bottom: 36px; } }
+@keyframes toast-in { from { opacity: 0; transform: translate(-50%, 12px); } }
