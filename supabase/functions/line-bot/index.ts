@@ -91,6 +91,14 @@ async function notifyRepair(evt: { repair_id: number; status: string; from: stri
   }
 }
 
+async function notifyCleanFail(evt: { report_id: number }) {
+  const { data, error } = await sb.rpc("line_clean_report_info", { p_report: evt.report_id });
+  if (error) console.error("cleanInfo", error.message);
+  const { to, messages } = L.cleanFailMessages((data as L.CleanFail) ?? null, APP_URL);
+  if (to.length > 150) for (let i = 0; i < to.length; i += 150) await sendTo(to.slice(i, i + 150), messages);
+  else await sendTo(to, messages);
+}
+
 // ---------------------------------------------------------------- LINE webhook
 type LineEvent = {
   type: string; replyToken?: string; source?: { type: string; userId?: string };
@@ -187,7 +195,9 @@ Deno.serve(async (req) => {
   if (ns && (await sb.rpc("line_notify_secret_ok", { p_secret: ns })).data === true) {
     try {
       const evt = JSON.parse(body);
-      if (evt.type === "repair_status") await notifyRepair(evt); else await notify(evt);
+      if (evt.type === "repair_status") await notifyRepair(evt);
+      else if (evt.type === "clean_fail") await notifyCleanFail(evt);
+      else await notify(evt);
     } catch (e) { console.error("notify", e); }
     return new Response("ok");
   }

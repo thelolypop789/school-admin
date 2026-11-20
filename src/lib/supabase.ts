@@ -24,7 +24,7 @@ export type Profile = {
 
 export const ROLE_LABEL: Record<Role, string> = {
   staff: "บุคลากร",
-  inspector: "ผู้ตรวจห้องน้ำ",
+  inspector: "เจ้าหน้าที่อาคารสถานที่",
   vehicle_head: "หัวหน้างานยานพาหนะ",
   facilities_head: "หัวหน้างานอาคารสถานที่",
   ga_head: "หัวหน้าฝ่ายบริหารทั่วไป",

@@ -827,3 +827,113 @@ td.num { font-variant-numeric: tabular-nums; }
 .card.toilet.ok::before { background: var(--ok); } .card.toilet.warn::before { background: var(--gold); } .card.toilet.bad::before { background: var(--bad); }
 /* หน้าในคอลัมน์ขวาของ grid: margin auto ทำให้หดตามเนื้อหา ต้องกำหนดความกว้างเต็มก่อน */
 @media (min-width: 900px) { .page { width: 100%; } }
+
+/* ======================================================================
+   เขตทำความสะอาด (/facilities/zones) — สีประจำงาน เขียวใบไม้ + แผนที่ 3 มิติ
+   ====================================================================== */
+:root { --zone-a: #3f8f1c; --zone-b: #9bdc5a; --zone-t: #edf8e3; --zone-k: #2e6b12; }
+@media (prefers-color-scheme: dark) { :root { --zone-t: #1c3010; --zone-k: #b4e88f; } }
+.c-zone { --a: var(--zone-a); --b: var(--zone-b); --t: var(--zone-t); --k: var(--zone-k); }
+.mhero .mh-tabs { overflow-x: auto; scrollbar-width: none; margin-inline: -2px; padding: 2px; }
+.mhero .mh-tabs::-webkit-scrollbar { display: none; }
+.mhero .mh-tabs button { white-space: nowrap; flex: none; }
+.chip.info { background: #e6eefc; color: #1f4fb0; }
+@media (prefers-color-scheme: dark) { .chip.info { background: #182a4a; color: #9dbcff; } }
+.btn.sm { min-height: 36px; padding: .3rem .75rem; font-size: .88rem; gap: .35rem; display: inline-flex; align-items: center; }
+.btn.big svg, .btn svg { flex: none; }
+
+.clean-bar { display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; justify-content: space-between; margin-bottom: .8rem; }
+.clean-bar .tabs { margin: 0; }
+.note-line { margin: 0 0 .8rem; padding: .55rem .8rem; border-radius: 12px; background: var(--surface); color: var(--muted); font-size: .9rem; box-shadow: var(--shadow); }
+
+.my-zones { display: grid; gap: .5rem; margin-bottom: .9rem; }
+.my-zone { display: flex; align-items: center; gap: .75rem; width: 100%; text-align: left; cursor: pointer; border: 0; font: inherit; color: inherit;
+  padding: .75rem .9rem; border-radius: 20px; background: var(--surface); box-shadow: var(--shadow), inset 0 0 0 2px var(--t); }
+.my-zone .mz-dot { width: 14px; height: 14px; border-radius: 50%; flex: none; box-shadow: 0 0 0 4px var(--t); }
+.my-zone .mz-text { flex: 1; min-width: 0; display: grid; line-height: 1.35; }
+.my-zone small { color: var(--k); font-weight: 700; font-size: .75rem; }
+.my-zone em { font-style: normal; color: var(--muted); font-size: .88rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.my-zone .btn { pointer-events: none; flex: none; }
+
+/* แผนที่ 3 มิติ */
+.campus3d { position: relative; height: min(64vh, 560px); min-height: 340px; border-radius: 20px; overflow: hidden; margin-bottom: 1rem;
+  background: linear-gradient(#bcd3e6, #dde8ec); box-shadow: var(--shadow); isolation: isolate; }
+.campus3d.loading, .campus3d.failed { display: grid; place-content: center; text-align: center; color: #3c4a40; padding: 1rem; }
+.campus3d.failed { height: auto; min-height: 0; background: var(--surface); color: var(--muted); }
+.campus3d.full { position: fixed; inset: 0; height: auto; border-radius: 0; z-index: 60; margin: 0; }
+.c3-stage { position: absolute; inset: 0; }
+.c3-stage canvas { display: block; width: 100%; height: 100%; touch-action: none; outline: none; }
+.c3-stage .labels { position: absolute; inset: 0; pointer-events: none; z-index: 0; }
+.c3-stage .labels.no-bld .lbl.bld { display: none !important; }
+.c3-stage .lbl { pointer-events: none; display: flex; align-items: center; gap: 5px; border: 0; background: rgb(250 249 244 / .9); color: #1c211e;
+  font: 500 11px/1 var(--font-body); padding: 4px 8px 4px 6px; border-radius: 999px; white-space: nowrap; box-shadow: 0 2px 8px rgb(0 0 0 / .18); }
+.c3-stage .lbl i { width: 8px; height: 8px; border-radius: 3px; }
+.c3-stage .zlbl { pointer-events: auto; cursor: pointer; display: flex; align-items: center; gap: 5px; border: 0; white-space: nowrap;
+  background: #fff; color: #1b1a20; font: 700 12.5px/1 var(--font-body); padding: 5px 9px 5px 6px; border-radius: 999px;
+  box-shadow: 0 3px 10px rgb(0 0 0 / .25); transition: transform .15s; }
+.c3-stage .zlbl i { width: 11px; height: 11px; border-radius: 50%; box-shadow: inset 0 0 0 1.5px rgb(255 255 255 / .7); }
+.c3-stage .zlbl small { font-weight: 500; font-size: 10.5px; color: #5b5866; }
+.c3-stage .zlbl.mine { box-shadow: 0 0 0 2.5px var(--burgundy), 0 3px 10px rgb(0 0 0 / .25); }
+.c3-stage .zlbl.on { transform: scale(1.12); box-shadow: 0 0 0 3px var(--ink), 0 6px 16px rgb(0 0 0 / .3); }
+.c3-stage .zlbl.dim { opacity: .55; pointer-events: none; }
+.c3-stage .zlbl:focus-visible { outline: 3px solid var(--burgundy); outline-offset: 2px; }
+.campus3d.drawing .c3-stage canvas { cursor: crosshair; }
+.c3-bar { position: absolute; left: 10px; top: 10px; display: flex; gap: 4px; padding: 4px; border-radius: 999px; background: rgb(255 255 255 / .85);
+  backdrop-filter: blur(10px); box-shadow: 0 4px 14px rgb(0 0 0 / .15); max-width: calc(100% - 120px); overflow-x: auto; scrollbar-width: none; }
+.c3-bar button { border: 0; background: transparent; color: #2a2730; font: 600 12.5px/1 var(--font-body); padding: 7px 11px; border-radius: 999px; cursor: pointer; white-space: nowrap; }
+.c3-bar button.on { background: var(--a); color: #fff; }
+.c3-tools { position: absolute; right: 10px; top: 10px; display: flex; gap: 6px; }
+.c3-ic { width: 40px; height: 40px; border-radius: 50%; border: 0; display: grid; place-items: center; cursor: pointer; color: #2a2730;
+  background: rgb(255 255 255 / .85); backdrop-filter: blur(10px); box-shadow: 0 4px 14px rgb(0 0 0 / .15); }
+.c3-ic svg { width: 26px; height: 26px; }
+.c3-ic + .c3-ic svg { width: 18px; height: 18px; }
+.c3-legend { position: absolute; left: 10px; bottom: 10px; right: 10px; display: flex; flex-wrap: wrap; gap: 4px 10px; margin: 0; padding: 6px 10px;
+  list-style: none; width: fit-content; max-width: calc(100% - 20px); border-radius: 14px; background: rgb(255 255 255 / .85); backdrop-filter: blur(10px);
+  font-size: 11.5px; color: #2a2730; pointer-events: none; }
+.c3-legend li { display: flex; align-items: center; gap: 5px; }
+.c3-legend i { width: 10px; height: 10px; border-radius: 3px; }
+.c3-draw { position: absolute; left: 10px; right: 10px; bottom: 10px; padding: .6rem .75rem; border-radius: 16px; background: rgb(255 255 255 / .94);
+  box-shadow: 0 8px 24px rgb(0 0 0 / .2); color: #1b1a20; }
+.c3-draw p { margin: 0 0 .45rem; font-size: .9rem; display: flex; gap: .35rem; align-items: center; flex-wrap: wrap; }
+.c3-draw .row { flex-wrap: wrap; justify-content: flex-end; }
+
+/* รายชื่อเขต */
+.zone-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 8px; }
+.zone-chip { position: relative; overflow: hidden; display: grid; gap: 1px; text-align: left; border: 0; cursor: pointer; font: inherit; color: inherit;
+  padding: .6rem .7rem .55rem 1rem; border-radius: 16px; background: var(--surface); box-shadow: var(--shadow); }
+.zone-chip .zc-bar { position: absolute; left: 0; top: 0; bottom: 0; width: 6px; }
+.zone-chip b { font-size: 1rem; }
+.zone-chip small { color: var(--muted); font-size: .76rem; }
+.zone-chip.mine { box-shadow: var(--shadow), inset 0 0 0 2px var(--burgundy); }
+.zone-chip.off { opacity: .5; }
+
+/* รายละเอียดเขต */
+.zone-head { display: flex; justify-content: space-between; align-items: flex-start; gap: .75rem; }
+.zone-head p { margin: 0; }
+.zone-block { margin-top: .9rem; padding-top: .8rem; border-top: 1px solid var(--line); }
+.zone-block h4 { margin: 0 0 .25rem; font-size: 1rem; }
+.zone-block p { margin: .2rem 0; }
+.zone-block.act { background: var(--t); border: 0; border-radius: 16px; padding: .8rem .9rem; }
+.photos.ro .photo { display: block; }
+.verify-btns { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin-top: .5rem; }
+.verify-btns .btn { display: flex; flex-direction: column; gap: 4px; align-items: center; min-height: 58px; font-weight: 700; background: var(--surface); }
+.verify-btns .btn i { width: 14px; height: 14px; border-radius: 50%; }
+.advisor-pick { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.advisor-pick .chip { margin: 0; }
+.advisor-pick input { flex: 1; min-width: 160px; }
+.pick-list { list-style: none; margin: -.4rem 0 .6rem; padding: 4px; border-radius: 12px; background: var(--surface-2); }
+.pick-list button { width: 100%; text-align: left; border: 0; background: transparent; font: inherit; color: inherit; padding: .45rem .6rem; border-radius: 8px; cursor: pointer; }
+.pick-list button:hover { background: var(--surface); }
+.pick-list small { color: var(--muted); }
+.modal .btn.big { margin-top: .6rem; display: flex; gap: .4rem; align-items: center; justify-content: center; }
+
+/* สรุป 30 วัน */
+.rank ol { list-style: none; margin: .6rem 0 0; padding: 0; display: grid; gap: 6px; }
+.rank li { display: flex; align-items: center; gap: .7rem; padding: .6rem .8rem; border-radius: 16px; background: var(--surface); box-shadow: var(--shadow); }
+.rank .rk { width: 1.8rem; text-align: center; font-weight: 700; color: var(--muted); font-variant-numeric: tabular-nums; }
+.rank li:nth-child(-n+3) .rk { color: var(--k); }
+.rank .rk-main { flex: 1; min-width: 0; display: grid; gap: 3px; }
+.rank .rk-bar { height: 6px; border-radius: 999px; background: var(--line); overflow: hidden; }
+.rank .rk-bar i { display: block; height: 100%; border-radius: 999px; background: var(--a); }
+.rank .rk-score { font-size: 1.3rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.rank .rk-score small { font-size: .7rem; color: var(--muted); }

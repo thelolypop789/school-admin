@@ -40,7 +40,7 @@ export default function Inspect({ token }: { token: string }) {
     <div className="card">
       <h2>{toilet.name}</h2>
       <p>การตรวจห้องน้ำเป็นงานของฝ่ายบริหารทั่วไป บัญชีของคุณดูผลตรวจได้อย่างเดียว</p>
-      <p className="muted small">ถ้าคุณได้รับมอบหมายให้ตรวจ ให้ผู้ดูแลระบบเพิ่มบทบาท "ผู้ตรวจห้องน้ำ"</p>
+      <p className="muted small">ถ้าคุณได้รับมอบหมายให้ตรวจ ให้ผู้ดูแลระบบเพิ่มบทบาท "เจ้าหน้าที่อาคารสถานที่"</p>
       <button className="btn primary" onClick={() => navigate("/toilets")}>ดูรายงานห้องน้ำ</button>
     </div>
   );
