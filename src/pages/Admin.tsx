@@ -3,7 +3,7 @@ import QRCode from "qrcode";
 import { errText, ROLE_LABEL, supabase, type Profile, type Role } from "../lib/supabase";
 import { useMe } from "../lib/me";
 import { Empty, Modal, ModuleHero } from "../components/ui";
-import { Camera, CarFront, Plus, Printer, Settings } from "lucide-react";
+import { Camera, CarFront, Plus, Presentation, Printer, Settings, UserRound, type LucideIcon } from "lucide-react";
 import { CAT_LABEL, GENDER_LABEL } from "../lib/toilet";
 import { CONDITION_LABEL, licenseDaysLeft } from "../lib/vehicle";
 import { compressImage } from "../lib/image";
@@ -55,6 +55,13 @@ const TABLES: Record<Exclude<Tab, "users">, { table: string; order: string; cols
 
 type Row = Record<string, unknown> & { id: number; active: boolean };
 
+// ตารางที่มีรูปประจำแถว (คอลัมน์ photo_path + bucket private)
+const PHOTO_KINDS: Partial<Record<Exclude<Tab, "users">, { bucket: string; icon: LucideIcon; label: string }>> = {
+  vehicles: { bucket: "vehicle-photos", icon: CarFront, label: "รถ" },
+  rooms: { bucket: "room-photos", icon: Presentation, label: "ห้อง" },
+  drivers: { bucket: "driver-photos", icon: UserRound, label: "คนขับ" },
+};
+
 export default function Admin() {
   const [tab, setTab] = useState<Tab>("rooms");
   return (
@@ -71,7 +78,8 @@ export default function Admin() {
 function TableEditor({ kind }: { kind: Exclude<Tab, "users"> }) {
   const cfg = TABLES[kind];
   const [rows, setRows] = useState<Row[]>([]);
-  const photos = useSignedUrls("vehicle-photos", kind === "vehicles" ? rows.map((r) => r.photo_path as string | null) : []);
+  const photoCfg = PHOTO_KINDS[kind];
+  const photos = useSignedUrls(photoCfg?.bucket ?? "vehicle-photos", photoCfg ? rows.map((r) => r.photo_path as string | null) : []);
   const [edit, setEdit] = useState<Row | "new" | null>(null);
   const [showQr, setShowQr] = useState(false);
   const [err, setErr] = useState("");
@@ -113,11 +121,11 @@ function TableEditor({ kind }: { kind: Exclude<Tab, "users"> }) {
       {rows.length === 0 ? <Empty>ยังไม่มีข้อมูล</Empty> : (
         <div className="card table-wrap">
           <table>
-            <thead><tr>{kind === "vehicles" && <th>รูป</th>}{cfg.cols.map((c) => <th key={c.key}>{c.label}</th>)}<th>สถานะ</th><th /></tr></thead>
+            <thead><tr>{photoCfg && <th>รูป</th>}{cfg.cols.map((c) => <th key={c.key}>{c.label}</th>)}<th>สถานะ</th><th /></tr></thead>
             <tbody>
               {rows.map((r) => (
                 <tr key={r.id} className={r.active ? "" : "inactive"}>
-                  {kind === "vehicles" && <td><VehiclePhoto row={r} url={r.photo_path ? photos[String(r.photo_path)] : undefined} onDone={load} /></td>}
+                  {photoCfg && <td><EntityPhoto row={r} url={r.photo_path ? photos[String(r.photo_path)] : undefined} bucket={photoCfg.bucket} table={cfg.table} icon={photoCfg.icon} label={photoCfg.label} onDone={load} /></td>}
                   {cfg.cols.map((c) => <td key={c.key}>{show(r, c)}</td>)}
                   <td><button className={`chip ${r.active ? "ok" : "mute"}`} onClick={() => toggle(r)}>{r.active ? "ใช้งาน" : "ปิด"}</button></td>
                   <td><button className="link" onClick={() => setEdit(r)}>แก้ไข</button></td>
@@ -301,8 +309,10 @@ const ROLE_HINT: Partial<Record<Role, string>> = {
   director: "อนุมัติคำขอใช้รถ",
 };
 
-/** รูปรถ: ย่อ/บีบก่อนอัปโหลด แล้วบันทึก path ลงแถวรถ (ลบรูปเก่าออก) */
-function VehiclePhoto({ row, url, onDone }: { row: Row; url?: string; onDone: () => void }) {
+/** รูปประจำแถว (รถ/ห้องประชุม/คนขับ): ย่อ/บีบก่อนอัปโหลด แล้วบันทึก path ลงแถว (ลบรูปเก่าออก) */
+function EntityPhoto({ row, url, bucket, table, icon: Icon, label, onDone }: {
+  row: Row; url?: string; bucket: string; table: string; icon: LucideIcon; label: string; onDone: () => void;
+}) {
   const [busy, setBusy] = useState(false);
   const upload = async (file: File | undefined) => {
     if (!file) return;
@@ -310,11 +320,11 @@ function VehiclePhoto({ row, url, onDone }: { row: Row; url?: string; onDone: ()
     try {
       const blob = await compressImage(file, 1200, 0.8);
       const path = `${row.id}/${crypto.randomUUID()}.jpg`;
-      const up = await supabase.storage.from("vehicle-photos").upload(path, blob, { contentType: "image/jpeg" });
+      const up = await supabase.storage.from(bucket).upload(path, blob, { contentType: "image/jpeg" });
       if (up.error) throw up.error;
-      const { error } = await supabase.from("vehicles").update({ photo_path: path }).eq("id", row.id);
+      const { error } = await supabase.from(table).update({ photo_path: path }).eq("id", row.id);
       if (error) throw error;
-      if (row.photo_path) await supabase.storage.from("vehicle-photos").remove([String(row.photo_path)]);
+      if (row.photo_path) await supabase.storage.from(bucket).remove([String(row.photo_path)]);
       onDone();
     } catch (e) {
       alert(`อัปโหลดรูปไม่สำเร็จ: ${errText(e)}`);
@@ -323,8 +333,8 @@ function VehiclePhoto({ row, url, onDone }: { row: Row; url?: string; onDone: ()
     }
   };
   return (
-    <label className="vphoto" title="เปลี่ยนรูปรถ">
-      {url ? <img src={url} alt="" /> : <CarFront size={22} aria-hidden />}
+    <label className="vphoto" title={`เปลี่ยนรูป${label}`}>
+      {url ? <img src={url} alt="" /> : <Icon size={22} aria-hidden />}
       <span className="vphoto-btn"><Camera size={12} />{busy ? "…" : url ? "เปลี่ยน" : "ใส่รูป"}</span>
       <input type="file" accept="image/*" hidden disabled={busy} onChange={(e) => { upload(e.target.files?.[0]); e.target.value = ""; }} />
     </label>

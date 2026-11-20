@@ -532,6 +532,38 @@ td select { min-height: 36px; padding: .3rem .5rem; width: auto; }
   .cal-more { font-size: .62rem; padding: 0; }
   .cal-legend { margin-left: 0; width: 100%; }
 }
+
+/* ปฏิทินงานฝ่าย (GaCalendar): กริดรายสัปดาห์ + แถบงานข้ามวัน — ใช้ class .cal-ga เท่านั้น ไม่กระทบปฏิทินรถ */
+.cal-ga { border: 1px solid var(--line); border-radius: 16px; overflow: hidden; background: var(--surface); }
+.cal-ga .cal-inner { margin: 0 -1px -1px 0; }
+.cal-ga .cal-dows { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); }
+.cal-ga .cal-dow { text-align: center; font-size: .78rem; color: var(--muted); font-weight: 600; padding: .4rem 0; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); background: var(--surface-2); }
+/* หนึ่งสัปดาห์ = กริด 7 คอลัมน์: ปุ่มวันกินทุกแถว, แถบงานวางทับในแถวชั้นที่ 2.. */
+.cal-ga .cal-week { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); grid-template-rows: 30px repeat(var(--lanes, 2), 21px) 18px; position: relative; }
+.cal-ga .cal-day {
+  grid-row: 1 / -1; padding: .3rem .3rem .35rem; text-align: left; display: flex; flex-direction: column; justify-content: flex-start; gap: .2rem; cursor: pointer;
+  background: var(--surface); border: 0; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); min-width: 0;
+}
+.cal-ga .cal-day:hover { background: var(--burgundy-50); }
+.cal-ga .cal-day.out { background: var(--surface-2); }
+.cal-ga .cal-day.out .cal-num { color: var(--line-strong); }
+.cal-ga .cal-day.sel { box-shadow: inset 0 0 0 2px var(--burgundy); border-radius: 10px; }
+.cal-ga .cal-num { font-size: .82rem; font-weight: 600; font-variant-numeric: tabular-nums; width: 1.6rem; height: 1.6rem; display: grid; place-items: center; border-radius: 50%; flex-shrink: 0; }
+.cal-ga .cal-day.today .cal-num { background: var(--burgundy); color: #fff; }
+.cal-ga .cal-dots { display: none; }
+.cal-ga .cal-bar { grid-row: auto; pointer-events: none; z-index: 1; margin: 0 4px; align-self: center; height: 18px; line-height: 18px; padding: 0 7px; border-radius: 7px; }
+.cal-ga .cal-bar.cont-l { margin-left: 0; border-top-left-radius: 0; border-bottom-left-radius: 0; }
+.cal-ga .cal-bar.cont-r { margin-right: 0; border-top-right-radius: 0; border-bottom-right-radius: 0; }
+.cal-ga .cal-more-d { margin-top: auto; }
+@media (max-width: 640px) {
+  .cal-ga .cal-week { grid-template-rows: auto; }
+  .cal-ga .cal-day { grid-row: 1; min-height: 54px; align-items: center; }
+  .cal-ga .cal-bar, .cal-ga .cal-more-d { display: none; }
+  .cal-ga .cal-dots { display: flex; gap: 3px; justify-content: center; flex-wrap: wrap; }
+  .cal-ga .cal-dots .ev { width: 7px; height: 7px; padding: 0; border-radius: 50%; font-size: 0; }
+  .cal-ga .cal-dots .ev.wait { box-shadow: none; background: var(--gold); }
+  .cal-ga .cal-more { font-size: .62rem; padding: 0; }
+}
 .cal-vehicle { padding: .7rem 0; border-top: 1px solid var(--line); }
 .cal-vehicle:first-of-type { border-top: 0; }
 .today-out h3 { margin-bottom: .2rem; }
@@ -562,7 +594,7 @@ td.num { font-variant-numeric: tabular-nums; }
   display: flex; align-items: center; gap: .75rem; margin: -0.75rem 0 1.75rem; padding: .75rem .85rem;
   background: var(--burgundy-900); color: #fff; border-radius: var(--radius);
 }
-.install-icon { width: 46px; height: 46px; border-radius: 12px; background: var(--burgundy); color: var(--gold); display: grid; place-items: center; flex-shrink: 0; }
+.install-icon { width: 46px; height: 46px; border-radius: 12px; object-fit: cover; background: var(--burgundy); flex-shrink: 0; box-shadow: 0 0 0 1px rgb(255 255 255 / .12); }
 .install-text { flex: 1; display: grid; line-height: 1.35; min-width: 0; }
 .install-text small { color: rgb(255 255 255 / .72); }
 .install-nudge .btn.gold { min-height: 40px; padding: .4rem .9rem; }
@@ -757,7 +789,7 @@ td.num { font-variant-numeric: tabular-nums; }
 .alert-list .n { font-weight: 700; font-size: 1.25rem; color: var(--burgundy); min-width: 1.6ch; text-align: center; font-variant-numeric: tabular-nums; }
 .alert-list span { flex: 1; line-height: 1.35; } .alert-list span small { display: block; color: var(--muted); font-size: .8rem; }
 
-.bento { display: grid; grid-template-columns: 1.05fr 1fr; grid-template-rows: 122px 122px 96px; gap: 10px; margin-bottom: 1.25rem; }
+.bento { display: grid; grid-template-columns: 1.05fr 1fr; grid-template-rows: 122px 122px 108px; gap: 10px; margin-bottom: 1.25rem; }
 .bx {
   position: relative; overflow: hidden; border: 0; cursor: pointer; text-align: left; color: #fff; border-radius: 24px; padding: .9rem 1rem; display: flex; flex-direction: column;
   background: linear-gradient(155deg, var(--b), var(--a) 75%); box-shadow: inset 0 1px 0 rgb(255 255 255 / .35), 0 12px 22px -14px var(--a); transition: transform .15s;
@@ -779,6 +811,8 @@ td.num { font-variant-numeric: tabular-nums; }
   .bx.tall { grid-row: 1 / span 2; }
   .bx.wide { grid-column: 2 / span 2; }
 }
+.bx:not(.wide) .bx-bar { margin-top: auto; margin-right: 44px; height: 8px; border-radius: 8px; background: rgb(255 255 255 / .3); overflow: hidden; }
+.bx:not(.wide) .bx-bar i { display: block; height: 100%; border-radius: 8px; background: #fff; }
 
 .week { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; margin: .2rem 0 .8rem; }
 .week button { border: 0; cursor: pointer; background: var(--surface); border-radius: 14px; padding: .4rem 0 .45rem; box-shadow: var(--shadow); color: var(--muted); font-size: .72rem; display: grid; justify-items: center; gap: 1px; }
@@ -937,3 +971,25 @@ td.num { font-variant-numeric: tabular-nums; }
 .rank .rk-bar i { display: block; height: 100%; border-radius: 999px; background: var(--a); }
 .rank .rk-score { font-size: 1.3rem; font-weight: 700; font-variant-numeric: tabular-nums; }
 .rank .rk-score small { font-size: .7rem; color: var(--muted); }
+
+/* เมนู "เพิ่มเติม" บนมือถือ (bottom sheet) */
+.more-list { display: grid; gap: 4px; }
+.more-list button { display: flex; align-items: center; gap: .75rem; width: 100%; text-align: left; border: 0; cursor: pointer; padding: .6rem .6rem; border-radius: 14px; background: none; color: var(--ink); font-size: 1rem; font-weight: 500; }
+.more-list button:hover, .more-list button.on { background: var(--surface-2); }
+.more-list button.on { font-weight: 700; }
+
+/* ปุ่มลอยบนมือถือ: เผื่อที่ท้ายหน้าไม่ให้บังปุ่ม/ข้อมูลของการ์ดสุดท้าย + ย่อเป็นปุ่มกลมไอคอนอย่างเดียว */
+.fab-space { height: 76px; }
+@media (min-width: 900px) { .fab-space { height: 64px; } }
+@media (max-width: 560px) {
+  .fab { padding: 0; width: 56px; height: 56px; justify-content: center; }
+  .fab span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+}
+.room-photo { display: block; width: calc(100% + 2.3rem); margin: -1.1rem -1.15rem .8rem; max-width: none; height: 140px; object-fit: cover; border-radius: var(--radius) var(--radius) 0 0; }
+
+/* รูปโปรไฟล์ในวงอักษรย่อ */
+.avatar { overflow: hidden; padding: 0; }
+.avatar img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.avatar-edit { display: flex; align-items: center; gap: .9rem; }
+.avatar-edit .avatar { width: 64px; height: 64px; font-size: 1.4rem; flex-shrink: 0; margin: 0; }
+.avatar-edit .avatar-act { display: grid; gap: .35rem; justify-items: start; }

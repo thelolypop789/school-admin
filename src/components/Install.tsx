@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { Download, EllipsisVertical, ExternalLink, Share, SquarePlus, X } from "lucide-react";
 import { externalBrowserUrl, useInstall } from "../lib/install";
-import { Mark } from "./Mark";
 import { Modal } from "./ui";
 
 /** ปุ่มติดตั้งแอป: ถ้าเบราว์เซอร์มีหน้าติดตั้งให้เรียกได้ก็เรียกเลย ไม่อย่างนั้นเปิดวิธีทำตามอุปกรณ์ */
@@ -33,7 +32,7 @@ export function InstallNudge() {
   const dismiss = () => { try { localStorage.setItem(DISMISS_KEY, String(Date.now())); } catch { /* storage blocked */ } setHidden(true); };
   return (
     <div className="install-nudge">
-      <span className="install-icon" aria-hidden><Mark size={30} /></span>
+      <img className="install-icon" src="/icon-192.png" alt="" width={46} height={46} />
       <span className="install-text"><b>ติดตั้งเป็นแอป</b><small>เปิดจากหน้าจอโฮมได้ทันที</small></span>
       <InstallButton className="btn gold" label="ติดตั้ง" />
       <button className="icon-btn" onClick={dismiss} aria-label="ไม่ใช่ตอนนี้"><X size={16} /></button>

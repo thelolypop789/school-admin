@@ -96,7 +96,7 @@ export default function Repairs({ onStats }: { onStats?: (s: RepairStats) => voi
         </div>
       )}
 
-      <button className="fab" onClick={() => setForm(true)}><Plus size={20} />แจ้งซ่อม</button>
+      <><div className="fab-space" aria-hidden /><button className="fab" aria-label="แจ้งซ่อม" onClick={() => setForm(true)}><Plus size={20} /><span>แจ้งซ่อม</span></button></>
       {form && <RepairForm onClose={() => setForm(false)} onSaved={() => { setForm(false); setFilter("mine"); load(); }} />}
       {opened && <RepairDetail r={opened} onClose={() => setOpenId(null)} onChanged={load} />}
     </>

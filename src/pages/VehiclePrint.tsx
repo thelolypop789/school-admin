@@ -3,7 +3,7 @@ import { Printer } from "lucide-react";
 import { errText, supabase } from "../lib/supabase";
 import { navigate } from "../lib/router";
 import { fmtDate } from "../lib/time";
-import { EXPENSES, PRINTABLE, STEP_SELECT, type Step, type Traveler } from "../lib/vehicle";
+import { EXPENSES, officialName, PRINTABLE, STEP_SELECT, type Step, type Traveler } from "../lib/vehicle";
 import { VB_SELECT, type VBooking } from "./Vehicles";
 
 const SCHOOL = "โรงเรียนวังหลวงพิทยาสรรพ์";
@@ -60,8 +60,9 @@ export default function VehiclePrint({ id }: { id: number }) {
   const people: Traveler[] = b.travelers?.length
     ? [...b.travelers]
     : [{ name: b.requester?.full_name || b.requester?.email || "", position: "" }];
-  if (b.driver && !people.some((p) => p.name.replace(/\s/g, "").includes(b.driver!.full_name.replace(/\s/g, "")))) {
-    people.push({ name: b.driver.full_name, position: "พนักงานขับรถ" });
+  const driverName = b.driver ? officialName(b.driver.full_name) : "";
+  if (driverName && !people.some((p) => p.name.replace(/\s/g, "").includes(driverName.replace(/\s/g, "")))) {
+    people.push({ name: driverName, position: "พนักงานขับรถ" });
   }
   const orderAt = director?.acted_at ?? new Date().toISOString();
   const directorName = director?.actor?.full_name;

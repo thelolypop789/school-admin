@@ -20,6 +20,7 @@ export type Profile = {
   extra_roles: Role[];   // บทบาทเสริม (คนเดียวถือหลายหน้าที่)
   line_linked: boolean;  // LINE ID จริงอ่านไม่ได้จากแอป (เห็นแค่ว่าเชื่อมแล้วหรือยัง)
   position: string | null;
+  avatar_path?: string | null; // รูปโปรไฟล์ (bucket private avatars)
 };
 
 export const ROLE_LABEL: Record<Role, string> = {

@@ -19,6 +19,30 @@ const KIND = Object.fromEntries(KINDS.map((k) => [k.key, k])) as Record<Kind, (t
 const WEEK = ["อา.", "จ.", "อ.", "พ.", "พฤ.", "ศ.", "ส."];
 const dow = (d: string) => new Date(`${d}T12:00:00+07:00`).getUTCDay();
 
+const MAX_LANES = 3;
+/**
+ * จัดแถบงานของหนึ่งสัปดาห์: งานหลายวันเป็นแถบยาวข้ามช่องวัน, งานที่เวลาทับกัน (แม้คนละประเภท) ซ้อนเป็นหลายชั้น
+ * เกิน MAX_LANES ชั้นไม่วาด แต่นับไว้ให้ขึ้น "+n รายการ" ในวันนั้น
+ */
+function layoutWeek(week: string[], list: Item[]) {
+  const ws = week[0], we = week[week.length - 1];
+  const inWeek = list.filter((i) => i.start <= we && i.end >= ws)
+    .sort((a, b) => a.start.localeCompare(b.start) || b.end.localeCompare(a.end) || byTime(a, b));
+  const laneEnd: number[] = [];
+  const bars: { item: Item; lane: number; c0: number; c1: number; l: boolean; r: boolean }[] = [];
+  const hidden: number[] = week.map(() => 0);
+  for (const item of inWeek) {
+    const c0 = item.start < ws ? 0 : week.indexOf(item.start);
+    const c1 = item.end > we ? week.length - 1 : week.indexOf(item.end);
+    let lane = laneEnd.findIndex((e) => e < c0);
+    if (lane === -1) lane = laneEnd.length;
+    laneEnd[lane] = c1;
+    if (lane >= MAX_LANES) { for (let c = c0; c <= c1; c++) hidden[c]++; continue; }
+    bars.push({ item, lane, c0, c1, l: item.start < ws, r: item.end > we });
+  }
+  return { bars, hidden, lanes: Math.max(2, Math.min(MAX_LANES, laneEnd.length)) };
+}
+
 /** ปฏิทินงานฝ่ายบริหารทั่วไป: ดึงงานซ่อม/รถ/ห้องประชุม/วันหมดอายุเอกสาร อัตโนมัติ + กิจกรรมที่หัวหน้างานเพิ่มเอง */
 export default function GaCalendar() {
   const me = useMe();
@@ -42,6 +66,11 @@ export default function GaCalendar() {
     for (let d = start; d <= end; d = addDays(d, 1)) out.push(d);
     return out;
   }, [month]);
+  const weeks = useMemo(() => {
+    const out: string[][] = [];
+    for (let i = 0; i < days.length; i += 7) out.push(days.slice(i, i + 7));
+    return out;
+  }, [days]);
   const first = days[0], last = days[days.length - 1];
 
   const load = useCallback(async () => {
@@ -91,22 +120,38 @@ export default function GaCalendar() {
             <li><span className="ev done" />เสร็จ/ปกติ</li>
           </ul>
         </div>
-        <div className="cal-grid" role="grid">
-          {WEEK.map((w) => <div key={w} className="cal-dow" role="columnheader">{w}</div>)}
-          {days.map((d) => {
-            const list = on_(d);
-            const cls = ["cal-day", d.slice(0, 7) !== month && "out", d === today && "today", d === selected && "sel"].filter(Boolean).join(" ");
-            return (
-              <button key={d} className={cls} onClick={() => setSelected(d)} role="gridcell"
-                aria-label={`${fmtDate(d, { day: "numeric", month: "long" })} ${list.length ? `${list.length} รายการ` : "ว่าง"}`}>
-                <span className="cal-num">{Number(d.slice(8))}</span>
-                <span className="cal-evs">
-                  {list.slice(0, 2).map((i) => <span key={i.key} className={`ev ${i.tone}`}>{i.time ? `${i.time.slice(0, 5)} ` : ""}{i.title}</span>)}
-                  {list.length > 2 && <span className="cal-more">+{list.length - 2}</span>}
-                </span>
-              </button>
-            );
-          })}
+        <div className="cal-ga" role="grid">
+          <div className="cal-inner">
+            <div className="cal-dows">{WEEK.map((w) => <div key={w} className="cal-dow" role="columnheader">{w}</div>)}</div>
+            {weeks.map((week) => {
+              const { bars, hidden, lanes } = layoutWeek(week, visible);
+              return (
+                <div key={week[0]} className="cal-week" style={{ "--lanes": lanes } as React.CSSProperties}>
+                  {week.map((d, c) => {
+                    const list = on_(d);
+                    const cls = ["cal-day", d.slice(0, 7) !== month && "out", d === today && "today", d === selected && "sel"].filter(Boolean).join(" ");
+                    return (
+                      <button key={d} className={cls} style={{ gridColumn: c + 1 }} onClick={() => setSelected(d)} role="gridcell"
+                        aria-label={`${fmtDate(d, { day: "numeric", month: "long" })} ${list.length ? `${list.length} รายการ` : "ว่าง"}`}>
+                        <span className="cal-num">{Number(d.slice(8))}</span>
+                        <span className="cal-dots" aria-hidden>
+                          {list.slice(0, 3).map((i) => <span key={i.key} className={`ev ${i.tone}`} />)}
+                          {list.length > 3 && <span className="cal-more">+{list.length - 3}</span>}
+                        </span>
+                        {hidden[c] > 0 && <span className="cal-more cal-more-d" aria-hidden>+{hidden[c]} รายการ</span>}
+                      </button>
+                    );
+                  })}
+                  {bars.map((b) => (
+                    <span key={b.item.key} aria-hidden className={`cal-bar ev ${b.item.tone}${b.l ? " cont-l" : ""}${b.r ? " cont-r" : ""}`}
+                      style={{ gridColumn: `${b.c0 + 1} / span ${b.c1 - b.c0 + 1}`, gridRow: b.lane + 2 }}>
+                      {b.item.time ? `${b.item.time.slice(0, 5)} ` : ""}{b.item.title}
+                    </span>
+                  ))}
+                </div>
+              );
+            })}
+          </div>
         </div>
       </section>
 

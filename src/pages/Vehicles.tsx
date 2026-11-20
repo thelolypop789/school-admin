@@ -18,7 +18,7 @@ export type Vehicle = {
   photo_path: string | null; condition: "ready" | "maintenance"; condition_note: string | null;
   insurance_expiry: string | null; act_expiry: string | null; tax_expiry: string | null;
 };
-export type Driver = { id: number; full_name: string; phone: string | null; license_expiry: string | null; active: boolean };
+export type Driver = { id: number; full_name: string; phone: string | null; license_expiry: string | null; active: boolean; photo_path?: string | null };
 export type VBooking = {
   id: number; booked_by: string; destination: string; purpose: string; passengers: number;
   starts_at: string; ends_at: string; status: string; created_at: string;
@@ -166,7 +166,7 @@ export default function Vehicles() {
           <Steps bookingId={history.id} />
         </Modal>
       )}
-      <button className="fab" onClick={() => setForm({ edit: null })}><Plus size={20} />ขอใช้รถ</button>
+      <><div className="fab-space" aria-hidden /><button className="fab" aria-label="ขอใช้รถ" onClick={() => setForm({ edit: null })}><Plus size={20} /><span>ขอใช้รถ</span></button></>
       </div>
     </>
   );
