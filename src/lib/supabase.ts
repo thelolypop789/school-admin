@@ -10,7 +10,7 @@ export const supabase = createClient(
 
 export const isConfigured = Boolean(import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_KEY);
 
-export type Role = "staff" | "inspector" | "vehicle_head" | "facilities_head" | "ga_head" | "deputy" | "director" | "admin";
+export type Role = "staff" | "inspector" | "vehicle_head" | "facilities_head" | "ga_head" | "nst_teacher" | "deputy" | "director" | "admin";
 
 export type Profile = {
   id: string;
@@ -29,6 +29,7 @@ export const ROLE_LABEL: Record<Role, string> = {
   vehicle_head: "หัวหน้างานยานพาหนะ",
   facilities_head: "หัวหน้างานอาคารสถานที่",
   ga_head: "หัวหน้าฝ่ายบริหารทั่วไป",
+  nst_teacher: "ครูผู้กำกับ นศท.",
   deputy: "รอง ผอ. ฝ่ายบริหารทั่วไป",
   director: "ผู้อำนวยการ",
   admin: "ผู้ดูแลระบบ",
@@ -58,6 +59,13 @@ const ERRORS: Record<string, string> = {
   not_scheduled: "เรื่องนี้ยังไม่ได้อยู่ในสถานะกำหนดวันซ่อม",
   bad_action: "การดำเนินการนี้ไม่ถูกต้อง",
   cannot_demote_self: "ลดสิทธิ์ตัวเองไม่ได้ ให้ผู้ดูแลระบบคนอื่นทำแทน",
+  // นศท.
+  self_report_off: "คาบนี้ครูผู้กำกับเป็นผู้เช็คชื่อ (ถ้าครูติดธุระจะเปิดให้รายงานตัวเอง)",
+  not_open: "ยังไม่ถึงเวลารายงานตัว",
+  closed: "เลยเวลารายงานตัวแล้ว",
+  already: "รายงานตัวไปแล้ว",
+  photo_required: "ต้องแนบรูปเซลฟี่ของตัวเอง",
+  has_checkins: "คาบนี้มีการเช็คชื่อแล้ว ลบไม่ได้",
 };
 
 /** แปลง error จาก Supabase เป็นข้อความภาษาไทย */

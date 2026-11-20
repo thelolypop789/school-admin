@@ -302,9 +302,10 @@ function ExtraRolesForm({ user, onClose, onSave }: { user: Profile; onClose: () 
 
 const ROLE_HINT: Partial<Record<Role, string>> = {
   vehicle_head: "จัดรถ เลือกคนขับ บันทึกเดินทาง",
-  facilities_head: "ตรวจห้องน้ำ อัปโหลดรูป",
+  facilities_head: "ลงวันที่ซ่อม ตรวจห้องน้ำ ตั้งค่าเขตทำความสะอาด",
   ga_head: "ดูได้ทุกอย่างของฝ่ายบริหารทั่วไป (ไม่อนุมัติ/แก้ไข)",
-  inspector: "ตรวจห้องน้ำ",
+  inspector: "ตรวจห้องน้ำ ยืนยันผลเขตทำความสะอาด",
+  nst_teacher: "นำเข้ารายชื่อ นศท. ตั้งคาบเช็คชื่อ จัดเวรจราจร อนุมัติแลกเวร",
   deputy: "เห็นชอบคำขอใช้รถ ขั้นรอง ผอ.",
   director: "อนุมัติคำขอใช้รถ",
 };
