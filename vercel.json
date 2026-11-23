@@ -35,6 +35,15 @@
       ]
     },
     {
+      "source": "/manifest-nst.webmanifest",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "application/manifest+json"
+        }
+      ]
+    },
+    {
       "source": "/manifest.webmanifest",
       "headers": [
         {
