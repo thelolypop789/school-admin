@@ -1081,12 +1081,14 @@ textarea#nst-import { font-family: ui-monospace, Menlo, monospace; font-size: .8
   --nst-ink: #2f3814;
   background: radial-gradient(120% 60% at 50% -10%, #e4e8cc 0%, transparent 60%), #f3f4ea;
 }
-.nst-app .btn.primary { background: linear-gradient(150deg, #8a9a3f, var(--nst-a) 70%); border: 0; color: #fff; box-shadow: inset 0 1px 0 rgb(255 255 255 / .3), 0 8px 18px -10px var(--nst-a); }
-.nst-app .btn.primary:hover { background: linear-gradient(150deg, #96a64a, #4f5c27 70%); color: #fff; }
-.nst-app .tabs { background: #e6e9d3; }
-.nst-app .tabs button.on { color: var(--nst-ink); }
-.nst-app .link { color: var(--nst-k); text-decoration-color: var(--nst-b); }
-.nst-app input:focus-visible, .nst-app select:focus-visible, .nst-app textarea:focus-visible { outline-color: var(--nst-a); border-color: var(--nst-a); }
+/* หน้าต่าง (.modal) ถูก portal ไปที่ body จึงอยู่นอก .nst-app — ใช้ body:has(.nst-app) ให้ได้ธีมเดียวกัน */
+body:has(.nst-app) { --nst-ink: #2f3814; }
+:is(.nst-app, body:has(.nst-app) .modal) .btn.primary { background: linear-gradient(150deg, #8a9a3f, var(--nst-a) 70%); border: 0; color: #fff; box-shadow: inset 0 1px 0 rgb(255 255 255 / .3), 0 8px 18px -10px var(--nst-a); }
+:is(.nst-app, body:has(.nst-app) .modal) .btn.primary:hover { background: linear-gradient(150deg, #96a64a, #4f5c27 70%); color: #fff; }
+:is(.nst-app, body:has(.nst-app) .modal) .tabs { background: #e6e9d3; }
+:is(.nst-app, body:has(.nst-app) .modal) .tabs button.on { color: var(--nst-ink); }
+:is(.nst-app, body:has(.nst-app) .modal) .link { color: var(--nst-k); text-decoration-color: var(--nst-b); }
+:is(.nst-app, body:has(.nst-app) .modal) :is(input, select, textarea):is(:focus-visible, :focus) { outline-color: var(--nst-a); border-color: var(--nst-a); }
 .nst-app .card { background: #fff; }
 /* หน้าเข้าระบบ: หัวเป็นแผ่นสีเขียวขี้ม้า ตราโรงเรียนบนวงทอง */
 .nst-login .nst-brand {
@@ -1163,3 +1165,8 @@ html:has(.nst-app), body:has(.nst-app) { background: #f3f4ea; }
 .nst-app .install-nudge { margin: 0 0 1.2rem; background: var(--nst-k, #3a4419); }
 .nst-app .install-icon { background: var(--nst-a); }
 .nst-app .mh-actions { flex-wrap: wrap; }
+.leave-photo { position: relative; border: 0; padding: 0; background: none; border-radius: 14px; overflow: hidden; width: 140px; cursor: pointer; display: block; }
+.leave-photo img { width: 140px; height: 140px; object-fit: cover; display: block; }
+.leave-photo span { position: absolute; left: 0; right: 0; bottom: 0; background: rgb(0 0 0 / .5); color: #fff; font-size: .8rem; padding: .25rem; text-align: center; }
+.modal .tabs[aria-label="ประเภทการลา"] { margin: .2rem 0 .9rem; }
+body:has(.nst-app) .modal .inline-ic { color: var(--nst-a); }
