@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ArrowDown, ArrowUp, Download, Megaphone, Plus, Shield, Upload } from "lucide-react";
+import { ArrowDown, ArrowUp, Check, Copy, Download, Megaphone, Plus, Shield, Upload } from "lucide-react";
 import { errText, supabase } from "../lib/supabase";
 import { useMe } from "../lib/me";
 import { navigate, usePath } from "../lib/router";
@@ -227,25 +227,59 @@ function distanceNote(d: number | null, radius: number) {
 function AttendanceList({ session, students, checkins, radius, staff, closed, onChanged }: {
   session: Session; students: Student[]; checkins: Checkin[]; radius: number; staff: boolean; closed: boolean; onChanged: () => void;
 }) {
-  const [filter, setFilter] = useState<"all" | "missing" | "flag">("all");
+  const [filter, setFilter] = useState<"all" | Attend | "pending" | "flag">("all");
   const [photo, setPhoto] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
   const byStudent = new Map(checkins.map((c) => [c.student_id, c]));
   const urls = useSignedUrls("nst-photos", checkins.map((c) => c.photo_path));
   const set = async (studentId: number, status: Attend) => {
     const { error } = await supabase.rpc("nst_set_attendance", { p_session: session.id, p_student: studentId, p_status: status, p_note: null });
     if (error) alert(errText(error)); else onChanged();
   };
+  // สถานะที่ใช้สรุป: คนที่ไม่มีบันทึก = ขาด เมื่อปิดแล้ว / ยังไม่รายงาน ถ้ายังเปิด
+  const statusOf = (id: number): Attend | null => byStudent.get(id)?.status ?? (closed ? "absent" : null);
+  const of = (k: Attend | null) => students.filter((s) => statusOf(s.id) === k);
+  const absent = of("absent"), leave = of("leave"), late = of("late"), present = of("present"), pending = of(null);
   const rows = students.filter((s) => {
     const c = byStudent.get(s.id);
-    if (filter === "missing") return !c;
+    if (filter === "all") return true;
+    if (filter === "pending") return !c && !closed;
     if (filter === "flag") return c && !c.set_by && (c.distance_m == null || c.distance_m > radius);
-    return true;
+    return statusOf(s.id) === filter;
   });
+  const who = (s: Student) => `${s.full_name} (${s.class_room})`;
+  const noteOf = (s: Student) => byStudent.get(s.id)?.note ?? "";
+  const copy = async () => {
+    const title = `${session.title || KIND[session.kind]} ${fmtDate(session.opens_at, { weekday: "short", day: "numeric", month: "short", year: "2-digit" })}`;
+    const list = (label: string, xs: Student[], withNote = false) => xs.length
+      ? [`\n${label} ${xs.length} คน`, ...xs.map((s, i) => `${i + 1}. ${who(s)}${withNote && noteOf(s) ? ` – ${noteOf(s)}` : ""}`)] : [];
+    const text = [
+      `สรุปเช็คชื่อ นศท. · ${title}`,
+      `ทั้งหมด ${students.length} · มา ${present.length} · สาย ${late.length} · ลา ${leave.length} · ขาด ${absent.length}${pending.length ? ` · ยังไม่รายงาน ${pending.length}` : ""}`,
+      ...list("ขาด", absent), ...list("ลา", leave, true), ...list("สาย", late), ...list("ยังไม่รายงาน", pending),
+    ].join("\n");
+    try { await navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 2000); } catch { alert(text); }
+  };
+  const names = (xs: Student[], withNote = false) => xs.map((s) => (
+    <span key={s.id} className="chip">{who(s)}{withNote && noteOf(s) ? <small> · {noteOf(s)}</small> : null}</span>
+  ));
   return (
     <div className="nst-list">
+      <div className="nst-summary">
+        <div className="row wrap">
+          <b>{closed ? "สรุป" : "ตอนนี้"}: ทั้งหมด {students.length} · มา {present.length} · สาย {late.length} · ลา {leave.length} · ขาด {absent.length}{pending.length ? ` · ยังไม่รายงาน ${pending.length}` : ""}</b>
+          <button className="btn sm" onClick={copy}>{copied ? <Check size={15} /> : <Copy size={15} />}{copied ? "คัดลอกแล้ว" : "คัดลอกสรุป"}</button>
+        </div>
+        {absent.length > 0 && <div className="nst-sum-row"><span className="chip bad">ขาด {absent.length}</span><div className="advisor-pick">{names(absent)}</div></div>}
+        {leave.length > 0 && <div className="nst-sum-row"><span className="chip info">ลา {leave.length}</span><div className="advisor-pick">{names(leave, true)}</div></div>}
+        {late.length > 0 && <div className="nst-sum-row"><span className="chip warn">สาย {late.length}</span><div className="advisor-pick">{names(late)}</div></div>}
+      </div>
       <div className="tabs scroll">
         <button className={filter === "all" ? "on" : ""} onClick={() => setFilter("all")}>ทั้งหมด {students.length}</button>
-        <button className={filter === "missing" ? "on" : ""} onClick={() => setFilter("missing")}>{closed ? "ขาด" : "ยังไม่รายงาน"} {students.length - checkins.length}</button>
+        {!closed && <button className={filter === "pending" ? "on" : ""} onClick={() => setFilter("pending")}>ยังไม่รายงาน {pending.length}</button>}
+        <button className={filter === "absent" ? "on" : ""} onClick={() => setFilter("absent")}>ขาด {absent.length}</button>
+        <button className={filter === "leave" ? "on" : ""} onClick={() => setFilter("leave")}>ลา {leave.length}</button>
+        <button className={filter === "late" ? "on" : ""} onClick={() => setFilter("late")}>สาย {late.length}</button>
         <button className={filter === "flag" ? "on" : ""} onClick={() => setFilter("flag")}>ตรวจพิกัด</button>
       </div>
       {rows.map((s) => {
