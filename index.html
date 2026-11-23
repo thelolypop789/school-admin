@@ -17,7 +17,8 @@
     <title>ระบบจัดการงานบริหารทั่วไป · โรงเรียนวังหลวงพิทยาสรรพ์</title>
     <script>
       // แอปนักเรียน นศท. (/s): ติดตั้งลงหน้าจอแยกจากแอปบุคลากร — ไอคอน ชื่อ สี และ manifest ของตัวเอง
-      // (วางหลังแท็ก link/meta/title ที่ต้องแก้ทั้งหมด)
+      // production ใช้ s.html (head ของ นศท. ตายตัว ผ่าน rewrite ใน vercel.json) — สคริปต์นี้เป็นทางสำรองตอน dev
+      // (vite dev ส่ง index.html ให้ทุก path) วางหลังแท็ก link/meta/title ที่ต้องแก้ทั้งหมด
       if (/^\/s(\/|$)/.test(location.pathname)) {
         var set = function (sel, attr, v) { var el = document.querySelector(sel); if (el) el.setAttribute(attr, v); };
         set('link[rel="manifest"]', "href", "/manifest-nst.webmanifest");
