@@ -40,31 +40,35 @@ export default function StudentApp() {
   return <div className="nst-app c-nst">{session ? <StudentHome uid={session.user.id} /> : <Login />}</div>;
 }
 
+const NAME_KEY = "nst-login-name";
+
 function Login() {
   const [first, setFirst] = useState(false);
-  const [code, setCode] = useState("");
+  const [name, setName] = useState(() => { try { return localStorage.getItem(NAME_KEY) ?? ""; } catch { return ""; } });
   const [pin, setPin] = useState("");
   const [pin2, setPin2] = useState("");
-  const [nid, setNid] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
 
+  // เข้าด้วย ชื่อ นามสกุล (ไม่ต้องมีคำนำหน้า) + PIN · ครั้งแรก/ครูรีเซ็ต ตั้ง PIN ได้เลย
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErr("");
+    const n = name.replace(/\s+/g, " ").trim();
+    if (!n.includes(" ")) { setErr("พิมพ์ทั้งชื่อและนามสกุล เว้นวรรคระหว่างกัน"); return; }
     if (first && pin !== pin2) { setErr("PIN สองช่องไม่ตรงกัน"); return; }
-    if (first && nid.replace(/\D/g, "").length !== 13) { setErr("เลขบัตรประชาชนต้องมี 13 หลัก"); return; }
     setBusy(true);
     try {
       const res = await fetch(`${URL_}/functions/v1/nst-auth`, {
         method: "POST",
         headers: { "Content-Type": "application/json", apikey: KEY, Authorization: `Bearer ${KEY}` },
-        body: JSON.stringify(first ? { action: "setup", code: code.trim(), nid: nid.replace(/\D/g, ""), pin } : { action: "login", code: code.trim(), pin }),
+        body: JSON.stringify({ action: first ? "setup" : "login", name: n, pin }),
       });
       const j = await res.json().catch(() => ({}));
       if (!res.ok || !j.access_token) { setErr(LOGIN_ERR[j.error] ?? LOGIN_ERR.server_error); return; }
       const { error } = await sb.auth.setSession({ access_token: j.access_token, refresh_token: j.refresh_token });
       if (error) setErr(errText(error));
+      else try { localStorage.setItem(NAME_KEY, n); } catch { /* storage blocked */ }
     } catch {
       setErr("เชื่อมต่อไม่ได้ ตรวจสอบอินเทอร์เน็ต");
     } finally { setBusy(false); }
@@ -79,20 +83,17 @@ function Login() {
       <form className="card form" onSubmit={submit}>
         <div className="tabs" role="tablist">
           <button type="button" role="tab" aria-selected={!first} className={!first ? "on" : ""} onClick={() => { setFirst(false); setErr(""); }}>เข้าด้วย PIN</button>
-          <button type="button" role="tab" aria-selected={first} className={first ? "on" : ""} onClick={() => { setFirst(true); setErr(""); }}>เข้าครั้งแรก / ลืม PIN</button>
+          <button type="button" role="tab" aria-selected={first} className={first ? "on" : ""} onClick={() => { setFirst(true); setErr(""); }}>เข้าครั้งแรก / ตั้ง PIN</button>
         </div>
-        <Field label="รหัสนักเรียน"><input id="nst-code" value={code} onChange={(e) => setCode(e.target.value)} inputMode="numeric" autoComplete="username" required maxLength={20} /></Field>
-        {first && (
-          <Field label="เลขบัตรประชาชน 13 หลัก" hint="ใช้ยืนยันตัวครั้งแรกเท่านั้น ระบบเก็บแบบเข้ารหัส อ่านกลับไม่ได้">
-            <input id="nst-nid" value={nid} onChange={(e) => setNid(e.target.value)} inputMode="numeric" autoComplete="off" required maxLength={17} />
-          </Field>
-        )}
+        <Field label="ชื่อ นามสกุล" hint="ไม่ต้องใส่คำนำหน้า เช่น สมชาย ใจดี">
+          <input id="nst-name" value={name} onChange={(e) => setName(e.target.value)} autoComplete="username" autoCapitalize="off" required maxLength={120} />
+        </Field>
         <Field label={first ? "ตั้ง PIN 6 หลัก" : "PIN 6 หลัก"} hint={first ? "ห้ามเลขซ้ำกันทั้งหมดหรือเรียงกัน เช่น 111111 123456" : undefined}>
           <input id="nst-pin" type="password" value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" autoComplete={first ? "new-password" : "current-password"} required minLength={6} maxLength={6} />
         </Field>
         {first && <Field label="ยืนยัน PIN"><input id="nst-pin2" type="password" value={pin2} onChange={(e) => setPin2(e.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" autoComplete="new-password" required minLength={6} maxLength={6} /></Field>}
         {err && <p className="error">{err}</p>}
-        <button className="btn primary big" disabled={busy}>{busy ? "กำลังเข้าระบบ…" : first ? "ยืนยันตัวและตั้ง PIN" : "เข้าระบบ"}</button>
+        <button className="btn primary big" disabled={busy}>{busy ? "กำลังเข้าระบบ…" : first ? "ตั้ง PIN และเข้าระบบ" : "เข้าระบบ"}</button>
         {!first && <p className="muted small">ลืม PIN: ให้ครูผู้กำกับ นศท. รีเซ็ต แล้วเข้าแบบ “ครั้งแรก” ใหม่</p>}
       </form>
     </main>
@@ -133,7 +134,7 @@ function StudentHome({ uid }: { uid: string }) {
       <header className="mhero c-nst">
         <Shield size={64} strokeWidth={1.5} className="mh-ic" aria-hidden />
         <h1>{home.me.name}</h1>
-        <p>รหัส {home.me.code} · {home.me.class_room}{home.me.nst_year ? ` · นศท. ชั้นปีที่ ${home.me.nst_year}` : ""}{home.me.group_name ? ` · กลุ่ม ${home.me.group_name}` : ""}</p>
+        <p>{home.me.class_room}{home.me.nst_year ? ` · นศท. ชั้นปีที่ ${home.me.nst_year}` : ""}{home.me.group_name ? ` · กลุ่ม ${home.me.group_name}` : ""}</p>
         <div className="mh-actions"><button className="btn sm" onClick={() => sb.auth.signOut()}><LogOut size={16} />ออกจากระบบ</button></div>
       </header>
       {err && <p className="error">{err}</p>}
@@ -146,7 +147,7 @@ function StudentHome({ uid }: { uid: string }) {
             <div key={s.id} className="nst-row">
               <div className="nst-row-text">
                 <b>{s.title || KIND[s.kind]}</b>
-                <small>เปิด {hhmm(s.opens_at)}–{hhmm(s.closes_at)} · หลัง {hhmm(s.late_at)} นับสาย</small>
+                <small>{s.kind === "callup" ? `เรียกรวม ${hhmm(s.opens_at)} · ครูเช็คชื่อ` : `เปิด ${hhmm(s.opens_at)}–${hhmm(s.closes_at)} · หลัง ${hhmm(s.late_at)} นับสาย`}</small>
               </div>
               {s.status ? <span className={`chip ${ATTEND[s.status].tone}`}>{ATTEND[s.status].label}{s.checked_at ? ` ${hhmm(s.checked_at)}` : ""}</span>
                 : open && !s.self_report ? <span className="chip info">รอครูเช็คชื่อ</span>

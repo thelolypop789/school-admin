@@ -79,16 +79,25 @@ Deno.serve(async (req) => {
     catch (e) { console.error("purge", e); return json({ error: "purge_failed" }, 500, origin); }
   }
 
-  const code = String(body.code ?? "").trim();
   const pin = String(body.pin ?? "").trim();
-  if (!/^[0-9A-Za-z]{1,20}$/.test(code) || !/^\d{6}$/.test(pin)) return json({ error: "bad_credentials" }, 400, origin);
+  if (!/^\d{6}$/.test(pin)) return json({ error: "bad_credentials" }, 400, origin);
+  if (body.action !== "setup" && body.action !== "login") return json({ error: "bad_request" }, 400, origin);
 
-  const args = body.action === "setup"
-    ? { p_code: code, p_kind: "nid", p_secret: String(body.nid ?? ""), p_new_pin: pin }
-    : body.action === "login" ? { p_code: code, p_kind: "pin", p_secret: pin, p_new_pin: null } : null;
-  if (!args) return json({ error: "bad_request" }, 400, origin);
+  // เข้าด้วยชื่อ นามสกุล (ไม่ต้องมีคำนำหน้า): ครั้งแรกตั้ง PIN ได้เลย · ทางเดิมรหัสนักเรียน + เลขบัตร/PIN ยังใช้ได้
+  const name = typeof body.name === "string" ? body.name.trim() : "";
+  let rpc: { fn: string; args: Record<string, unknown> };
+  if (name) {
+    if (name.length > 120) return json({ error: "bad_credentials" }, 400, origin);
+    rpc = { fn: "nst_auth_name", args: { p_name: name, p_kind: body.action === "setup" ? "first" : "pin", p_pin: pin } };
+  } else {
+    const code = String(body.code ?? "").trim();
+    if (!/^[0-9A-Za-z-]{1,20}$/.test(code)) return json({ error: "bad_credentials" }, 400, origin);
+    rpc = body.action === "setup"
+      ? { fn: "nst_auth", args: { p_code: code, p_kind: "nid", p_secret: String(body.nid ?? ""), p_new_pin: pin } }
+      : { fn: "nst_auth", args: { p_code: code, p_kind: "pin", p_secret: pin, p_new_pin: null } };
+  }
 
-  const { data, error } = await sb.rpc("nst_auth", args);
+  const { data, error } = await sb.rpc(rpc.fn, rpc.args);
   if (error) {
     const known = KNOWN.find((k) => error.message.includes(k));
     if (!known) console.error("nst_auth", error.message);
