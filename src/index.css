@@ -1170,3 +1170,6 @@ html:has(.nst-app), body:has(.nst-app) { background: #f3f4ea; }
 .leave-photo span { position: absolute; left: 0; right: 0; bottom: 0; background: rgb(0 0 0 / .5); color: #fff; font-size: .8rem; padding: .25rem; text-align: center; }
 .modal .tabs[aria-label="ประเภทการลา"] { margin: .2rem 0 .9rem; }
 body:has(.nst-app) .modal .inline-ic { color: var(--nst-a); }
+/* เลือกตำแหน่งจุดในหน้าต่าง (MapPicker) */
+.map-pick .campus3d { height: min(46vh, 360px); min-height: 260px; margin-bottom: 0; }
+.map-pick .c3-draw p { font-size: .82rem; margin-bottom: .2rem; }
