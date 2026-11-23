@@ -34,7 +34,11 @@ export type Checkin = {
   id: number; session_id: number; student_id: number; status: Attend; checked_at: string | null; photo_path: string | null;
   distance_m: number | null; accuracy_m: number | null; set_by: string | null; note: string | null;
 };
-export type Post = { id: number; name: string; starts: string; ends: string; need: number; sort: number; active: boolean };
+export type Post = {
+  id: number; name: string; starts: string; ends: string; need: number; sort: number; active: boolean;
+  /** จุดเวรเฉพาะกิจของวันนี้วันเดียว (null = จุดเวรปกติ ใช้จัดเวรอัตโนมัติ) */
+  event_day?: string | null; map_x?: number | null; map_y?: number | null;
+};
 export type Duty = {
   id: number; duty_date: string; post_id: number; student_id: number; group_name: string; status: DutyStatus;
   reported_at: string | null; photo_path: string | null; distance_m: number | null; set_by: string | null; note: string | null;
@@ -111,3 +115,6 @@ export const LOGIN_ERR: Record<string, string> = {
   bad_request: "ข้อมูลไม่ครบ",
   server_error: "ระบบขัดข้อง ลองใหม่อีกครั้ง",
 };
+
+/** ชื่อกลุ่มเวรสำหรับแสดง: ข้อมูลจริงเก็บเป็น "กลุ่ม 1" อยู่แล้ว ไม่เติมคำว่า กลุ่ม ซ้ำ */
+export const groupLabel = (g: string) => (/^กลุ่ม/.test(g.trim()) ? g.trim() : `กลุ่ม ${g}`);

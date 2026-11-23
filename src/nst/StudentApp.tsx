@@ -2,13 +2,14 @@ import { useCallback, useEffect, useState } from "react";
 import { createClient, type Session } from "@supabase/supabase-js";
 import { ArrowLeftRight, Camera, LogOut, MapPin, Shield, TrafficCone } from "lucide-react";
 import { LOGO, SCHOOL_NAME } from "../lib/brand";
-import { ATTEND, DUTY, dutyShown, KIND, LOGIN_ERR, type Attend, type DutyStatus, type SessionKind } from "../lib/nst";
+import { ATTEND, DUTY, dutyShown, groupLabel, KIND, LOGIN_ERR, type Attend, type DutyStatus, type SessionKind } from "../lib/nst";
 import { currentPosition } from "../lib/geo";
 import { fmtDate, hhmm, todayISO } from "../lib/time";
 import { errText } from "../lib/supabase";
 import { Field, Modal } from "../components/ui";
 import { SelfieCamera } from "../components/SelfieCamera";
 import { StudentCalendar } from "./StudentCalendar";
+import { InstallButton, InstallNudge } from "../components/Install";
 
 const URL_ = import.meta.env.VITE_SUPABASE_URL || "https://placeholder.supabase.co";
 const KEY = import.meta.env.VITE_SUPABASE_KEY || "placeholder";
@@ -136,9 +137,13 @@ function StudentHome({ uid }: { uid: string }) {
       <header className="mhero c-nst">
         <Shield size={64} strokeWidth={1.5} className="mh-ic" aria-hidden />
         <h1>{home.me.name}</h1>
-        <p>{home.me.class_room}{home.me.nst_year ? ` · นศท. ชั้นปีที่ ${home.me.nst_year}` : ""}{home.me.group_name ? ` · กลุ่ม ${home.me.group_name}` : ""}</p>
-        <div className="mh-actions"><button className="btn sm" onClick={() => sb.auth.signOut()}><LogOut size={16} />ออกจากระบบ</button></div>
+        <p>{home.me.class_room}{home.me.nst_year ? ` · นศท. ชั้นปีที่ ${home.me.nst_year}` : ""}{home.me.group_name ? ` · ${groupLabel(home.me.group_name)}` : ""}</p>
+        <div className="mh-actions">
+          <InstallButton className="btn sm" label="ติดตั้งแอป" variant="nst" />
+          <button className="btn sm" onClick={() => sb.auth.signOut()}><LogOut size={16} />ออกจากระบบ</button>
+        </div>
       </header>
+      <InstallNudge variant="nst" />
       {err && <p className="error">{err}</p>}
 
       <section>
@@ -280,7 +285,7 @@ function SwapModal({ duty, onClose, onDone }: { duty: number; onClose: () => voi
           {shown.slice(0, 60).map((o) => (
             <li key={o.id}><button type="button" onClick={() => ask(o)}>
               <b>{fmtDate(o.date, { weekday: "short", day: "numeric", month: "short" })} · {o.post} {t5(o.starts)}</b>
-              <small>{o.student} · {o.class_room}{o.group_name ? ` · กลุ่ม ${o.group_name}` : ""}</small>
+              <small>{o.student} · {o.class_room}{o.group_name ? ` · ${groupLabel(o.group_name)}` : ""}</small>
             </button></li>
           ))}
         </ul>
