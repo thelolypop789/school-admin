@@ -1173,3 +1173,10 @@ body:has(.nst-app) .modal .inline-ic { color: var(--nst-a); }
 /* เลือกตำแหน่งจุดในหน้าต่าง (MapPicker) */
 .map-pick .campus3d { height: min(46vh, 360px); min-height: 260px; margin-bottom: 0; }
 .map-pick .c3-draw p { font-size: .82rem; margin-bottom: .2rem; }
+/* สรุปเช็คชื่อ (AttendanceList) */
+.nst-summary { display: grid; gap: .55rem; padding: .7rem .8rem; margin: .2rem 0 .6rem; border-radius: 14px; background: var(--t); }
+.nst-summary > .row { justify-content: space-between; align-items: center; gap: .5rem; }
+.nst-summary b { font-size: .95rem; }
+.nst-sum-row { display: flex; gap: .5rem; align-items: flex-start; }
+.nst-sum-row > .chip { flex: none; margin: 0; }
+.nst-sum-row .advisor-pick .chip { font-size: .82rem; }
