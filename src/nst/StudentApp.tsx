@@ -10,6 +10,7 @@ import { Field, Modal } from "../components/ui";
 import { SelfieCamera } from "../components/SelfieCamera";
 import { StudentCalendar } from "./StudentCalendar";
 import { InstallButton, InstallNudge } from "../components/Install";
+import { StudentLeave } from "./StudentLeave";
 
 const URL_ = import.meta.env.VITE_SUPABASE_URL || "https://placeholder.supabase.co";
 const KEY = import.meta.env.VITE_SUPABASE_KEY || "placeholder";
@@ -205,6 +206,8 @@ function StudentHome({ uid }: { uid: string }) {
           </div>
         ))}
       </section>
+
+      <StudentLeave sb={sb} uid={uid} onChanged={load} />
 
       {/* สถิติของฉัน (วงกลม) + ปฏิทินรายเดือน — แทนรายการเช็คชื่อย้อนหลังเดิม */}
       <StudentCalendar key={calKey} sb={sb} />

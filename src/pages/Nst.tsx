@@ -11,6 +11,7 @@ import {
 } from "../lib/nst";
 import { DateNav, Empty, Field, Modal, ModuleHero } from "../components/ui";
 import { EventDays } from "./NstEvent";
+import { LeavePending } from "./NstLeave";
 
 const TABS = [
   { path: "/nst", label: "วันนี้" },
@@ -28,15 +29,16 @@ export default function Nst() {
   const me = useMe();
   const staff = isNstStaff(me);
   const tab = TABS.find((t) => t.path !== "/nst" && path.startsWith(t.path)) ?? TABS[0];
-  const [stats, setStats] = useState<{ students: number; pinSet: number; swaps: number } | null>(null);
+  const [stats, setStats] = useState<{ students: number; pinSet: number; swaps: number; leaves: number } | null>(null);
 
   useEffect(() => {
     Promise.all([
       supabase.from("nst_students").select("pin_set").eq("active", true),
       supabase.from("nst_swaps").select("id", { count: "exact", head: true }).eq("status", "accepted"),
-    ]).then(([s, w]) => {
+      supabase.from("nst_leaves").select("id", { count: "exact", head: true }).eq("status", "pending"),
+    ]).then(([s, w, l]) => {
       const rows = (s.data ?? []) as { pin_set: boolean }[];
-      setStats({ students: rows.length, pinSet: rows.filter((r) => r.pin_set).length, swaps: w.count ?? 0 });
+      setStats({ students: rows.length, pinSet: rows.filter((r) => r.pin_set).length, swaps: w.count ?? 0, leaves: l.count ?? 0 });
     });
   }, [path]);
 
@@ -47,6 +49,7 @@ export default function Nst() {
           { n: stats?.students ?? "–", label: "นักเรียน" },
           { n: stats ? `${stats.pinSet}/${stats.students}` : "–", label: "เข้าระบบแล้ว" },
           { n: stats?.swaps ?? "–", label: "แลกเวรรออนุมัติ" },
+          { n: stats?.leaves ?? "–", label: "ลารออนุมัติ" },
         ]}>
         <div className="mh-tabs" role="tablist">
           {TABS.map((t) => <button key={t.path} role="tab" aria-selected={t.path === tab.path} className={t.path === tab.path ? "on" : ""} onClick={() => navigate(t.path)}>{t.label}</button>)}
@@ -98,6 +101,7 @@ function Today({ staff }: { staff: boolean }) {
     <>
       <div className="clean-bar"><DateNav date={date} onChange={setDate} /></div>
       {err && <p className="error">{err}</p>}
+      <LeavePending staff={staff} onChanged={load} />
       <section>
         <div className="section-title"><h2>เช็คชื่อ</h2>
           {staff && date === todayISO() && <button className="btn primary sm" onClick={() => setCallup(true)}><Megaphone size={16} />เรียกรวมตอนนี้</button>}
