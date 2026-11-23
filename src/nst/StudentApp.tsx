@@ -8,6 +8,7 @@ import { fmtDate, hhmm, todayISO } from "../lib/time";
 import { errText } from "../lib/supabase";
 import { Field, Modal } from "../components/ui";
 import { SelfieCamera } from "../components/SelfieCamera";
+import { StudentCalendar } from "./StudentCalendar";
 
 const URL_ = import.meta.env.VITE_SUPABASE_URL || "https://placeholder.supabase.co";
 const KEY = import.meta.env.VITE_SUPABASE_KEY || "placeholder";
@@ -105,6 +106,7 @@ function StudentHome({ uid }: { uid: string }) {
   const [err, setErr] = useState("");
   const [target, setTarget] = useState<Target | null>(null);
   const [swapFor, setSwapFor] = useState<number | null>(null);
+  const [calKey, setCalKey] = useState(0); // รีเฟรชปฏิทิน/สถิติหลังรายงานตัว
   const today = todayISO();
 
   const load = useCallback(async () => {
@@ -113,7 +115,7 @@ function StudentHome({ uid }: { uid: string }) {
       if (/not_student/.test(error.message)) { await sb.auth.signOut(); return; }
       setErr(errText(error)); return;
     }
-    setErr(""); setHome(data as Home);
+    setErr(""); setHome(data as Home); setCalKey((k) => k + 1);
   }, []);
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { load(); }, [load]);
@@ -199,17 +201,8 @@ function StudentHome({ uid }: { uid: string }) {
         ))}
       </section>
 
-      {home.history.length > 0 && (
-        <section>
-          <div className="section-title"><h2>เช็คชื่อย้อนหลัง</h2></div>
-          <div className="nst-history">
-            {home.history.map((h) => (
-              <div key={h.opens_at}><small>{fmtDate(h.opens_at, { day: "numeric", month: "short" })} {KIND[h.kind]}</small>
-                {h.status ? <span className={`chip ${ATTEND[h.status].tone}`}>{ATTEND[h.status].label}</span> : <span className="chip">–</span>}</div>
-            ))}
-          </div>
-        </section>
-      )}
+      {/* สถิติของฉัน (วงกลม) + ปฏิทินรายเดือน — แทนรายการเช็คชื่อย้อนหลังเดิม */}
+      <StudentCalendar key={calKey} sb={sb} />
 
       {target && <ReportModal uid={uid} target={target} onClose={() => setTarget(null)} onDone={load} />}
       {swapFor && <SwapModal duty={swapFor} onClose={() => setSwapFor(null)} onDone={load} />}
