@@ -2,10 +2,10 @@
 // - หน้าเว็บ (navigation): ดึงจากเน็ตก่อน ถ้าออฟไลน์ใช้ตัวที่ cache ไว้
 // - /assets/* (ชื่อไฟล์มี hash): cache ก่อน
 // - ไม่แตะ request ไป Supabase หรือโดเมนอื่น ข้อมูลจริงต้องมาจากเซิร์ฟเวอร์เสมอ
-const VERSION = "v9"; // v9: แอปนักเรียน นศท. มีไอคอน/manifest ของตัวเอง
+const VERSION = "v10"; // v10: หน้าแอปนักเรียน /s ใช้ s.html แยก cache จากแอปบุคลากร
 const SHELL = `shell-${VERSION}`;
 const ASSETS = `assets-${VERSION}`;
-const PRECACHE = ["/", "/manifest.webmanifest", "/favicon.svg", "/favicon.png", "/school-logo.png", "/icon-192.png", "/icon-512.png", "/manifest-nst.webmanifest", "/nst-icon-192.png", "/nst-icon-512.png"];
+const PRECACHE = ["/", "/s.html", "/manifest.webmanifest", "/favicon.svg", "/favicon.png", "/school-logo.png", "/icon-192.png", "/icon-512.png", "/manifest-nst.webmanifest", "/nst-icon-192.png", "/nst-icon-512.png"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(SHELL).then((c) => c.addAll(PRECACHE)).then(() => self.skipWaiting()));
@@ -26,13 +26,15 @@ self.addEventListener("fetch", (event) => {
   if (url.origin !== self.location.origin) return;
 
   if (req.mode === "navigate") {
+    // แอปนักเรียน (/s) มีหน้า HTML ของตัวเอง (s.html) เก็บแยกจากแอปบุคลากร
+    const key = /^\/s(\/|$)/.test(url.pathname) ? "/s.html" : "/";
     event.respondWith(
       fetch(req)
         .then((res) => {
-          if (res.ok) { const copy = res.clone(); caches.open(SHELL).then((c) => c.put("/", copy)); }
+          if (res.ok) { const copy = res.clone(); caches.open(SHELL).then((c) => c.put(key, copy)); }
           return res;
         })
-        .catch(() => caches.match("/").then((r) => r || Response.error())),
+        .catch(() => caches.match(key).then((r) => r || Response.error())),
     );
     return;
   }
