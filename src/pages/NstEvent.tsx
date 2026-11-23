@@ -5,6 +5,7 @@ import { addDays, fmtDate, todayISO } from "../lib/time";
 import { DUTY, groupLabel, type Duty, type Post, type Student } from "../lib/nst";
 import type { Pt, ZoneShape } from "../campus/campus3d";
 import { Empty, Field, Modal } from "../components/ui";
+import { MapPicker } from "../components/MapPicker";
 
 const CampusMap = lazy(() => import("../components/CampusMap"));
 const t5 = (t: string) => t.slice(0, 5);
@@ -176,7 +177,7 @@ function EventEditor({ day, staff, onBack }: { day: string; staff: boolean; onBa
       {staff && !placing && (
         <div className="row wrap" style={{ marginBottom: "1rem" }}>
           <button className="btn primary" onClick={() => { setPlacing({ move: null }); window.scrollTo({ top: 0, behavior: "smooth" }); }}><MapPin size={16} />เพิ่มจุดบนแผนที่</button>
-          <button className="btn" onClick={() => setDraft({ post: null, x: null, y: null })}><Plus size={16} />เพิ่มจุดไม่ระบุตำแหน่ง</button>
+          <button className="btn" onClick={() => setDraft({ post: null, x: null, y: null })}><Plus size={16} />เพิ่มจุด (กรอกฟอร์ม)</button>
         </div>
       )}
 
@@ -235,7 +236,7 @@ function EventEditor({ day, staff, onBack }: { day: string; staff: boolean; onBa
       </section>
       <div className="fab-space" />
 
-      {draft && <PointForm draft={draft} last={last} onClose={() => setDraft(null)} onSave={savePoint} />}
+      {draft && <PointForm draft={draft} last={last} others={posts} onClose={() => setDraft(null)} onSave={savePoint} />}
       {picker && (
         <StudentPicker
           title={picker.kind === "assign" ? `เพิ่มคนลงจุด ${picker.post.name}` : "คนที่มีหน้าที่อื่นวันนี้"}
@@ -253,8 +254,8 @@ function EventEditor({ day, staff, onBack }: { day: string; staff: boolean; onBa
   );
 }
 
-function PointForm({ draft, last, onClose, onSave }: {
-  draft: PointDraft; last?: Post; onClose: () => void;
+function PointForm({ draft, last, others, onClose, onSave }: {
+  draft: PointDraft; last?: Post; others: Post[]; onClose: () => void;
   onSave: (p: Post | null, name: string, starts: string, ends: string, x: number | null, y: number | null) => Promise<string>;
 }) {
   const p = draft.post;
@@ -263,19 +264,23 @@ function PointForm({ draft, last, onClose, onSave }: {
   const [ends, setEnds] = useState(p ? t5(p.ends) : last ? t5(last.ends) : "09:00");
   const [err, setErr] = useState("");
   const [saving, setSaving] = useState(false);
+  const [pt, setPt] = useState<Pt | null>(draft.x != null && draft.y != null ? [draft.x, draft.y] : null);
   const save = async () => {
     if (!name.trim() || ends <= starts) { setErr("ใส่ชื่อจุด และเวลาเลิกต้องหลังเวลาเริ่ม"); return; }
-    setSaving(true); const e = await onSave(p, name.trim(), starts, ends, draft.x, draft.y); setSaving(false); setErr(e);
+    setSaving(true); const e = await onSave(p, name.trim(), starts, ends, pt?.[0] ?? null, pt?.[1] ?? null); setSaving(false); setErr(e);
   };
   return (
     <Modal title={p ? `แก้ไขจุด ${p.name}` : "เพิ่มจุดเวร"} onClose={onClose}>
-      {!p && draft.x != null && <p className="muted small"><MapPin size={14} style={{ verticalAlign: "-2px" }} /> วางตามตำแหน่งที่แตะบนแผนที่</p>}
       <Field label="ชื่อจุด"><input autoFocus value={name} maxLength={80} onChange={(e) => setName(e.target.value)} placeholder="เช่น หน้าประตู · โบกรถเข้าลานจอด" /></Field>
       <div className="row2">
         <Field label="เริ่ม"><input type="time" value={starts} onChange={(e) => setStarts(e.target.value)} /></Field>
         <Field label="เลิก"><input type="time" value={ends} onChange={(e) => setEnds(e.target.value)} /></Field>
       </div>
       <p className="muted small">นักเรียนรายงานตัวได้ตั้งแต่ 30 นาทีก่อนเริ่ม หลังเริ่ม 10 นาที = สาย</p>
+      <div className="field"><span>ตำแหน่งบนแผนที่</span>
+        <MapPicker value={pt} onChange={setPt} label={name || "จุดนี้"}
+          others={others.filter((o) => o.id !== p?.id && o.map_x != null && o.map_y != null).map((o) => ({ id: o.id, x: o.map_x!, y: o.map_y!, label: o.name }))} />
+      </div>
       {err && <p className="error">{err}</p>}
       <button className="btn primary big" disabled={saving} onClick={save}>บันทึกจุด</button>
     </Modal>

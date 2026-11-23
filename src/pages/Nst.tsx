@@ -11,6 +11,8 @@ import {
 } from "../lib/nst";
 import { DateNav, Empty, Field, Modal, ModuleHero } from "../components/ui";
 import { EventDays } from "./NstEvent";
+import { MapPicker } from "../components/MapPicker";
+import type { Pt } from "../campus/campus3d";
 import { LeavePending } from "./NstLeave";
 
 const TABS = [
@@ -517,7 +519,7 @@ function DutyAdmin({ staff }: { staff: boolean }) {
           <div className="card nst-list">
             {regular.map((p) => (
               <div key={p.id} className={`nst-person${p.active ? "" : " off"}`}>
-                <span className="nst-person-text"><b>{p.name}</b><small>{t5(p.starts)}–{t5(p.ends)} · {p.need} คน{p.active ? "" : " · ปิดใช้"}</small></span>
+                <span className="nst-person-text"><b>{p.name}</b><small>{t5(p.starts)}–{t5(p.ends)} · {p.need} คน{p.map_x != null ? " · มีตำแหน่งบนแผนที่" : ""}{p.active ? "" : " · ปิดใช้"}</small></span>
                 {staff && <button className="btn sm" onClick={() => setEditPost(p)}>แก้ไข</button>}
               </div>
             ))}
@@ -554,7 +556,7 @@ function DutyAdmin({ staff }: { staff: boolean }) {
       </section>
 
       <NoDutyDays days={noDays} staff={staff} onChanged={load} />
-      {editPost && <PostForm post={editPost === "new" ? null : editPost} onClose={() => setEditPost(null)} onSaved={() => { setEditPost(null); load(); }} />}
+      {editPost && <PostForm post={editPost === "new" ? null : editPost} others={regular} onClose={() => setEditPost(null)} onSaved={() => { setEditPost(null); load(); }} />}
       {gen && <GenerateForm groups={order} onClose={() => setGen(false)} onDone={() => { setGen(false); load(); }} />}
     </>
   );
@@ -588,7 +590,8 @@ function NoDutyDays({ days, staff, onChanged }: { days: { day: string; note: str
   );
 }
 
-function PostForm({ post, onClose, onSaved }: { post: Post | null; onClose: () => void; onSaved: () => void }) {
+function PostForm({ post, others, onClose, onSaved }: { post: Post | null; others: Post[]; onClose: () => void; onSaved: () => void }) {
+  const [pt, setPt] = useState<Pt | null>(post?.map_x != null && post.map_y != null ? [post.map_x, post.map_y] : null);
   const [name, setName] = useState(post?.name ?? "");
   const [starts, setStarts] = useState(post ? t5(post.starts) : "07:00");
   const [ends, setEnds] = useState(post ? t5(post.ends) : "08:00");
@@ -598,7 +601,7 @@ function PostForm({ post, onClose, onSaved }: { post: Post | null; onClose: () =
   const [err, setErr] = useState("");
   const save = async () => {
     if (!name.trim() || ends <= starts) { setErr("ใส่ชื่อจุด และเวลาเลิกต้องหลังเวลาเริ่ม"); return; }
-    const { error } = await supabase.rpc("nst_post_save", { p_id: post?.id ?? null, p_name: name, p_starts: starts, p_ends: ends, p_need: need, p_sort: sort, p_active: active });
+    const { error } = await supabase.rpc("nst_post_save", { p_id: post?.id ?? null, p_name: name, p_starts: starts, p_ends: ends, p_need: need, p_sort: sort, p_active: active, p_x: pt?.[0] ?? null, p_y: pt?.[1] ?? null });
     if (error) setErr(errText(error)); else onSaved();
   };
   return (
@@ -611,6 +614,10 @@ function PostForm({ post, onClose, onSaved }: { post: Post | null; onClose: () =
         <Field label="ลำดับ"><input type="number" value={sort} onChange={(e) => setSort(Number(e.target.value) || 0)} /></Field>
       </div>
       {post && <label className="check"><input type="checkbox" checked={active} onChange={(e) => setActive(e.target.checked)} /> ใช้จุดนี้ในการจัดเวร</label>}
+      <div className="field"><span>ตำแหน่งบนแผนที่ (ไม่บังคับ)</span>
+        <MapPicker value={pt} onChange={setPt} label={name || "จุดนี้"}
+          others={others.filter((o) => o.id !== post?.id && o.map_x != null && o.map_y != null).map((o) => ({ id: o.id, x: o.map_x!, y: o.map_y!, label: o.name }))} />
+      </div>
       {err && <p className="error">{err}</p>}
       <button className="btn primary big" onClick={save}>บันทึกจุด</button>
     </Modal>

@@ -832,7 +832,8 @@ export function createCampus(stage, opts = {}) {
     const pts = zones.flatMap(z => z.poly || []); if (!pts.length) return false;
     const xs = pts.map(p => p[0]), ys = pts.map(p => p[1]);
     const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
-    const w = (x1 - x0) * S, h = (y1 - y0) * S;
+    // อย่างน้อย ~140×100 ม. — จุดเวรจุดเดียว (แผ่นเล็ก) จะไม่ซูมจนเห็นแต่พื้น
+    const w = Math.max((x1 - x0) * S, 140), h = Math.max((y1 - y0) * S, 100);
     const vf = camera.fov * Math.PI / 360, aspect = stage.clientWidth / Math.max(1, stage.clientHeight);
     const dist = Math.max(h * 0.62 / Math.tan(vf), w * 0.62 / (Math.tan(vf) * aspect));
     const tgt = new THREE.Vector3(wx((x0 + x1) / 2), 0, wz((y0 + y1) / 2) + h * 0.06);
