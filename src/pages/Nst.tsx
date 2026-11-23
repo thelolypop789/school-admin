@@ -6,10 +6,11 @@ import { navigate, usePath } from "../lib/router";
 import { useSignedUrls } from "../lib/photos";
 import { addDays, dayRange, fmtDate, hhmm, todayISO, toISO } from "../lib/time";
 import {
-  ATTEND, DUTY, dutyShown, isNstStaff, isWedKind, KIND, mapImport, parseTable, PLANNED_KINDS,
+  ATTEND, DUTY, dutyShown, groupLabel, isNstStaff, isWedKind, KIND, mapImport, parseTable, PLANNED_KINDS,
   type Attend, type Checkin, type Duty, type DutyStatus, type Post, type Session, type SessionKind, type Settings, type Student, type Swap,
 } from "../lib/nst";
 import { DateNav, Empty, Field, Modal, ModuleHero } from "../components/ui";
+import { EventDays } from "./NstEvent";
 
 const TABS = [
   { path: "/nst", label: "วันนี้" },
@@ -249,7 +250,7 @@ function AttendanceList({ session, students, checkins, radius, staff, closed, on
             {c?.photo_path && urls[c.photo_path]
               ? <button className="nst-thumb" onClick={() => setPhoto(urls[c.photo_path!])} aria-label={`ดูรูปของ ${s.full_name}`}><img src={urls[c.photo_path]} alt="" /></button>
               : <span className="nst-thumb empty" aria-hidden />}
-            <span className="nst-person-text"><b>{s.full_name}</b><small>{s.class_room}{s.group_name ? ` · กลุ่ม ${s.group_name}` : ""}{c?.checked_at ? ` · ${hhmm(c.checked_at)}` : ""}{c?.set_by ? " · ครูบันทึก" : ""}</small></span>
+            <span className="nst-person-text"><b>{s.full_name}</b><small>{s.class_room}{s.group_name ? ` · ${groupLabel(s.group_name)}` : ""}{c?.checked_at ? ` · ${hhmm(c.checked_at)}` : ""}{c?.set_by ? " · ครูบันทึก" : ""}</small></span>
             {c && !c.set_by && distanceNote(c.distance_m, radius)}
             {staff ? (
               <select value={st ?? ""} onChange={(e) => set(s.id, e.target.value as Attend)} aria-label={`สถานะของ ${s.full_name}`}>
@@ -431,6 +432,7 @@ function DutyAdmin({ staff }: { staff: boolean }) {
   const [students, setStudents] = useState<Map<number, Student>>(new Map());
   const [editPost, setEditPost] = useState<Post | "new" | null>(null);
   const [gen, setGen] = useState(false);
+  const [evDay, setEvDay] = useState<string | null>(null);
   const [err, setErr] = useState("");
   const today = todayISO();
 
@@ -472,13 +474,17 @@ function DutyAdmin({ staff }: { staff: boolean }) {
     if (error) setErr(/conflict/.test(error.message) ? "อนุมัติไม่ได้ นักเรียนมีเวรซ้อนวันเดียวกัน" : errText(error)); else load();
   };
   const postName = (id?: number) => posts?.find((p) => p.id === id)?.name ?? "";
+  const regular = useMemo(() => (posts ?? []).filter((p) => !p.event_day), [posts]);
   const byDay = useMemo(() => {
     const m = new Map<string, { group: string; n: number; done: number }>();
-    for (const d of upcoming) { const x = m.get(d.duty_date) ?? { group: d.group_name, n: 0, done: 0 }; x.n++; if (d.status !== "assigned") x.done++; m.set(d.duty_date, x); }
+    const ids = new Set(regular.map((p) => p.id));
+    for (const d of upcoming) {
+      if (!ids.has(d.post_id)) continue; const x = m.get(d.duty_date) ?? { group: d.group_name, n: 0, done: 0 }; x.n++; if (d.status !== "assigned") x.done++; m.set(d.duty_date, x); }
     return [...m.entries()];
-  }, [upcoming]);
+  }, [upcoming, regular]);
 
   if (!posts) return <div className="spinner" />;
+  if (evDay) return <EventDays staff={staff} open={evDay} setOpen={(d) => { setEvDay(d); if (!d) load(); }} />;
   return (
     <>
       {err && <p className="error">{err}</p>}
@@ -499,11 +505,13 @@ function DutyAdmin({ staff }: { staff: boolean }) {
         </section>
       )}
 
+      <EventDays staff={staff} open={null} setOpen={setEvDay} />
+
       <section>
         <div className="section-title"><h2>จุดเวร</h2>{staff && <button className="link" onClick={() => setEditPost("new")}><Plus size={14} style={{ verticalAlign: "-2px" }} />เพิ่มจุด</button>}</div>
-        {posts.length === 0 ? <Empty>ยังไม่มีจุดเวร เพิ่มจุด เช่น หน้าประตู 07:00–08:00 ต้องการ 4 คน</Empty> : (
+        {regular.length === 0 ? <Empty>ยังไม่มีจุดเวร เพิ่มจุด เช่น หน้าประตู 07:00–08:00 ต้องการ 4 คน</Empty> : (
           <div className="card nst-list">
-            {posts.map((p) => (
+            {regular.map((p) => (
               <div key={p.id} className={`nst-person${p.active ? "" : " off"}`}>
                 <span className="nst-person-text"><b>{p.name}</b><small>{t5(p.starts)}–{t5(p.ends)} · {p.need} คน{p.active ? "" : " · ปิดใช้"}</small></span>
                 {staff && <button className="btn sm" onClick={() => setEditPost(p)}>แก้ไข</button>}
@@ -521,8 +529,8 @@ function DutyAdmin({ staff }: { staff: boolean }) {
             {order.map((g, i) => (
               <div key={g} className="nst-person">
                 <span className="nst-order">{i + 1}</span>
-                <span className="nst-person-text"><b>กลุ่ม {g}</b><small>{[...students.values()].filter((s) => s.group_name === g).length} คน</small></span>
-                {staff && <div className="row"><button className="icon-btn" disabled={i === 0} onClick={() => move(i, -1)} aria-label={`เลื่อนกลุ่ม ${g} ขึ้น`}><ArrowUp size={16} /></button><button className="icon-btn" disabled={i === order.length - 1} onClick={() => move(i, 1)} aria-label={`เลื่อนกลุ่ม ${g} ลง`}><ArrowDown size={16} /></button></div>}
+                <span className="nst-person-text"><b>{groupLabel(g)}</b><small>{[...students.values()].filter((s) => s.group_name === g).length} คน</small></span>
+                {staff && <div className="row"><button className="icon-btn" disabled={i === 0} onClick={() => move(i, -1)} aria-label={`เลื่อน${groupLabel(g)} ขึ้น`}><ArrowUp size={16} /></button><button className="icon-btn" disabled={i === order.length - 1} onClick={() => move(i, 1)} aria-label={`เลื่อน${groupLabel(g)} ลง`}><ArrowDown size={16} /></button></div>}
               </div>
             ))}
             {staff && <button className="btn primary big" onClick={() => { if (!settings?.group_order?.length || settings.group_order.join() !== order.join()) saveOrder(order); setGen(true); }}>จัดเวรอัตโนมัติ</button>}
@@ -535,7 +543,7 @@ function DutyAdmin({ staff }: { staff: boolean }) {
         {byDay.length === 0 ? <Empty>ยังไม่ได้จัดเวร</Empty> : (
           <div className="card nst-list">
             {byDay.map(([day, x]) => (
-              <div key={day} className="nst-person"><span className="nst-person-text"><b>{fmtDate(day, { weekday: "short", day: "numeric", month: "short" })} · กลุ่ม {x.group}</b><small>{x.n} คน{x.done ? ` · รายงานแล้ว ${x.done}` : ""}</small></span></div>
+              <div key={day} className="nst-person"><span className="nst-person-text"><b>{fmtDate(day, { weekday: "short", day: "numeric", month: "short" })} · {groupLabel(x.group)}</b><small>{x.n} คน{x.done ? ` · รายงานแล้ว ${x.done}` : ""}</small></span></div>
             ))}
           </div>
         )}
@@ -625,7 +633,7 @@ function GenerateForm({ groups, onClose, onDone }: { groups: string[]; onClose: 
         <Field label="ตั้งแต่"><input type="date" value={from} min={today} onChange={(e) => setFrom(e.target.value)} /></Field>
         <Field label="ถึง"><input type="date" value={to} onChange={(e) => setTo(e.target.value)} /></Field>
       </div>
-      <Field label="เริ่มที่กลุ่ม"><select value={start} onChange={(e) => setStart(e.target.value)}>{groups.map((g) => <option key={g} value={g}>กลุ่ม {g}</option>)}</select></Field>
+      <Field label="เริ่มที่กลุ่ม"><select value={start} onChange={(e) => setStart(e.target.value)}>{groups.map((g) => <option key={g} value={g}>{groupLabel(g)}</option>)}</select></Field>
       <p className="muted small">วันเรียน (จ.–ศ.) วันละ 1 กลุ่ม ข้ามวันงดเวร · เวรในช่วงนี้ที่ยังไม่รายงานและครูยังไม่ได้แก้ จะถูกจัดใหม่ · เวรที่กำลังขอแลกคงไว้</p>
       {err && <p className="error">{err}</p>}
       <button className="btn primary big" disabled={busy} onClick={run}>{busy ? "กำลังจัด…" : "จัดเวร"}</button>
@@ -665,7 +673,7 @@ function Students({ staff }: { staff: boolean }) {
           <p className="muted small">{shown.length} คน · ตั้ง PIN แล้ว {shown.filter((s) => s.pin_set).length}</p>
           {shown.map((s) => (
             <div key={s.id} className={`nst-person${s.active ? "" : " off"}`}>
-              <span className="nst-person-text"><b>{s.full_name}</b><small>{s.student_code} · {s.class_room}{s.nst_year ? ` · ปี ${s.nst_year}` : ""}{s.group_name ? ` · กลุ่ม ${s.group_name}` : ""}</small></span>
+              <span className="nst-person-text"><b>{s.full_name}</b><small>{s.student_code} · {s.class_room}{s.nst_year ? ` · ปี ${s.nst_year}` : ""}{s.group_name ? ` · ${groupLabel(s.group_name)}` : ""}</small></span>
               {locked(s) ? <span className="chip bad">ล็อก</span> : s.pin_set ? <span className="chip ok">ตั้ง PIN แล้ว</span> : <span className="chip">ยังไม่เข้า</span>}
               {staff && (
                 <div className="row">
