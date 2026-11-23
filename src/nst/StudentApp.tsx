@@ -146,7 +146,7 @@ function StudentHome({ uid }: { uid: string }) {
             <div key={s.id} className="nst-row">
               <div className="nst-row-text">
                 <b>{s.title || KIND[s.kind]}</b>
-                <small>เปิด {hhmm(s.opens_at)}–{hhmm(s.closes_at)} · หลัง {hhmm(s.late_at)} นับสาย</small>
+                <small>{s.kind === "callup" ? `เรียกรวม ${hhmm(s.opens_at)} · ครูเช็คชื่อ` : `เปิด ${hhmm(s.opens_at)}–${hhmm(s.closes_at)} · หลัง ${hhmm(s.late_at)} นับสาย`}</small>
               </div>
               {s.status ? <span className={`chip ${ATTEND[s.status].tone}`}>{ATTEND[s.status].label}{s.checked_at ? ` ${hhmm(s.checked_at)}` : ""}</span>
                 : open && !s.self_report ? <span className="chip info">รอครูเช็คชื่อ</span>

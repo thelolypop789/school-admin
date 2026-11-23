@@ -4,7 +4,7 @@ import { hasRole } from "./roles";
 /** นศท. (นักศึกษาวิชาทหาร): เช็คชื่อเช้าวันพุธ/คาบกิจกรรม + เวรจราจร */
 export type Attend = "present" | "late" | "leave" | "absent";
 export type DutyStatus = "assigned" | "done" | "late" | "missed" | "excused";
-export type SessionKind = "wed" | "wed_pm" | "activity" | "other";
+export type SessionKind = "wed" | "wed_pm" | "activity" | "other" | "callup";
 
 export const ATTEND: Record<Attend, { label: string; tone: string }> = {
   present: { label: "มา", tone: "ok" },
@@ -19,7 +19,9 @@ export const DUTY: Record<DutyStatus, { label: string; tone: string }> = {
   missed: { label: "ไม่มาเวร", tone: "bad" },
   excused: { label: "ได้รับอนุญาต", tone: "info" },
 };
-export const KIND: Record<SessionKind, string> = { wed: "ฝึกเช้าวันพุธ", wed_pm: "ฝึกเย็นวันพุธ", activity: "คาบกิจกรรม", other: "อื่นๆ" };
+export const KIND: Record<SessionKind, string> = { wed: "ฝึกเช้าวันพุธ", wed_pm: "ฝึกเย็นวันพุธ", activity: "คาบกิจกรรม", other: "อื่นๆ", callup: "เรียกรวม" };
+/** ประเภทที่เลือกได้ในฟอร์มสร้างคาบ (เรียกรวมมีปุ่มของตัวเองในหน้า วันนี้) */
+export const PLANNED_KINDS: SessionKind[] = ["wed", "wed_pm", "activity", "other"];
 /** พุธเช้า/เย็น ครูเช็คเอง — นักเรียนรายงานตัวเองได้เมื่อครูเปิดสวิตช์ (คาบอื่นเปิดไว้เลย) */
 export const isWedKind = (k: SessionKind) => k === "wed" || k === "wed_pm";
 

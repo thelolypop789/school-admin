@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ArrowDown, ArrowUp, Download, Plus, Shield, Upload } from "lucide-react";
+import { ArrowDown, ArrowUp, Download, Megaphone, Plus, Shield, Upload } from "lucide-react";
 import { errText, supabase } from "../lib/supabase";
 import { useMe } from "../lib/me";
 import { navigate, usePath } from "../lib/router";
 import { useSignedUrls } from "../lib/photos";
 import { addDays, dayRange, fmtDate, hhmm, todayISO, toISO } from "../lib/time";
 import {
-  ATTEND, DUTY, dutyShown, isNstStaff, isWedKind, KIND, mapImport, parseTable,
+  ATTEND, DUTY, dutyShown, isNstStaff, isWedKind, KIND, mapImport, parseTable, PLANNED_KINDS,
   type Attend, type Checkin, type Duty, type DutyStatus, type Post, type Session, type SessionKind, type Settings, type Student, type Swap,
 } from "../lib/nst";
 import { DateNav, Empty, Field, Modal, ModuleHero } from "../components/ui";
@@ -65,6 +65,7 @@ function Today({ staff }: { staff: boolean }) {
   const [date, setDate] = useState(todayISO());
   const [data, setData] = useState<{ sessions: Session[]; checkins: Checkin[]; students: Student[]; duties: Duty[]; posts: Post[]; settings: Settings | null } | null>(null);
   const [openSession, setOpenSession] = useState<number | null>(null);
+  const [callup, setCallup] = useState(false);
   const [err, setErr] = useState("");
 
   const load = useCallback(async () => {
@@ -97,8 +98,10 @@ function Today({ staff }: { staff: boolean }) {
       <div className="clean-bar"><DateNav date={date} onChange={setDate} /></div>
       {err && <p className="error">{err}</p>}
       <section>
-        <div className="section-title"><h2>เช็คชื่อ</h2></div>
-        {data.sessions.length === 0 ? <Empty>วันนี้ไม่มีคาบเช็คชื่อ — เพิ่มได้ที่แท็บ “คาบเช็คชื่อ”</Empty> : data.sessions.map((s) => {
+        <div className="section-title"><h2>เช็คชื่อ</h2>
+          {staff && date === todayISO() && <button className="btn primary sm" onClick={() => setCallup(true)}><Megaphone size={16} />เรียกรวมตอนนี้</button>}
+        </div>
+        {data.sessions.length === 0 ? <Empty>วันนี้ไม่มีคาบเช็คชื่อ — เพิ่มได้ที่แท็บ “คาบเช็คชื่อ” หรือกด “เรียกรวมตอนนี้”</Empty> : data.sessions.map((s) => {
           const eligible = data.students.filter((st) => s.nst_years.length === 0 || (st.nst_year != null && s.nst_years.includes(st.nst_year)));
           const mine = data.checkins.filter((c) => c.session_id === s.id);
           const count = (k: Attend) => mine.filter((c) => c.status === k).length;
@@ -107,14 +110,18 @@ function Today({ staff }: { staff: boolean }) {
           return (
             <div key={s.id} className="card nst-session">
               <button className="nst-session-head" onClick={() => setOpenSession(openSession === s.id ? null : s.id)} aria-expanded={openSession === s.id}>
-                <span><b>{s.title || KIND[s.kind]}</b><small>{hhmm(s.opens_at)}–{hhmm(s.closes_at)} · สายหลัง {hhmm(s.late_at)}</small></span>
+                <span><b>{s.title || KIND[s.kind]}</b><small>{s.kind === "callup"
+                  ? `เรียกรวม · เริ่ม ${hhmm(s.opens_at)}${closed ? ` · ปิด ${hhmm(s.closes_at)}` : " · ครูเช็คชื่อ"}`
+                  : `${hhmm(s.opens_at)}–${hhmm(s.closes_at)} · สายหลัง ${hhmm(s.late_at)}`}</small></span>
                 <span className="nst-counts">
                   <span className="chip ok">มา {count("present")}</span><span className="chip warn">สาย {count("late")}</span>
                   <span className="chip info">ลา {count("leave")}</span>
-                  <span className="chip bad">{closed ? "ขาด" : "ยังไม่รายงาน"} {count("absent") + missing}</span>
+                  <span className="chip bad">{closed ? "ขาด" : s.kind === "callup" ? "ยังไม่เช็ค" : "ยังไม่รายงาน"} {count("absent") + missing}</span>
                 </span>
               </button>
-              {staff && !closed && <SelfReportSwitch session={s} onChanged={load} />}
+              {staff && !closed && (s.kind === "callup"
+                ? <CallupActions session={s} missing={missing} onChanged={load} />
+                : <SelfReportSwitch session={s} onChanged={load} />)}
               {openSession === s.id && (
                 <AttendanceList session={s} students={eligible} checkins={mine} radius={radius} staff={staff} closed={closed} onChanged={load} />
               )}
@@ -129,7 +136,57 @@ function Today({ staff }: { staff: boolean }) {
           <DutyList duties={data.duties} studentById={studentById} postById={postById} radius={radius} staff={staff} onChanged={load} />
         )}
       </section>
+      {callup && <CallupForm onClose={() => setCallup(false)} onStarted={(id) => { setCallup(false); setOpenSession(id); load(); }} />}
     </>
+  );
+}
+
+/** เรียกรวมเฉพาะกิจ: ไม่มีกำหนดการ เริ่มทันที ครูเช็คเองเท่านั้น เลือกชั้นปีได้ (ไม่เลือก = ทุกชั้นปี) */
+function CallupForm({ onClose, onStarted }: { onClose: () => void; onStarted: (id: number) => void }) {
+  const [title, setTitle] = useState("");
+  const [years, setYears] = useState<number[]>([]);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  const start = async () => {
+    setBusy(true); setErr("");
+    const { data, error } = await supabase.rpc("nst_callup_start", { p_title: title, p_years: years });
+    setBusy(false);
+    if (error) setErr(errText(error)); else onStarted(Number(data));
+  };
+  return (
+    <Modal title="เรียกรวม นศท." onClose={onClose}>
+      <p className="muted small">เริ่มเช็คชื่อทันที ไม่มีเวลาสาย ครูเลือกสถานะของแต่ละคนเอง (นักเรียนไม่ต้องกดรายงานตัว)</p>
+      <Field label="เรื่อง (ไม่บังคับ)"><input value={title} maxLength={120} placeholder="เช่น เรียกรวมซ้อมพิธี" onChange={(e) => setTitle(e.target.value)} /></Field>
+      <Field label="ชั้นปี นศท." hint="ไม่เลือก = ทุกชั้นปี">
+        <span className="row wrap">{[1, 2, 3, 4, 5].map((y) => (
+          <label key={y} className="check"><input type="checkbox" checked={years.includes(y)} onChange={() => setYears(years.includes(y) ? years.filter((x) => x !== y) : [...years, y])} /> ปี {y}</label>
+        ))}</span>
+      </Field>
+      {err && <p className="error">{err}</p>}
+      <button className="btn primary big" disabled={busy} onClick={start}><Megaphone size={18} />{busy ? "กำลังเริ่ม…" : "เริ่มเช็คชื่อ"}</button>
+    </Modal>
+  );
+}
+
+/** ปุ่มของคาบเรียกรวม: เติมคนที่เหลือเป็น "มา" ครั้งเดียว · ปิดการเรียกรวม (ที่ยังไม่เช็คนับเป็นขาด) */
+function CallupActions({ session, missing, onChanged }: { session: Session; missing: number; onChanged: () => void }) {
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  const run = async (fn: () => PromiseLike<{ error: unknown }>) => {
+    setBusy(true); setErr("");
+    const { error } = await fn();
+    setBusy(false);
+    if (error) setErr(errText(error)); else onChanged();
+  };
+  const fill = () => { if (confirm(`ให้อีก ${missing} คนที่ยังไม่เช็คเป็น “มา” ทั้งหมด?`)) run(() => supabase.rpc("nst_callup_fill", { p_id: session.id, p_status: "present" })); };
+  const close = () => { if (confirm(missing ? `ปิดการเรียกรวม? อีก ${missing} คนที่ยังไม่เช็คจะนับเป็น “ขาด”` : "ปิดการเรียกรวม?")) run(() => supabase.rpc("nst_callup_close", { p_id: session.id })); };
+  return (
+    <div className="nst-self">
+      <span className="chip">ครูเป็นผู้เช็คชื่อ</span>
+      {missing > 0 && <button className="btn sm" disabled={busy} onClick={fill}>ที่เหลือ = มา</button>}
+      <button className="btn sm" disabled={busy} onClick={close}>ปิดการเรียกรวม</button>
+      {err && <span className="error">{err}</span>}
+    </div>
   );
 }
 
@@ -280,7 +337,7 @@ function Sessions({ staff }: { staff: boolean }) {
             <div key={s.id} className="nst-person">
               <span className="nst-person-text">
                 <b>{fmtDate(s.opens_at, { weekday: "short", day: "numeric", month: "short" })} · {s.title || KIND[s.kind]}</b>
-                <small>{hhmm(s.opens_at)}–{hhmm(s.closes_at)} · สายหลัง {hhmm(s.late_at)}{s.nst_years.length ? ` · ชั้นปี ${s.nst_years.join(", ")}` : ""} · {s.self_report ? "นศท. รายงานเองได้" : "ครูเช็คชื่อ"}</small>
+                <small>{s.kind === "callup" ? `เรียกรวม เริ่ม ${hhmm(s.opens_at)}` : `${hhmm(s.opens_at)}–${hhmm(s.closes_at)} · สายหลัง ${hhmm(s.late_at)}`}{s.nst_years.length ? ` · ชั้นปี ${s.nst_years.join(", ")}` : ""} · {s.self_report ? "นศท. รายงานเองได้" : "ครูเช็คชื่อ"}</small>
               </span>
               {staff && new Date(s.opens_at) > new Date() && <button className="btn sm" onClick={() => remove(s.id)}>ลบ</button>}
             </div>
@@ -330,7 +387,7 @@ function SessionForm({ mode, onClose, onSaved }: { mode: "one" | "weekly"; onClo
   return (
     <Modal title={mode === "weekly" ? "สร้างคาบทุกสัปดาห์" : "เพิ่มคาบเช็คชื่อ"} onClose={onClose}>
       <div className="row2">
-        <Field label="ประเภท"><select value={kind} onChange={(e) => changeKind(e.target.value as SessionKind)}>{(Object.keys(KIND) as SessionKind[]).map((k) => <option key={k} value={k}>{KIND[k]}</option>)}</select></Field>
+        <Field label="ประเภท"><select value={kind} onChange={(e) => changeKind(e.target.value as SessionKind)}>{PLANNED_KINDS.map((k) => <option key={k} value={k}>{KIND[k]}</option>)}</select></Field>
         <Field label="ชื่อคาบ"><input value={title} maxLength={120} onChange={(e) => setTitle(e.target.value)} /></Field>
       </div>
       {mode === "weekly" ? (

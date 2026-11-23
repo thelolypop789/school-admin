@@ -66,6 +66,7 @@ const ERRORS: Record<string, string> = {
   already: "รายงานตัวไปแล้ว",
   photo_required: "ต้องแนบรูปเซลฟี่ของตัวเอง",
   has_checkins: "คาบนี้มีการเช็คชื่อแล้ว ลบไม่ได้",
+  callup_teacher_only: "เรียกรวมครูเป็นผู้เช็คชื่อเท่านั้น เปิดให้ นศท. รายงานเองไม่ได้",
 };
 
 /** แปลง error จาก Supabase เป็นข้อความภาษาไทย */
