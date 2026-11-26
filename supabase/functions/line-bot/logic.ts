@@ -8,6 +8,7 @@ export const MOD = {
   car: { start: "#3fd6b8", end: "#0c9a86", ink: "#08715f", tint: "#e3f8f3" },
   fix: { start: "#ffb23f", end: "#f0611c", ink: "#b8430b", tint: "#fff1e4" },
   zone: { start: "#9bdc5a", end: "#3f8f1c", ink: "#2e6b12", tint: "#edf8e3" },
+  stay: { start: "#d58ae6", end: "#8a3fb8", ink: "#6b2a92", tint: "#f6eafb" },
 } as const;
 type Mod = (typeof MOD)[keyof typeof MOD];
 
@@ -415,4 +416,36 @@ export function cleanFailMessages(c: CleanFail | null, appUrl: string): { to: st
   if (!c || c.result !== "fail" || !c.line_ids?.length) return { to: [], messages: [] };
   const alt = `เขต ${c.class_name} ต้องปรับปรุง${c.note ? `: ${c.note}` : ""}`;
   return { to: [...new Set(c.line_ids)], messages: [flex(alt, cleanFailCard(c, appUrl))] };
+}
+
+// ================================================================ ห้องพักงานแข่งขัน
+/** ข้อมูลจาก RPC line_lodging_info เมื่อโรงเรียนขอที่พักทางหน้าสาธารณะ */
+export type LodgingNew = {
+  id: number; status: string; school_name: string; contact_name: string;
+  male_students: number; female_students: number; teachers: number; event_name: string;
+};
+
+/** การ์ดแจ้งฝ่ายจัดห้อง: โรงเรียนขอที่พักใหม่ → ปุ่มเปิดระบบจัดห้อง (ไม่ส่งเบอร์โทรเข้า LINE) */
+export function lodgingNewMessages(q: LodgingNew | null, appUrl: string): unknown[] {
+  if (!q || q.status !== "pending") return [];
+  const total = q.male_students + q.female_students + q.teachers;
+  const parts = [
+    q.male_students ? `ชาย ${q.male_students}` : "", q.female_students ? `หญิง ${q.female_students}` : "", q.teachers ? `ครู ${q.teachers}` : "",
+  ].filter(Boolean).join(" · ");
+  return [flex(`ขอที่พัก ${q.event_name}: ${q.school_name} ${total} คน`, {
+    type: "bubble", size: "mega",
+    header: headerBox(MOD.stay, `ขอที่พักใหม่ · ${q.event_name}`, q.school_name),
+    body: {
+      type: "box", layout: "vertical", spacing: "sm", paddingAll: "16px", contents: [
+        row("จำนวน", `${total} คน`),
+        row("แยกเป็น", parts || "-"),
+        row("ผู้ประสานงาน", q.contact_name),
+        BRAND_LINE,
+      ],
+    },
+    footer: {
+      type: "box", layout: "vertical", spacing: "sm", paddingAll: "12px",
+      contents: [{ type: "button", style: "primary", height: "sm", color: BURGUNDY, action: uriBtn("จัดห้องในระบบ", `${appUrl}/lodging`, "primary").action }],
+    },
+  })];
 }

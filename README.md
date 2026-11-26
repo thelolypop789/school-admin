@@ -31,6 +31,7 @@ Stack: React 19 + TypeScript + Vite, Supabase (Auth Google / Postgres + RLS / St
    - `20261126000100_clean_zones_seed.sql` — เขตเริ่มต้น 23 เขต (ม.1/1–ม.6/3) ไม่มีชื่อครู — ใส่ชื่อ/ผูกบัญชีครูในแอป (แท็บเขตทำความสะอาด → ตั้งค่าเขตนี้)
    - `20261128000000_nst.sql` — นศท. (นักเรียน/คาบเช็คชื่อ/เวรจราจร/แลกเวร, bucket `nst-photos`, บทบาท `nst_teacher`) ต้อง deploy edge function `nst-auth` (verify_jwt = false) และเปิด Email provider ใน Supabase Auth (ใช้ออก session ให้นักเรียน ไม่มีการส่งอีเมล)
    - `20261128000100_nst_purge_cron.sql` — pg_cron ลบรูปหลักฐาน นศท. ที่เก่ากว่า 30 วันทุกคืน
+   - `20261205000000_lodging.sql` — ห้องพักงานแข่งขัน (งาน `lodging_events`, ห้อง `lodging_rooms` อาคาร 3/4 รวม 590 ที่, คำขอ/การจัดห้อง, ตำแหน่งอาคารบนแผนที่ `lodging_buildings`) ต้อง deploy edge function `lodging-public` (verify_jwt = false) สำหรับหน้าสาธารณะ `/stay` และ deploy `line-bot` ใหม่ (แจ้งเตือนคำขอใหม่)
 3. `pongsarkon@wangluangpitt.ac.th` จะเป็น admin อัตโนมัติเมื่อล็อกอินครั้งแรก
 
 ### 2. ล็อกอิน Google

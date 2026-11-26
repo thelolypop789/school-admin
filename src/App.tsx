@@ -11,7 +11,7 @@ import { InstallButton } from "./components/Install";
 import { rolesLabel } from "./lib/roles";
 import { isNstViewer } from "./lib/nst";
 import { detectPlatform, externalBrowserUrl } from "./lib/install";
-import { CalendarDays, CarFront, Ellipsis, House, LogOut, Presentation, Settings, Shield, Sparkles, Toilet, UserPen, Wrench, type LucideIcon } from "lucide-react";
+import { BedDouble, CalendarDays, CarFront, Ellipsis, House, LogOut, Presentation, Settings, Shield, Sparkles, Toilet, UserPen, Wrench, type LucideIcon } from "lucide-react";
 import { navigate, usePath } from "./lib/router";
 import { MeContext } from "./lib/me";
 import Home from "./pages/Home";
@@ -24,6 +24,7 @@ const Facilities = lazy(() => import("./pages/Facilities"));
 const Inspect = lazy(() => import("./pages/Inspect"));
 const Admin = lazy(() => import("./pages/Admin"));
 const Nst = lazy(() => import("./pages/Nst"));
+const Lodging = lazy(() => import("./pages/Lodging"));
 
 // more = บนมือถือไม่มีที่พอในแถบล่าง ให้ไปอยู่ในเมนู "เพิ่มเติม"
 type NavItem = { path: string; label: string; long: string; icon: LucideIcon; mod: string; more?: boolean; show?: (p: Profile) => boolean };
@@ -36,6 +37,7 @@ const NAV: NavItem[] = [
   { path: "/zones", label: "เขตทำความสะอาด", long: "เขตทำความสะอาด", icon: Sparkles, mod: "c-zone", more: true },
   { path: "/calendar", label: "ปฏิทินงานฝ่าย", long: "ปฏิทินงานฝ่าย", icon: CalendarDays, mod: "c-ga", more: true },
   { path: "/toilets", label: "ห้องน้ำ", long: "ห้องน้ำ (สุขาดี มีความสุข)", icon: Toilet, mod: "c-wc", more: true },
+  { path: "/lodging", label: "ห้องพัก", long: "ห้องพักงานแข่งขัน", icon: BedDouble, mod: "c-stay", more: true },
   { path: "/nst", label: "นศท.", long: "นศท. เช็คชื่อ · เวรจราจร", icon: Shield, mod: "c-nst", more: true, show: (p) => isNstViewer(p) },
   { path: "/admin", label: "จัดการ", long: "จัดการระบบ", icon: Settings, mod: "c-ga", more: true, show: (p) => p.role === "admin" },
 ];
@@ -104,6 +106,7 @@ export default function App() {
   else if (path.startsWith("/facilities") || path.startsWith("/zones") || path.startsWith("/calendar")) page = <Facilities />;
   else if (path.startsWith("/admin") && me.role === "admin") page = <Admin />;
   else if (path.startsWith("/nst") && isNstViewer(me)) page = <Nst />;
+  else if (path.startsWith("/lodging")) page = <Lodging />;
   else page = <Home onEditProfile={openProfile} />;
 
   const signOut = () => supabase.auth.signOut();

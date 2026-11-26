@@ -127,5 +127,13 @@ t('clean: result changed → no send', L.cleanFailMessages({ ...cf, result: 'pas
 t('clean: no linked advisor → no send', L.cleanFailMessages({ ...cf, line_ids: [] }, 'x').to.length === 0 && L.cleanFailMessages(null, 'x').to.length === 0);
 t('clean: long note truncated', JSON.stringify(L.cleanFailCard({ ...cf, note: 'ก'.repeat(500) }, 'x')).length < 4000);
 
+
+// ห้องพักงานแข่งขัน: แจ้งฝ่ายจัดห้องเมื่อมีคำขอใหม่
+const lq = { id: 9, status: 'pending', school_name: 'โรงเรียนทดสอบ', contact_name: 'ครูสมชาย', male_students: 10, female_students: 12, teachers: 2, event_name: 'การแข่งขันปาริชาติ' };
+const lm = L.lodgingNewMessages(lq, 'https://app');
+t('lodging card: 1 message, total + link', lm.length === 1 && JSON.stringify(lm[0]).includes('24 คน') && JSON.stringify(lm[0]).includes('https://app/lodging?openExternalBrowser=1'));
+t('lodging card: no phone number', !JSON.stringify(lm[0]).includes('08'));
+t('lodging: not pending → nothing', L.lodgingNewMessages({ ...lq, status: 'cancelled' }, 'x').length === 0 && L.lodgingNewMessages(null, 'x').length === 0);
+
 console.log(`${n - bad}/${n} passed`);
 process.exit(bad ? 1 : 0);
