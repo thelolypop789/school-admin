@@ -99,6 +99,15 @@ async function notifyCleanFail(evt: { report_id: number }) {
   else await sendTo(to, messages);
 }
 
+async function notifyLodging(evt: { request_id: number }) {
+  const { data, error } = await sb.rpc("line_lodging_info", { p_request: evt.request_id });
+  if (error) console.error("lodgingInfo", error.message);
+  const messages = L.lodgingNewMessages((data as L.LodgingNew) ?? null, APP_URL);
+  if (!messages.length) return;
+  const to = [...new Set([...(await lineIdsOfRole("facilities_head")), ...(await lineIdsOfRole("admin"))])];
+  await sendTo(to, messages);
+}
+
 // ---------------------------------------------------------------- LINE webhook
 type LineEvent = {
   type: string; replyToken?: string; source?: { type: string; userId?: string };
@@ -197,6 +206,7 @@ Deno.serve(async (req) => {
       const evt = JSON.parse(body);
       if (evt.type === "repair_status") await notifyRepair(evt);
       else if (evt.type === "clean_fail") await notifyCleanFail(evt);
+      else if (evt.type === "lodging_new") await notifyLodging(evt);
       else await notify(evt);
     } catch (e) { console.error("notify", e); }
     return new Response("ok");

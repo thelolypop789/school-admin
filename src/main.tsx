@@ -8,6 +8,10 @@ import App from "./App.tsx";
 // eslint-disable-next-line react-refresh/only-export-components -- ไฟล์เริ่มต้น ไม่ใช้ fast refresh
 const StudentApp = lazy(() => import("./nst/StudentApp.tsx"));
 const isStudent = /^\/s(\/|$)/.test(window.location.pathname);
+// โรงเรียนที่มาแข่งขอที่พัก (/stay) — ไม่ต้องล็อกอิน คุยกับ edge function lodging-public เท่านั้น
+// eslint-disable-next-line react-refresh/only-export-components -- ไฟล์เริ่มต้น
+const StayApp = lazy(() => import("./stay/StayApp.tsx"));
+const isStay = /^\/stay(\/|$)/.test(window.location.pathname);
 
 // หลัง deploy ใหม่ หน้าที่เปิดค้างอยู่จะหา chunk เก่าไม่เจอ → reload ครั้งเดียว
 window.addEventListener("vite:preloadError", (event) => {
@@ -29,6 +33,7 @@ if (import.meta.env.PROD && "serviceWorker" in navigator) {
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    {isStudent ? <Suspense fallback={null}><StudentApp /></Suspense> : <App />}
+    {isStudent ? <Suspense fallback={null}><StudentApp /></Suspense>
+      : isStay ? <Suspense fallback={null}><StayApp /></Suspense> : <App />}
   </StrictMode>,
 );
