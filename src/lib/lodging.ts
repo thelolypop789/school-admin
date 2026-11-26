@@ -4,7 +4,19 @@ import { hasRole } from "./roles";
 /** ห้องพักงานแข่งขัน (เช่น ปาริชาติ): โรงเรียนขอเป็นจำนวนคน → ฝ่ายจัดห้องจัดลงห้อง → อนุมัติ */
 export type LodgingEvent = { id: number; slug: string; name: string; starts_on: string; ends_on: string; closes_at: string; note: string; active: boolean };
 /** ห้อง + ที่นั่งที่ใช้แล้วในงานนี้ (จาก lodging_occupancy / lodging_public_event) */
-export type RoomUse = { id: number; building: string; floor: number; name: string; capacity: number; approved: number; pending: number };
+/** locked = มีโรงเรียนเหมาห้อง (นักเรียนเกิน EXCLUSIVE_OVER คน) ที่เหลือ lock_extra ที่นับเป็นของโรงเรียนนั้น */
+export type RoomUse = { id: number; building: string; floor: number; name: string; capacity: number; approved: number; pending: number; locked?: boolean; lock_extra?: number; people?: Partial<Record<Kind, number>> };
+/** นักเรียนของโรงเรียนเดียวในห้องเกินเท่านี้ = เหมาห้อง โรงเรียนอื่นเข้าไม่ได้ (ตรงกับ lodging_allocate ใน DB) */
+export const EXCLUSIVE_OVER = 10;
+const isStudent = (k: Kind) => k !== "teacher";
+/** นักเรียน (ไม่นับครู) ในห้องจากรายการจัดห้อง */
+export const studentsIn = (list: Pick<Allocation, "room_id" | "people" | "kind">[], roomId: number) =>
+  list.filter((a) => a.room_id === roomId && isStudent(a.kind)).reduce((n, a) => n + a.people, 0);
+/** ที่ว่างให้คำขอหนึ่ง: ว่างจริง + ที่ของคำขอนี้เดิม (+ ที่ที่เหลือถ้าคำขอนี้เหมาห้องไว้เอง) */
+export function leftForRequest(r: RoomUse, mine: Allocation[]): number {
+  const own = mine.filter((a) => a.room_id === r.id).reduce((n, a) => n + a.people, 0);
+  return free(r) + own + (r.locked && studentsIn(mine, r.id) > EXCLUSIVE_OVER ? r.lock_extra ?? 0 : 0);
+}
 export type RoomRow = { id: number; building: string; floor: number; name: string; capacity: number; sort: number; active: boolean };
 export type ReqStatus = "pending" | "approved" | "rejected" | "cancelled";
 export type LodgingRequest = {
@@ -57,7 +69,8 @@ export function autoAllocate(
   req: Pick<LodgingRequest, "id" | "male_students" | "female_students" | "teachers">,
   rooms: RoomUse[], others: Allocation[], mine: Allocation[],
 ): Allocation[] {
-  const left = new Map(rooms.map((r) => [r.id, free(r) + mine.filter((a) => a.room_id === r.id).reduce((n, a) => n + a.people, 0)]));
+  const left = new Map(rooms.map((r) => [r.id, leftForRequest(r, mine)]));
+  const shared = new Set(others.map((a) => a.room_id)); // ห้องที่มีโรงเรียนอื่นอยู่ — ใส่นักเรียนได้ไม่เกิน EXCLUSIVE_OVER
   const kindsIn = new Map<number, Set<Kind>>();
   for (const a of others) { if (!kindsIn.has(a.room_id)) kindsIn.set(a.room_id, new Set()); kindsIn.get(a.room_id)!.add(a.kind); }
   const out: Allocation[] = [];
@@ -66,18 +79,26 @@ export function autoAllocate(
   for (const [kind, n0] of want) {
     let n = n0;
     while (n > 0) {
-      const cands = rooms.filter((r) => (left.get(r.id) ?? 0) > 0 && !out.some((a) => a.room_id === r.id && a.kind !== kind)).map((r) => {
+      // ห้องที่ใส่ได้จริงสำหรับคำขอนี้ (ห้องที่มีโรงเรียนอื่น: นักเรียนรวมของเราไม่เกิน EXCLUSIVE_OVER)
+      const cap = (r: RoomUse) => {
+        const l = left.get(r.id) ?? 0;
+        return isStudent(kind) && shared.has(r.id) ? Math.min(l, EXCLUSIVE_OVER - studentsIn(out, r.id)) : l;
+      };
+      const cands = rooms.filter((r) => cap(r) > 0 && !out.some((a) => a.room_id === r.id && a.kind !== kind)).map((r) => {
         const ks = kindsIn.get(r.id);
-        const compat = !ks || ks.size === 0 ? 1 : ks.size === 1 && ks.has(kind) ? 0 : 2; // 0 = คนประเภทเดียวกัน, 1 = ว่าง, 2 = มีคนอื่นปน
-        const fits = (left.get(r.id) ?? 0) >= n ? 0 : 1;
-        return { r, compat, sameB: buildings.size === 0 || buildings.has(r.building) ? 0 : 1, fits, left: left.get(r.id)! };
+        let compat = !ks || ks.size === 0 ? 1 : ks.size === 1 && ks.has(kind) ? 0 : 2; // 0 = คนประเภทเดียวกัน, 1 = ว่าง, 2 = มีคนอื่นปน
+        // นักเรียนกลุ่มใหญ่ (เกิน 10) เหมาห้องว่างก่อน ไม่ไปแทรกห้องที่มีโรงเรียนอื่น
+        if (isStudent(kind) && n > EXCLUSIVE_OVER && compat < 2) compat = 1 - compat;
+        const c = cap(r);
+        const fits = c >= n ? 0 : 1;
+        return { r, compat, sameB: buildings.size === 0 || buildings.has(r.building) ? 0 : 1, fits, left: c };
       }).filter((c) => c.compat < 2)
         .sort((a, b) => a.sameB - b.sameB || a.compat - b.compat || a.fits - b.fits || (a.fits ? b.left - a.left : a.left - b.left));
       const c = cands[0];
       if (!c) break; // ห้องไม่พอ — เหลือให้จัดเอง
       const take = Math.min(n, c.left);
       out.push({ request_id: req.id, room_id: c.r.id, people: take, kind });
-      left.set(c.r.id, c.left - take);
+      left.set(c.r.id, (left.get(c.r.id) ?? 0) - take);
       buildings.add(c.r.building);
       n -= take;
     }

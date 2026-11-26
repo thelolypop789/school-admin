@@ -5,6 +5,7 @@ import { byBuilding, free, KIND, REQ_STATUS, type Kind, type ReqStatus, type Roo
 import { fmtDate, fmtDateTime } from "../lib/time";
 import { Field } from "../components/ui";
 import { LodgingMap, type LodgingBuilding } from "../components/LodgingMap";
+import { PeopleLegend, RoomPeople } from "../components/RoomPeople";
 
 const URL_ = import.meta.env.VITE_SUPABASE_URL || "https://placeholder.supabase.co";
 const KEY = import.meta.env.VITE_SUPABASE_KEY || "placeholder";
@@ -82,11 +83,12 @@ function Availability({ rooms, buildings }: { rooms: RoomUse[]; buildings: Lodgi
             {b.floors.map((f) => (
               <div key={f.floor} className="stay-floor">
                 <small>ชั้น {f.floor}</small>
-                <div className="stay-rooms">
+                <div className="stay-tiles">
                   {f.rooms.map((r) => (
-                    <span key={r.id} className={`stay-room${free(r) === 0 ? " full" : ""}`} title={`ห้อง ${r.name} ว่าง ${free(r)} จาก ${r.capacity}`}>
-                      {r.name}<i>{free(r) === 0 ? "เต็ม" : `ว่าง ${free(r)}`}</i>
-                    </span>
+                    <div key={r.id} className={`stay-tile stay-room${free(r) === 0 ? " full" : ""}`}>
+                      <span className="stay-tile-head"><b>{r.name}</b><small>{free(r) === 0 ? "เต็ม" : `ว่าง ${free(r)}`}</small></span>
+                      <RoomPeople room={r} />
+                    </div>
                   ))}
                 </div>
               </div>
@@ -95,7 +97,8 @@ function Availability({ rooms, buildings }: { rooms: RoomUse[]; buildings: Lodgi
         );
       })}
       {bld && <button className="link" onClick={() => setBld(null)}>ดูทุกอาคาร</button>}
-      <p className="muted small">ฝ่ายอาคารสถานที่เป็นผู้จัดห้องให้ตามจำนวนคน (แยกนักเรียนชาย หญิง และครู) ตัวเลขนี้รวมคำขอที่รอจัดห้องแล้ว</p>
+      <PeopleLegend />
+      <p className="muted small">ฝ่ายอาคารสถานที่เป็นผู้จัดห้องให้ตามจำนวนคน (แยกนักเรียนชาย หญิง และครู) ตัวเลขนี้รวมคำขอที่รอจัดห้องแล้ว · ห้องที่โรงเรียนใดมีนักเรียนเกิน 10 คน ถือว่าเต็ม</p>
     </section>
   );
 }

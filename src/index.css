@@ -1265,3 +1265,25 @@ body:has(.nst-app) .modal .inline-ic { color: var(--nst-a); }
 .stay-map-legend i:first-child { margin-left: 0; }
 .stay-filter { justify-content: space-between; background: var(--t); color: var(--k); border-radius: 12px; padding: .45rem .8rem; margin: 0 0 .7rem; }
 .stay-avail .stay-map .campus3d { border-radius: 14px; }
+/* ห้องพัก: สติ๊กเกอร์รูปคนในแต่ละห้อง (1 รูป = 1 ที่) */
+:root { --pp-male: #2f78bf; --pp-female: #d6457a; --pp-teacher: #c98f10; --pp-mixed: #8a3fb8; --pp-free: #c9c5cf; --pp-lock: #b9b6bf; }
+@media (prefers-color-scheme: dark) { :root { --pp-free: #5b5763; --pp-lock: #6f6b77; --pp-male: #6aa7e8; --pp-female: #ec7ba3; --pp-teacher: #e6b23e; } }
+.stay-tile-head { display: flex; justify-content: space-between; align-items: baseline; gap: .3rem; }
+.stay-tile-head small { font-size: .74rem; color: var(--muted); }
+.stay-tile.full .stay-tile-head small { color: var(--k); font-weight: 700; }
+.room-people { display: grid; gap: 3px; }
+.pp-grid { display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 2px 1px; }
+.pp { width: 100%; max-width: 12px; height: auto; aspect-ratio: 12 / 16; justify-self: center; overflow: visible; }
+.pp circle, .pp path { stroke: var(--surface, #fff); stroke-width: 1.1; paint-order: stroke; }
+.pp.male { fill: var(--pp-male); } .pp.female { fill: var(--pp-female); } .pp.teacher { fill: var(--pp-teacher); } .pp.mixed { fill: var(--pp-mixed); }
+.pp.lock { fill: var(--pp-lock); opacity: .55; }
+.pp.free { fill: none; } .pp.free circle, .pp.free path { stroke: var(--pp-free); stroke-width: 1; }
+.pp-count { font-size: .74rem; color: var(--muted); }
+.pp-count b { color: var(--ink, inherit); font-size: .86rem; }
+.pp-legend { display: flex; flex-wrap: wrap; gap: .3rem .9rem; align-items: center; }
+.pp-legend span { display: inline-flex; align-items: center; gap: .25rem; }
+.pp-legend .pp { width: 10px; }
+.stay-avail .stay-tiles { grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); }
+.stay-avail .stay-room { display: grid; justify-items: stretch; font-weight: 400; color: inherit; background: var(--surface); box-shadow: inset 0 0 0 1px var(--line); padding: .45rem .5rem; text-decoration: none; min-width: 0; }
+.stay-avail .stay-room b { color: var(--k); }
+.stay-avail .stay-room.full { background: var(--t); box-shadow: none; text-decoration: none; }

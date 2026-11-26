@@ -6,11 +6,12 @@ import { useMe } from "../lib/me";
 import { useNotice } from "../lib/notice";
 import { fmtDate, fmtDateTime, toISO } from "../lib/time";
 import {
-  autoAllocate, byBuilding, free, isLodgingTeam, isLodgingViewer, KIND, REQ_STATUS, total,
+  autoAllocate, byBuilding, free, isLodgingTeam, leftForRequest, isLodgingViewer, KIND, REQ_STATUS, total,
   type Allocation, type Kind, type LodgingEvent, type LodgingRequest, type ReqStatus, type RoomRow, type RoomUse,
 } from "../lib/lodging";
 import { Empty, Field, Modal, ModuleHero } from "../components/ui";
 import { BuildingDrawer, LodgingMap, type LodgingBuilding } from "../components/LodgingMap";
+import { PeopleLegend, RoomPeople } from "../components/RoomPeople";
 
 type Tab = "rooms" | "requests" | "settings";
 const ERR: Record<string, string> = {
@@ -22,7 +23,9 @@ const ERR: Record<string, string> = {
 const lerr = (e: unknown) => {
   const m = errText(e);
   const full = m.match(/room_full:(.+)/);
-  if (full) return `ห้อง ${full[1]} ที่นั่งไม่พอ`;
+  if (full) return `ห้อง ${full[1]} ที่นั่งไม่พอ หรือมีโรงเรียนอื่นเหมาห้องแล้ว (นักเรียนเกิน 10 คน)`;
+  const shared = m.match(/room_shared:(.+)/);
+  if (shared) return `ห้อง ${shared[1]} มีโรงเรียนอื่นพักอยู่ ใส่นักเรียนของโรงเรียนนี้ได้ไม่เกิน 10 คน`;
   return Object.entries(ERR).find(([k]) => m.includes(k))?.[1] ?? m;
 };
 
@@ -130,9 +133,8 @@ export default function Lodging() {
                       const st = free(r) === 0 ? "full" : r.approved + r.pending === 0 ? "empty" : "part";
                       return (
                         <div key={r.id} className={`stay-tile ${st}`}>
-                          <b>{r.name}</b>
-                          <span className="stay-bar" aria-hidden><i className="a" style={{ width: `${(r.approved / r.capacity) * 100}%` }} /><i className="p" style={{ width: `${(r.pending / r.capacity) * 100}%` }} /></span>
-                          <small>{st === "full" ? "เต็ม" : st === "empty" ? `ว่าง ${r.capacity}` : `เหลือ ${free(r)} / ${r.capacity}`}</small>
+                          <span className="stay-tile-head"><b>{r.name}</b><small>{st === "full" ? "เต็ม" : `ว่าง ${free(r)}`}</small></span>
+                          <RoomPeople room={r} />
                           {viewer && schoolsIn(r.id).map(({ a, r: q }) => (
                             <small key={a.id} className={`stay-who${q.status === "pending" ? " p" : ""}`}>{q.school_name} · {KIND[a.kind]} {a.people}</small>
                           ))}
@@ -144,7 +146,8 @@ export default function Lodging() {
               ))}
             </div>
           ))}
-          <p className="muted small stay-legend"><i className="a" /> จัดแล้ว (อนุมัติ) <i className="p" /> จัดไว้ รออนุมัติ</p>
+          <PeopleLegend />
+          {viewer && <p className="muted small">ชื่อโรงเรียนตัวเอียง = จัดห้องไว้แล้ว ยังรออนุมัติ</p>}
         </section>
       ))}
 
@@ -224,7 +227,7 @@ function RequestModal({ event, req, rooms, allocs, reqs, team, onClose, onChange
   const others = allocs.filter((a) => req && a.request_id !== req.id && live.has(a.request_id));
   // ที่ว่างให้คำขอนี้ = ว่างจริง + ที่ของคำขอนี้เดิม
   const room = (id: number) => rooms.find((r) => r.id === id);
-  const leftFor = (id: number) => { const r = room(id); return r ? free(r) + mine.filter((a) => a.room_id === id).reduce((s, a) => s + a.people, 0) : 0; };
+  const leftFor = (id: number) => { const r = room(id); return r ? leftForRequest(r, mine) : 0; };
   const planned = lines.reduce((s, l) => s + (l.people || 0), 0);
   const need = req ? total(req) : 0;
   const editable = team && req && (req.status === "pending" || req.status === "approved");
