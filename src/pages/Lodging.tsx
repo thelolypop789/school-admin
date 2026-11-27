@@ -6,7 +6,7 @@ import { useMe } from "../lib/me";
 import { useNotice } from "../lib/notice";
 import { fmtDate, fmtDateTime, toISO } from "../lib/time";
 import {
-  autoAllocate, byBuilding, free, isLodgingTeam, leftForRequest, isLodgingViewer, KIND, REQ_STATUS, total,
+  autoAllocate, byBuilding, closesLabel, free, missingInfo, isLodgingTeam, leftForRequest, isLodgingViewer, KIND, REQ_STATUS, total,
   type Allocation, type Kind, type LodgingEvent, type LodgingRequest, type ReqStatus, type RoomRow, type RoomUse,
 } from "../lib/lodging";
 import { Empty, Field, Modal, ModuleHero } from "../components/ui";
@@ -22,6 +22,7 @@ const ERR: Record<string, string> = {
   note_required: "ใส่เหตุผลที่ไม่อนุมัติ (โรงเรียนจะเห็น)",
   not_pending: "คำขอนี้ถูกพิจารณาไปแล้ว",
   venue_full: "ที่พักนั้นรับเพิ่มไม่พอสำหรับคำขอนี้",
+  nothing_to_refer: "จัดห้องในโรงเรียนครบทุกคนแล้ว ไม่มีส่วนที่ต้องส่งต่อ",
 };
 const lerr = (e: unknown) => {
   const m = errText(e);
@@ -101,7 +102,7 @@ export default function Lodging() {
   return (
     <div className="c-stay">
       <ModuleHero mod="c-stay" icon={BedDouble} title={ev?.name ?? "ห้องพักงานแข่งขัน"}
-        desc={ev ? `${fmtDate(ev.starts_on, { day: "numeric", month: "short" })} – ${fmtDate(ev.ends_on, { day: "numeric", month: "short", year: "numeric" })} · โรงเรียนขอที่พักได้ถึง ${fmtDateTime(ev.closes_at)} น.` : "ยังไม่มีงาน"}
+        desc={ev ? `${fmtDate(ev.starts_on, { day: "numeric", month: "short" })} – ${fmtDate(ev.ends_on, { day: "numeric", month: "short", year: "numeric" })} · โรงเรียนขอที่พักได้ถึง ${closesLabel(ev.closes_at)}` : "ยังไม่มีงาน"}
         stats={ev ? [
           { n: `${approved}/${cap}`, label: "ที่นั่งจัดแล้ว" },
           { n: viewer ? waiting.length : rooms.reduce((n, r) => n + r.pending, 0), label: viewer ? "คำขอรอจัดห้อง" : "คนรอจัดห้อง" },
@@ -199,8 +200,10 @@ export default function Lodging() {
 function Requests({ reqs, allocs, rooms, venues, team, onOpen }: {
   reqs: LodgingRequest[]; allocs: Allocation[]; rooms: RoomUse[]; venues: Venue[]; team: boolean; onOpen: (id: number) => void;
 }) {
-  const [filter, setFilter] = useState<ReqStatus | "all">("pending");
-  const shown = reqs.filter((r) => filter === "all" || r.status === filter);
+  const [filter, setFilter] = useState<ReqStatus | "all" | "missing">("pending");
+  const live = (r: LodgingRequest) => r.status === "pending" || r.status === "approved";
+  const missing = reqs.filter((r) => live(r) && missingInfo(r).length > 0);
+  const shown = filter === "missing" ? missing : reqs.filter((r) => filter === "all" || r.status === filter);
   const count = (s: ReqStatus) => reqs.filter((r) => r.status === s).length;
   const roomName = (id: number) => rooms.find((r) => r.id === id)?.name ?? "?";
   return (
@@ -208,6 +211,7 @@ function Requests({ reqs, allocs, rooms, venues, team, onOpen }: {
       <div className="tabs scroll">
         <button className={filter === "pending" ? "on" : ""} onClick={() => setFilter("pending")}>รอจัดห้อง{count("pending") > 0 && <span className="badge">{count("pending")}</span>}</button>
         <button className={filter === "approved" ? "on" : ""} onClick={() => setFilter("approved")}>อนุมัติแล้ว {count("approved")}</button>
+        {missing.length > 0 && <button className={filter === "missing" ? "on" : ""} onClick={() => setFilter("missing")}>ต้องตามข้อมูล<span className="badge warn">{missing.length}</span></button>}
         <button className={filter === "all" ? "on" : ""} onClick={() => setFilter("all")}>ทั้งหมด {reqs.length}</button>
       </div>
       {shown.length === 0 ? <Empty>{filter === "pending" ? "ไม่มีคำขอรอจัดห้อง" : "ยังไม่มีคำขอ"}</Empty> : (
@@ -220,7 +224,8 @@ function Requests({ reqs, allocs, rooms, venues, team, onOpen }: {
                 <span className="nst-person-text">
                   <b>{r.school_name}</b>
                   <small>{total(r)} คน (ชาย {r.male_students} · หญิง {r.female_students} · ครู {r.teachers}) · {r.contact_name}{r.source === "staff" ? " · บันทึกแทน" : ""}</small>
-                  {r.venue_id && <small>ส่งต่อไปพักที่ {venues.find((v) => v.id === r.venue_id)?.name ?? "ที่พักเครือข่าย"}</small>}
+                  {live(r) && missingInfo(r).length > 0 && <small className="stay-missing">ข้อมูลไม่ครบ: {missingInfo(r).join(" · ")}</small>}
+                  {r.venue_id && <small>ส่งต่อ {r.venue_people ?? total(r)} คนไปพักที่ {venues.find((v) => v.id === r.venue_id)?.name ?? "ที่พักเครือข่าย"}</small>}
                   {mine.length > 0 && <small>ห้อง {[...new Set(mine.map((a) => roomName(a.room_id)))].join(", ")}{r.status === "pending" ? ` · จัดแล้ว ${got}/${total(r)}` : ""}</small>}
                 </span>
                 <span className={`chip ${REQ_STATUS[r.status].tone}`}>{REQ_STATUS[r.status].label}</span>
@@ -257,6 +262,8 @@ function RequestModal({ event, req, rooms, allocs, reqs, venues, team, onClose, 
   const room = (id: number) => rooms.find((r) => r.id === id);
   const leftFor = (id: number) => { const r = room(id); return r ? leftForRequest(r, mine) : 0; };
   const planned = lines.reduce((s, l) => s + (l.people || 0), 0);
+  const saved = mine.reduce((s, a) => s + a.people, 0);
+  const vp = req?.venue_people ?? 0;
   const need = req ? total(req) : 0;
   const editable = team && req && (req.status === "pending" || req.status === "approved");
 
@@ -277,7 +284,7 @@ function RequestModal({ event, req, rooms, allocs, reqs, venues, team, onClose, 
   };
   const saveAlloc = () => run(() => supabase.rpc("lodging_allocate", { p_request: req!.id, p_rows: lines.filter((l) => l.people > 0) }), "บันทึกการจัดห้องแล้ว", false);
   const approve = async () => {
-    if (planned !== need) { setErr(`จัดห้องแล้ว ${planned} จาก ${need} คน ต้องครบก่อนอนุมัติ`); return; }
+    if (planned + vp !== need) { setErr(`จัดแล้ว ${planned + vp} จาก ${need} คน ต้องครบก่อนอนุมัติ — จัดห้องเพิ่ม หรือบันทึกแล้วส่งต่อส่วนที่เหลือไปที่พักเครือข่าย`); return; }
     if (await saveAlloc()) await run(() => supabase.rpc("lodging_decide", { p_request: req!.id, p_action: "approve", p_note: note || null }), "อนุมัติแล้ว");
   };
 
@@ -311,13 +318,8 @@ function RequestModal({ event, req, rooms, allocs, reqs, venues, team, onClose, 
       )}
 
       {req && (req.status === "pending" || req.status === "approved") && (
-        <Refer req={req} venues={venues} team={team} need={need} busy={busy}
-          onRefer={(venue, msg) => run(() => supabase.rpc("lodging_refer", { p_request: req.id, p_venue: venue, p_note: note || null }), msg, venue != null)} />
-      )}
-
-      {req && !req.venue_id && (req.status === "pending" || req.status === "approved") && (
         <div className="zone-block">
-          <h4>จัดห้อง · {planned}/{need} คน</h4>
+          <h4>จัดห้องในโรงเรียน · {planned} คน{vp ? ` · ส่งต่อ ${vp} คน` : ""} · รวม {planned + vp}/{need}</h4>
           {lines.length === 0 && <p className="muted small">ยังไม่ได้จัดห้อง{editable ? " — กด “จัดให้อัตโนมัติ” หรือเพิ่มทีละห้อง" : ""}</p>}
           {lines.map((l, i) => (
             <div key={i} className="stay-line">
@@ -345,13 +347,18 @@ function RequestModal({ event, req, rooms, allocs, reqs, venues, team, onClose, 
         </div>
       )}
 
-      {editable && !req!.venue_id && (
+      {req && (req.status === "pending" || req.status === "approved") && (
+        <Refer req={req} venues={venues} team={team} rest={need - saved} unsaved={planned !== saved} busy={busy}
+          onRefer={(venue, msg) => run(() => supabase.rpc("lodging_refer", { p_request: req.id, p_venue: venue, p_note: note || null }), msg, venue != null)} />
+      )}
+
+      {editable && (
         <div className="zone-block act">
           <Field label={req!.status === "pending" ? "หมายเหตุถึงโรงเรียน (ไม่อนุมัติ = ต้องใส่)" : "หมายเหตุ (ถ้ายกเลิก)"}>
             <input value={note} onChange={(e) => setNote(e.target.value)} maxLength={500} placeholder="เช่น ห้องเต็มแล้ว / เข้าพักได้ตั้งแต่ 16:00" />
           </Field>
           <div className="row wrap">
-            {req!.status === "pending" && <button className="btn primary" disabled={busy} onClick={approve}>อนุมัติ ({planned}/{need} คน)</button>}
+            {req!.status === "pending" && <button className="btn primary" disabled={busy} onClick={approve}>อนุมัติ ({planned + vp}/{need} คน)</button>}
             {req!.status === "pending" && <button className="btn" disabled={busy} onClick={() => saveAlloc()}>บันทึกการจัดห้องไว้ก่อน</button>}
             {req!.status === "pending" && <button className="btn danger" disabled={busy} onClick={() => run(() => supabase.rpc("lodging_decide", { p_request: req!.id, p_action: "reject", p_note: note }), "ไม่อนุมัติแล้ว")}>ไม่อนุมัติ</button>}
             {req!.status === "approved" && <button className="btn danger" disabled={busy} onClick={() => { if (confirm(`ยกเลิกที่พักของ ${req!.school_name}? ห้องจะว่างให้โรงเรียนอื่น`)) run(() => supabase.rpc("lodging_decide", { p_request: req!.id, p_action: "cancel", p_note: note }), "ยกเลิกแล้ว"); }}>ยกเลิกที่พัก</button>}
@@ -501,27 +508,30 @@ function RoomForm({ room, onClose, onSaved }: { room: RoomRow | null; onClose: (
 }
 
 /** ส่งต่อคำขอไปพักที่เครือข่าย (เมื่อห้องในโรงเรียนไม่พอ) / ยกเลิกการส่งต่อ */
-function Refer({ req, venues, team, need, busy, onRefer }: {
-  req: LodgingRequest; venues: Venue[]; team: boolean; need: number; busy: boolean;
+/** ส่งต่อ "ส่วนที่เหลือ" (คนทั้งหมด − ที่บันทึกจัดห้องในโรงเรียนแล้ว) ไปที่พักเครือข่าย / ยกเลิกการส่งต่อ */
+function Refer({ req, venues, team, rest, unsaved, busy, onRefer }: {
+  req: LodgingRequest; venues: Venue[]; team: boolean; rest: number; unsaved: boolean; busy: boolean;
   onRefer: (venue: number | null, msg: string) => void;
 }) {
   const options = venues.filter((v) => !v.is_home && v.status === "confirmed");
   const current = venues.find((v) => v.id === req.venue_id);
-  const fits = (v: Venue) => { const l = venueLeft(v); return l == null || l + (v.id === req.venue_id ? need : 0) >= need; };
+  const fits = (v: Venue) => { const l = venueLeft(v); return l == null || l + (v.id === req.venue_id ? req.venue_people ?? 0 : 0) >= rest; };
   const [pick, setPick] = useState<number | "">(options.find(fits)?.id ?? "");
   if (current) {
     return (
       <div className="zone-block refer on">
-        <h4><Send size={16} /> ส่งต่อไปพักที่ {current.name}</h4>
+        <h4><Send size={16} /> ส่งต่อ {req.venue_people ?? rest} คนไปพักที่ {current.name}</h4>
         <p className="muted small">{[VENUE_CAT[current.category], current.distance_km != null && `${current.distance_km} กม.`, current.contact, current.phone1].filter(Boolean).join(" · ")}</p>
-        {team && <button className="btn sm" disabled={busy} onClick={() => onRefer(null, "ยกเลิกการส่งต่อแล้ว คำขอกลับไปรอจัดห้อง")}><Undo2 size={16} />ยกเลิกการส่งต่อ (กลับไปจัดห้องในโรงเรียน)</button>}
+        {team && <button className="btn sm" disabled={busy} onClick={() => onRefer(null, "ยกเลิกการส่งต่อแล้ว คำขอกลับไปรอจัดห้อง")}><Undo2 size={16} />ยกเลิกการส่งต่อ (กลับไปรอจัดห้อง)</button>}
       </div>
     );
   }
-  if (!team || options.length === 0) return null;
+  if (!team || options.length === 0 || rest <= 0) return null;
+  const all = rest === total(req);
   return (
     <div className="zone-block refer">
-      <h4><Send size={16} /> หรือส่งต่อไปที่พักเครือข่าย</h4>
+      <h4><Send size={16} /> {all ? "หรือส่งต่อทั้งหมดไปที่พักเครือข่าย" : `ห้องไม่พอ? ส่งต่อ ${rest} คนที่เหลือไปที่พักเครือข่าย`}</h4>
+      {unsaved && <p className="stay-over">มีการจัดห้องที่ยังไม่บันทึก — กด "บันทึกการจัดห้องไว้ก่อน" ระบบจะส่งต่อเฉพาะคนที่ยังไม่ได้ห้อง</p>}
       <div className="row wrap">
         <select value={pick} onChange={(e) => setPick(e.target.value ? Number(e.target.value) : "")} aria-label="ที่พักเครือข่าย">
           <option value="">เลือกที่พัก…</option>
@@ -530,9 +540,9 @@ function Refer({ req, venues, team, need, busy, onRefer }: {
             return <option key={v.id} value={v.id} disabled={!fits(v)}>{v.name}{v.distance_km != null ? ` (${v.distance_km} กม.)` : ""} · {l == null ? "ไม่ระบุจำนวน" : `ว่าง ${l}`}</option>;
           })}
         </select>
-        <button className="btn sm primary" disabled={busy || pick === ""} onClick={() => pick !== "" && onRefer(pick, "ส่งต่อแล้ว โรงเรียนเห็นที่พักและเบอร์ติดต่อในลิงก์ติดตามผล")}>ส่งต่อไปพักที่นี่</button>
+        <button className="btn sm primary" disabled={busy || pick === "" || unsaved} onClick={() => pick !== "" && onRefer(pick, "ส่งต่อแล้ว โรงเรียนเห็นที่พักและเบอร์ติดต่อในลิงก์ติดตามผล")}>ส่งต่อ {rest} คนไปพักที่นี่</button>
       </div>
-      <p className="muted small">อนุมัติทันที ห้องที่จัดไว้ในโรงเรียน (ถ้ามี) จะว่างคืน · โรงเรียนเห็นชื่อที่พัก ผู้ประสานงาน เบอร์โทร และปุ่มนำทางในลิงก์ติดตามผล</p>
+      <p className="muted small">อนุมัติทันที · {all ? "" : "ห้องที่จัดในโรงเรียนยังอยู่ครบ · "}โรงเรียนเห็นชื่อที่พัก ผู้ประสานงาน เบอร์โทร และปุ่มนำทางในลิงก์ติดตามผล</p>
     </div>
   );
 }

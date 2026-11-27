@@ -4,6 +4,7 @@
 //   { action: "submit", slug, school, contact, phone, male, female, teachers, note, website }  ขอที่พัก → รหัสติดตาม
 //   { action: "status", ref }                  สถานะ + ห้องที่ได้ (เมื่ออนุมัติ)
 //   { action: "cancel", ref }                  ยกเลิกคำขอที่ยังรอพิจารณา
+//   { action: "find", school, phone }          ลิงก์หาย: ค้นคำขอด้วยชื่อโรงเรียน + เบอร์โทร
 // กันสแปม: ช่อง website ต้องว่าง (honeypot), จำกัด 6 คำขอ/ชม. ต่อ IP (เก็บแค่ hash) + 120 คำขอ/ชม. ต่องาน ใน DB
 import { createClient } from "npm:@supabase/supabase-js@2";
 
@@ -72,6 +73,15 @@ Deno.serve(async (req) => {
     });
     if (error) return fail(error.message);
     return json({ ref: data }, 200, origin);
+  }
+
+  // ลิงก์ติดตามหาย: ค้นด้วยชื่อโรงเรียน + เบอร์โทรที่ใช้ตอนขอ (ต้องตรงทั้งคู่ · 20 ครั้ง/ชม./IP)
+  if (b.action === "find") {
+    const school = str(b.school, 120), phone = str(b.phone, 20).replace(/\D/g, "");
+    if (school.length < 2 || !/^0\d{8,9}$/.test(phone)) return json({ error: "bad_request" }, 400, origin);
+    const { data, error } = await sb.rpc("lodging_public_find", { p_ip_hash: await ipHash(req), p_school: school, p_phone: phone });
+    if (error) return fail(error.message);
+    return json({ items: data ?? [] }, 200, origin);
   }
 
   if (b.action === "status" || b.action === "cancel") {

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { BedDouble, Check, Copy, MapPinned, Navigation, Phone } from "lucide-react";
 import { LOGO, SCHOOL_NAME } from "../lib/brand";
-import { byBuilding, free, GEO_NOTE, KIND, mapsUrl, REQ_STATUS, telHref, VENUE_CAT, type Kind, type ReqStatus, type RoomUse, type Venue } from "../lib/lodging";
+import { byBuilding, closesLabel, free, GEO_NOTE, KIND, mapsUrl, REQ_STATUS, telHref, VENUE_CAT, type Kind, type ReqStatus, type RoomUse, type Venue } from "../lib/lodging";
 import { NearbyVenues } from "../components/NearbyVenues";
 import { fmtDate, fmtDateTime } from "../lib/time";
 import { Field } from "../components/ui";
@@ -18,13 +18,14 @@ type Status = {
   note: string | null; decision_note: string | null; created_at: string;
   event: { name: string; slug: string; starts_on: string; ends_on: string; note: string };
   rooms: { building: string; floor: number; name: string; people: number; kind: Kind }[];
-  venue?: Pick<Venue, "name" | "category" | "contact" | "phone1" | "phone2" | "subdistrict" | "district" | "distance_km" | "lat" | "lng" | "geo_precision"> | null;
+  venue?: (Pick<Venue, "name" | "category" | "contact" | "phone1" | "phone2" | "subdistrict" | "district" | "distance_km" | "lat" | "lng" | "geo_precision"> & { people?: number }) | null;
 };
 const ERR: Record<string, string> = {
   not_found: "ไม่พบงานหรือคำขอนี้",
   closed: "ปิดรับคำขอที่พักแล้ว",
   rate_limited: "ส่งคำขอถี่เกินไป รอสักครู่แล้วลองใหม่",
   not_pending: "คำขอนี้ได้รับการพิจารณาแล้ว ยกเลิกเองไม่ได้ ติดต่อฝ่ายอาคารสถานที่",
+  find_bad: "ใส่ชื่อโรงเรียนและเบอร์โทรที่ใช้ตอนขอที่พัก",
   bad_request: "กรอกข้อมูลให้ครบ (เบอร์โทร 9–10 หลัก และจำนวนคนอย่างน้อย 1)",
   server_error: "ระบบขัดข้อง ลองใหม่อีกครั้ง",
 };
@@ -117,6 +118,8 @@ function RequestView() {
   }, [slug]);
   const n = (v: string) => Math.max(0, Math.floor(Number(v) || 0));
   const sum = n(f.male) + n(f.female) + n(f.teachers);
+  const left = ev ? ev.rooms.reduce((x, r) => x + free(r), 0) : 0;
+  const network = ev?.venues?.filter((v) => v.status === "confirmed" && !v.is_home).length ?? 0;
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -140,12 +143,13 @@ function RequestView() {
       <section className="mhero c-stay">
         <BedDouble size={64} strokeWidth={1.5} className="mh-ic" aria-hidden />
         <h1>{ev.name}</h1>
-        <p>{days(ev)} · {ev.open ? `รับคำขอถึง ${fmtDateTime(ev.closes_at)} น.` : "ปิดรับคำขอแล้ว"}</p>
+        <p>{days(ev)} · {ev.open ? `รับคำขอถึง ${closesLabel(ev.closes_at)}` : "ปิดรับคำขอแล้ว"}</p>
         {ev.note && <p>{ev.note}</p>}
       </section>
       {ev.open ? (
         <form className="card form stay-form" onSubmit={submit}>
           <h2>กรอกคำขอที่พัก</h2>
+          <p className={`stay-left${left === 0 ? " none" : ""}`}>{left > 0 ? <>ห้องในโรงเรียนว่างอีก <b>{left} ที่</b></> : <>ห้องในโรงเรียน<b>เต็มแล้ว</b></>}{network > 0 && <> · มีที่พักรอบโรงเรียนรับแล้วอีก {network} แห่ง</>}</p>
           <Field label="ชื่อโรงเรียน"><input id="stay-school" value={f.school} onChange={set("school")} required minLength={2} maxLength={120} /></Field>
           <div className="row2">
             <Field label="ครูผู้ประสานงาน"><input id="stay-contact" value={f.contact} onChange={set("contact")} required minLength={2} maxLength={80} autoComplete="name" /></Field>
@@ -159,6 +163,9 @@ function RequestView() {
           <Field label="หมายเหตุ (ถ้ามี)"><textarea id="stay-note" rows={2} value={f.note} onChange={set("note")} maxLength={500} placeholder="เช่น มาถึงเย็นวันที่ 24" /></Field>
           <input className="hp" tabIndex={-1} autoComplete="off" aria-hidden value={f.website} onChange={set("website")} name="website" />
           {err && <p className="error">{err}</p>}
+          {sum > left && (
+            <p className="stay-over" role="status">ขอ {sum} คน {left > 0 ? `แต่ในโรงเรียนว่าง ${left} ที่` : "แต่ห้องในโรงเรียนเต็มแล้ว"} — ส่งคำขอได้ตามปกติ ฝ่ายอาคารสถานที่จะจัดในโรงเรียนเท่าที่ได้ ส่วนที่เหลือจัดให้ที่<button type="button" className="link" onClick={() => go("/stay/near")}>ที่พักรอบโรงเรียน</button>และแจ้งในลิงก์ติดตามผล</p>
+          )}
           <button type="submit" className="btn primary big" disabled={busy}>{busy ? "กำลังส่ง…" : `ส่งคำขอที่พัก ${sum ? `${sum} คน` : ""}`}</button>
           <p className="muted small">ที่พักฟรี ไม่ต้องโอนเงิน · หลังส่งจะได้ลิงก์ติดตามผล เก็บไว้ดูว่าได้ห้องไหน</p>
         </form>
@@ -175,13 +182,44 @@ function RequestView() {
   );
 }
 
+type Found = { ref: string; school_name: string; status: ReqStatus; created_at: string; event_name: string };
+/** คำขอของฉัน: ที่จำไว้ในเครื่องนี้ + ค้นด้วยชื่อโรงเรียนและเบอร์โทร (กรณีลิงก์หาย/เปลี่ยนเครื่อง) */
 function MyRequests() {
   const refs = savedRefs();
-  if (!refs.length) return null;
+  const [f, setF] = useState({ school: "", phone: "" });
+  const [found, setFound] = useState<Found[] | null>(null);
+  const [err, setErr] = useState("");
+  const [busy, setBusy] = useState(false);
+  const find = async (e: React.FormEvent) => {
+    e.preventDefault(); setErr("");
+    if (f.school.trim().length < 2 || !/^0\d{8,9}$/.test(f.phone.replace(/\D/g, ""))) { setErr(ERR.find_bad); return; }
+    setBusy(true);
+    try { setFound((await call<{ items: Found[] }>({ action: "find", school: f.school, phone: f.phone })).items); }
+    catch (e2) { setErr((e2 as Error).message); } finally { setBusy(false); }
+  };
   return (
-    <section className="card">
-      <h2>คำขอที่ส่งจากเครื่องนี้</h2>
-      {refs.map((r) => <button key={r.ref} className="link stay-myref" onClick={() => go(`/stay/${r.ref}`)}>{r.school} · {r.ref}</button>)}
+    <section className="card stay-mine">
+      <h2>ติดตามคำขอของฉัน</h2>
+      {refs.length > 0 && (
+        <div className="stay-mine-list">
+          <small className="muted">คำขอที่ส่งจากเครื่องนี้</small>
+          {refs.map((r) => <button key={r.ref} className="link stay-myref" onClick={() => go(`/stay/${r.ref}`)}>{r.school} · {r.ref}</button>)}
+        </div>
+      )}
+      <form className="stay-find" onSubmit={find}>
+        <small className="muted">ลิงก์หายหรือส่งจากเครื่องอื่น? ค้นด้วยชื่อโรงเรียนและเบอร์โทรที่ใช้ตอนขอ</small>
+        <div className="row2">
+          <Field label="ชื่อโรงเรียน"><input id="find-school" value={f.school} onChange={(e) => setF({ ...f, school: e.target.value })} maxLength={120} /></Field>
+          <Field label="เบอร์โทร"><input id="find-phone" value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} inputMode="tel" maxLength={20} /></Field>
+        </div>
+        <button type="submit" className="btn" disabled={busy}>{busy ? "กำลังค้นหา…" : "ค้นหาคำขอ"}</button>
+        {err && <p className="error">{err}</p>}
+        {found && (found.length === 0 ? <p className="muted">ไม่พบคำขอที่ตรงกับชื่อโรงเรียนและเบอร์นี้</p> : found.map((x) => (
+          <button key={x.ref} type="button" className="link stay-myref" onClick={() => { saveRef(x.ref, x.school_name); go(`/stay/${x.ref}`); }}>
+            {x.school_name} · {REQ_STATUS[x.status].label} · ส่งเมื่อ {fmtDateTime(x.created_at)}
+          </button>
+        )))}
+      </form>
     </section>
   );
 }
@@ -215,23 +253,23 @@ function StatusView({ refCode }: { refCode: string }) {
           <dt>ผู้ประสานงาน</dt><dd>{s.contact_name}</dd><dt>ส่งเมื่อ</dt><dd>{fmtDateTime(s.created_at)}</dd>
         </dl>
         {s.decision_note && <p><b>หมายเหตุจากฝ่ายจัดห้อง:</b> {s.decision_note}</p>}
+        {s.status === "approved" && s.rooms.length > 0 && (
+          <div className="stay-got">
+            <h2><Check size={20} /> {s.venue ? "ห้องในโรงเรียนวังหลวงพิทยาสรรพ์" : "ห้องที่ได้"}</h2>
+            {s.rooms.map((r, i) => <p key={i}><b>{r.building} ห้อง {r.name}</b> (ชั้น {r.floor}) · {KIND[r.kind]} {r.people} คน</p>)}
+            {s.event.note && <p className="muted small">{s.event.note}</p>}
+          </div>
+        )}
         {s.status === "approved" && s.venue && (
           <div className="stay-got">
-            <h2><Check size={20} /> ที่พักที่ได้: {s.venue.name}</h2>
+            <h2><Check size={20} /> {s.rooms.length ? `ส่วนที่เหลือ ${s.venue.people ?? ""} คน พักที่` : "ที่พักที่ได้:"} {s.venue.name}</h2>
             <p>{[VENUE_CAT[s.venue.category], s.venue.distance_km != null ? `ห่างจากโรงเรียนวังหลวงพิทยาสรรพ์ ${s.venue.distance_km} กม.` : "", s.venue.subdistrict && `ต.${s.venue.subdistrict}`, s.venue.district && `อ.${s.venue.district}`].filter(Boolean).join(" · ")}</p>
             {s.venue.contact && <p>ผู้ประสานงาน: {s.venue.contact}</p>}
             <div className="row wrap">
               {[s.venue.phone1, s.venue.phone2].filter(Boolean).map((p) => <a key={p} className="btn sm" href={telHref(p!)}><Phone size={14} />{p}</a>)}
               <a className="btn sm" href={mapsUrl({ ...s.venue, province: null })} target="_blank" rel="noreferrer"><Navigation size={14} />นำทาง</a>
             </div>
-            {GEO_NOTE[s.venue.geo_precision] && <p className="muted small">ปุ่มนำทางค้นหาจากชื่อสถานที่ ({GEO_NOTE[s.venue.geo_precision]}) โทรถามทางก่อนเดินทาง</p>}
-          </div>
-        )}
-        {s.status === "approved" && !s.venue && (
-          <div className="stay-got">
-            <h2><Check size={20} /> ห้องที่ได้</h2>
-            {s.rooms.map((r, i) => <p key={i}><b>{r.building} ห้อง {r.name}</b> (ชั้น {r.floor}) · {KIND[r.kind]} {r.people} คน</p>)}
-            {s.event.note && <p className="muted small">{s.event.note}</p>}
+            {GEO_NOTE[s.venue.geo_precision] && <p className="muted small">{GEO_NOTE[s.venue.geo_precision]} · ปุ่มนำทางค้นหาจากชื่อสถานที่ โทรถามทางก่อนเดินทาง</p>}
           </div>
         )}
         <div className="row wrap">
@@ -239,7 +277,11 @@ function StatusView({ refCode }: { refCode: string }) {
           {s.status === "pending" && <button className="btn" onClick={cancel}>ยกเลิกคำขอ</button>}
           <button className="btn" onClick={() => go("/stay")}>ส่งคำขออีกครั้ง</button>
         </div>
-        <p className="muted small">รหัสติดตาม {s.ref} · เก็บลิงก์นี้ไว้เปิดดูผลภายหลัง</p>
+        <div className="stay-code">
+          <small>รหัสติดตาม</small>
+          <b>{s.ref.replace(/(.{4})(?=.)/g, "$1 ")}</b>
+          <small>ถ่ายรูปหน้านี้เก็บไว้ · ถ้าลิงก์หาย ค้นได้ที่หน้าขอที่พักด้วยชื่อโรงเรียนและเบอร์โทร</small>
+        </div>
         {err && <p className="error">{err}</p>}
       </section>
     </main>
