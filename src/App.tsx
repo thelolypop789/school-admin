@@ -25,6 +25,7 @@ const Inspect = lazy(() => import("./pages/Inspect"));
 const Admin = lazy(() => import("./pages/Admin"));
 const Nst = lazy(() => import("./pages/Nst"));
 const Lodging = lazy(() => import("./pages/Lodging"));
+const LodgingRoster = lazy(() => import("./pages/LodgingRoster"));
 
 // more = บนมือถือไม่มีที่พอในแถบล่าง ให้ไปอยู่ในเมนู "เพิ่มเติม"
 type NavItem = { path: string; label: string; long: string; icon: LucideIcon; mod: string; more?: boolean; show?: (p: Profile) => boolean };
@@ -106,6 +107,7 @@ export default function App() {
   else if (path.startsWith("/facilities") || path.startsWith("/zones") || path.startsWith("/calendar")) page = <Facilities />;
   else if (path.startsWith("/admin") && me.role === "admin") page = <Admin />;
   else if (path.startsWith("/nst") && isNstViewer(me)) page = <Nst />;
+  else if (path === "/lodging/print") page = <LodgingRoster />;
   else if (path.startsWith("/lodging")) page = <Lodging />;
   else page = <Home onEditProfile={openProfile} />;
 

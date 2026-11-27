@@ -71,26 +71,36 @@ export default function StayApp() {
   );
 }
 
+/** ห้องว่าง/เต็ม: สรุปทีละอาคาร (บรรทัดเดียว) แตะเพื่อดูห้องและรูปคน — หน้าสั้นลงบนมือถือ */
 function Availability({ rooms, buildings }: { rooms: RoomUse[]; buildings: LodgingBuilding[] }) {
   const [bld, setBld] = useState<string | null>(null);
+  const [open, setOpen] = useState<Set<string>>(new Set());
+  const toggle = (name: string) => setOpen((o) => { const n = new Set(o); if (n.has(name)) n.delete(name); else n.add(name); return n; });
+  const pick = (name: string | null) => { setBld(name); if (name) setOpen((o) => new Set(o).add(name)); };
   return (
     <section className="card stay-avail">
       <h2>ห้องว่างตอนนี้</h2>
-      <LodgingMap rooms={rooms} buildings={buildings} selected={bld} onPick={setBld} />
+      <LodgingMap rooms={rooms} buildings={buildings} selected={bld} onPick={pick} />
       {byBuilding(rooms).filter((b) => !bld || b.building === bld).map((b) => {
-        const left = b.floors.flatMap((f) => f.rooms).reduce((n, r) => n + free(r), 0);
-        const cap = b.floors.flatMap((f) => f.rooms).reduce((n, r) => n + r.capacity, 0);
+        const all = b.floors.flatMap((f) => f.rooms);
+        const left = all.reduce((n, r) => n + free(r), 0), cap = all.reduce((n, r) => n + r.capacity, 0);
+        const freeRooms = all.filter((r) => free(r) > 0).map((r) => r.name);
+        const isOpen = open.has(b.building);
         return (
-          <div key={b.building} className="stay-building">
-            <p><b>{b.building}</b> <span className="muted">ว่าง {left} จาก {cap} ที่</span></p>
-            {b.floors.map((f) => (
+          <div key={b.building} className={`stay-building${isOpen ? " open" : ""}`}>
+            <button className="stay-bsum" aria-expanded={isOpen} onClick={() => toggle(b.building)}>
+              <span className="stay-bsum-t"><b>{b.building}</b><small>{left > 0 ? `ว่าง ${left} จาก ${cap} ที่ · ห้อง ${freeRooms.join(", ")}` : `เต็มทั้งอาคาร (${cap} ที่)`}</small></span>
+              <span className="stay-bsum-bar" aria-hidden><i style={{ width: `${cap ? ((cap - left) / cap) * 100 : 0}%` }} /></span>
+              <span className="stay-bsum-go">{isOpen ? "ซ่อนห้อง" : "ดูห้อง"}</span>
+            </button>
+            {isOpen && b.floors.map((f) => (
               <div key={f.floor} className="stay-floor">
                 <small>ชั้น {f.floor}</small>
                 <div className="stay-tiles">
                   {f.rooms.map((r) => (
                     <div key={r.id} className={`stay-tile stay-room${free(r) === 0 ? " full" : ""}`}>
                       <span className="stay-tile-head"><b>{r.name}</b><small>{free(r) === 0 ? "เต็ม" : `ว่าง ${free(r)}`}</small></span>
-                      <RoomPeople room={r} />
+                      <RoomPeople room={r} plain />
                     </div>
                   ))}
                 </div>
@@ -100,8 +110,8 @@ function Availability({ rooms, buildings }: { rooms: RoomUse[]; buildings: Lodgi
         );
       })}
       {bld && <button className="link" onClick={() => setBld(null)}>ดูทุกอาคาร</button>}
-      <PeopleLegend />
-      <p className="muted small">ฝ่ายอาคารสถานที่เป็นผู้จัดห้องให้ตามจำนวนคน (แยกนักเรียนชาย หญิง และครู) ตัวเลขนี้รวมคำขอที่รอจัดห้องแล้ว · ห้องที่โรงเรียนใดมีนักเรียนเกิน 10 คน ถือว่าเต็ม</p>
+      {open.size > 0 && <PeopleLegend plain />}
+      <p className="muted small">ฝ่ายอาคารสถานที่เป็นผู้จัดห้องให้ตามจำนวนคน (แยกนักเรียนชาย หญิง และครู) ตัวเลขนี้รวมคำขอที่รอจัดห้องแล้ว</p>
     </section>
   );
 }
@@ -170,13 +180,13 @@ function RequestView() {
           <p className="muted small">ที่พักฟรี ไม่ต้องโอนเงิน · หลังส่งจะได้ลิงก์ติดตามผล เก็บไว้ดูว่าได้ห้องไหน</p>
         </form>
       ) : <section className="card"><p>ปิดรับคำขอที่พักของงานนี้แล้ว ติดต่อฝ่ายอาคารสถานที่ของโรงเรียน</p></section>}
-      <Availability rooms={ev.rooms} buildings={ev.buildings ?? []} />
       {(ev.venues?.length ?? 0) > 1 && (
         <button className="card stay-near-link" onClick={() => go("/stay/near")}>
           <MapPinned size={28} />
           <span><b>ที่พักอื่นรอบโรงเรียน</b><small>{ev.venues!.filter((v) => v.status === "confirmed" && !v.is_home).length} แห่งรับแล้ว · โรงแรม/รีสอร์ทและสถานที่อื่นอีก {ev.venues!.filter((v) => v.status !== "confirmed").length} แห่ง พร้อมแผนที่และเบอร์โทร</small></span>
         </button>
       )}
+      <Availability rooms={ev.rooms} buildings={ev.buildings ?? []} />
       <MyRequests />
     </main>
   );
@@ -299,7 +309,7 @@ function NearView() {
         <button className="link" onClick={() => go("/stay")}>← กลับหน้าขอที่พัก</button>
         <h1 className="near-title">ที่พักรอบโรงเรียนวังหลวงพิทยาสรรพ์</h1>
         <p className="muted">ที่ที่ "รับแล้ว" ฝ่ายอาคารสถานที่ประสานไว้แล้ว ขอผ่านหน้านี้ได้เลย ฝ่ายจะจัดให้ถ้าห้องในโรงเรียนเต็ม · โรงแรม/รีสอร์ทและสถานที่ที่ยังไม่ยืนยัน โรงเรียนติดต่อเอง</p>
-        {ev?.venues?.length ? <NearbyVenues venues={ev.venues} /> : <p>ยังไม่มีข้อมูลที่พักรอบโรงเรียน</p>}
+        {ev?.venues?.length ? <NearbyVenues venues={ev.venues} initialFilter="confirmed" /> : <p>ยังไม่มีข้อมูลที่พักรอบโรงเรียน</p>}
       </section>
     </main>
   );

@@ -19,10 +19,12 @@ const match = (v: Venue, f: Filter) =>
   v.is_home || f === "all" || (f === "confirmed" ? v.status === "confirmed" : f === "school" ? v.category === "school" || v.category === "temple" : v.category === f);
 
 /** ที่พักรอบโรงเรียน: แผนที่จริง + รายชื่อ (เบอร์โทร/นำทาง) — ใช้ทั้งหน้าโรงเรียน /stay/near และหน้าฝ่าย */
-export function NearbyVenues({ venues, editable = false, onMove, onEdit }: {
+export function NearbyVenues({ venues, editable = false, onMove, onEdit, initialFilter = "all" }: {
   venues: Venue[]; editable?: boolean; onMove?: (id: number, lat: number, lng: number) => void; onEdit?: (v: Venue) => void;
+  /** หน้าโรงเรียนเปิดที่ "รับแล้ว" (ที่ขอผ่านระบบได้) ก่อน — ที่เหลือคือรายชื่อติดต่อเอง */
+  initialFilter?: Filter;
 }) {
-  const [filter, setFilter] = useState<Filter>("all");
+  const [filter, setFilter] = useState<Filter>(initialFilter);
   const [sel, setSel] = useState<number | null>(null);
   // ข้อมูลดึงสดทุกครั้งที่โหลด — เวลาที่ได้ข้อมูลชุดนี้ = "ข้อมูล ณ"
   const [asOf, setAsOf] = useState(() => new Date().toISOString());
