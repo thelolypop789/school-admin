@@ -14,9 +14,11 @@ import { Empty, Field, Modal, ModuleHero } from "../components/ui";
 import { BuildingDrawer, LodgingMap, type LodgingBuilding } from "../components/LodgingMap";
 import { PeopleLegend, RoomPeople } from "../components/RoomPeople";
 import { NearbyVenues } from "../components/NearbyVenues";
+import { LodgingIncidents } from "./LodgingIncidents";
+import { canSeeIncidents, isIncidentHandler, type Incident } from "../lib/incident";
 import { VENUE_CAT, VENUE_STATUS, venueLeft, type Venue, type VenueCategory, type VenueStatus } from "../lib/lodging";
 
-type Tab = "rooms" | "requests" | "network" | "settings";
+type Tab = "rooms" | "requests" | "incidents" | "network" | "settings";
 const ERR: Record<string, string> = {
   not_allocated: "จัดห้องให้ครบทุกคนก่อนอนุมัติ",
   too_many: "จัดห้องเกินจำนวนคนที่ขอ",
@@ -43,7 +45,12 @@ export default function Lodging() {
   const [rooms, setRooms] = useState<RoomUse[]>([]);
   const [reqs, setReqs] = useState<LodgingRequest[]>([]);
   const [allocs, setAllocs] = useState<Allocation[]>([]);
-  const [tab, setTab] = useState<Tab>(viewer ? "requests" : "rooms");
+  const seeInc = canSeeIncidents(me), handler = isIncidentHandler(me);
+  const [tab, setTab] = useState<Tab>(() => {
+    const t = new URLSearchParams(window.location.search).get("tab");
+    return t === "incidents" && seeInc ? "incidents" : viewer ? "requests" : "rooms";
+  });
+  const [incidents, setIncidents] = useState<Incident[]>([]);
   const [open, setOpen] = useState<number | "new" | null>(null);
   const [share, setShare] = useState(false);
   const [buildings, setBuildings] = useState<LodgingBuilding[]>([]);
@@ -90,6 +97,21 @@ export default function Lodging() {
   }, [eventId, viewer]);
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { load(); }, [load]);
+  const loadIncidents = useCallback(async () => {
+    if (!eventId || !seeInc) return;
+    const { data, error } = await supabase.from("lodging_incidents").select("*").eq("event_id", eventId).order("created_at", { ascending: false });
+    if (error) { setErr(errText(error)); return; }
+    setIncidents((data as Incident[]) ?? []);
+  }, [eventId, seeInc]);
+  // เรื่องแจ้งเหตุ: โหลดตอนเปิดหน้า และรีเฟรชทุก 30 วินาทีระหว่างดูแท็บนี้
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    loadIncidents();
+    if (tab !== "incidents") return;
+    const t = window.setInterval(loadIncidents, 30_000);
+    return () => window.clearInterval(t);
+  }, [loadIncidents, tab]);
+  const openInc = incidents.filter((i) => i.status !== "resolved").length;
 
   const ev = events?.find((e) => e.id === eventId) ?? null;
   const cap = rooms.reduce((n, r) => n + r.capacity, 0);
@@ -111,6 +133,7 @@ export default function Lodging() {
         ] : undefined}>
         <div className="mh-tabs" role="tablist">
           {viewer && <button role="tab" aria-selected={tab === "requests"} className={tab === "requests" ? "on" : ""} onClick={() => setTab("requests")}>คำขอ</button>}
+          {seeInc && <button role="tab" aria-selected={tab === "incidents"} className={tab === "incidents" ? "on" : ""} onClick={() => setTab("incidents")}>แจ้งเหตุ{openInc > 0 && <span className="badge">{openInc}</span>}</button>}
           <button role="tab" aria-selected={tab === "rooms"} className={tab === "rooms" ? "on" : ""} onClick={() => setTab("rooms")}>ห้องว่าง/เต็ม</button>
           <button role="tab" aria-selected={tab === "network"} className={tab === "network" ? "on" : ""} onClick={() => setTab("network")}>ที่พักเครือข่าย</button>
           {team && <button role="tab" aria-selected={tab === "settings"} className={tab === "settings" ? "on" : ""} onClick={() => setTab("settings")}>ตั้งค่า</button>}
@@ -125,7 +148,7 @@ export default function Lodging() {
           </select>
         </div>
       )}
-      {viewer && ev && tab !== "settings" && (
+      {viewer && ev && tab !== "settings" && tab !== "incidents" && (
         <div className="stay-share">
           <span>โรงเรียนขอที่พักเองได้ที่ <b>{window.location.origin}/stay</b></span>
           <span className="row wrap" style={{ gap: 6 }}>
@@ -168,6 +191,7 @@ export default function Lodging() {
         </section>
       ))}
 
+      {tab === "incidents" && seeInc && <LodgingIncidents items={incidents} handler={handler} onChanged={loadIncidents} say={say} />}
       {tab === "requests" && viewer && (
         <Requests reqs={reqs} allocs={allocs} rooms={rooms} venues={venues} team={team} onOpen={setOpen} />
       )}
@@ -394,17 +418,26 @@ function RequestModal({ event, req, rooms, allocs, reqs, venues, team, onClose, 
 }
 
 function ShareModal({ onClose }: { onClose: () => void }) {
-  const url = `${window.location.origin}/stay`;
+  const [which, setWhich] = useState<"stay" | "report">("stay");
+  const url = `${window.location.origin}/stay${which === "report" ? "/report" : ""}`;
   const [qr, setQr] = useState("");
   const [copied, setCopied] = useState(false);
-  useEffect(() => { QRCode.toDataURL(url, { width: 480, margin: 1, color: { dark: "#3b1250", light: "#ffffff" } }).then(setQr); }, [url]);
+  useEffect(() => {
+    QRCode.toDataURL(url, { width: 480, margin: 1, color: { dark: which === "report" ? "#7a1420" : "#3b1250", light: "#ffffff" } }).then(setQr);
+  }, [url, which]);
   return (
-    <Modal title="ลิงก์ขอที่พักสำหรับโรงเรียน" onClose={onClose}>
+    <Modal title="ลิงก์และ QR สำหรับโรงเรียนที่มาแข่ง" onClose={onClose}>
+      <div className="tabs">
+        <button className={which === "stay" ? "on" : ""} onClick={() => { setWhich("stay"); setCopied(false); }}>ขอที่พัก</button>
+        <button className={which === "report" ? "on" : ""} onClick={() => { setWhich("report"); setCopied(false); }}>แจ้งเหตุ</button>
+      </div>
       <div className="stay-qr">
         {qr && <img src={qr} alt={`QR ไปที่ ${url}`} />}
         <p><b>{url}</b></p>
         <button className="btn" onClick={async () => { try { await navigator.clipboard.writeText(url); setCopied(true); } catch { /* blocked */ } }}><Copy size={16} />{copied ? "คัดลอกแล้ว" : "คัดลอกลิงก์"}</button>
-        <p className="muted small">ส่งลิงก์นี้ในกลุ่ม LINE ของโรงเรียนที่มาแข่ง หรือใส่ QR ในหนังสือเชิญ (กดค้างที่รูปเพื่อบันทึก)</p>
+        <p className="muted small">{which === "stay"
+          ? "ส่งลิงก์นี้ในกลุ่ม LINE ของโรงเรียนที่มาแข่ง หรือใส่ QR ในหนังสือเชิญ (กดค้างที่รูปเพื่อบันทึก)"
+          : "พิมพ์ QR นี้ติดหน้าห้องพัก ห้องน้ำ และจุดลงทะเบียน — น้ำไม่ไหล ไฟดับ รถขวางทาง แจ้งได้ทันที เรื่องเข้า LINE เจ้าหน้าที่"}</p>
       </div>
     </Modal>
   );

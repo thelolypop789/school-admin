@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { BedDouble, Check, Copy, MapPinned, Navigation, Phone } from "lucide-react";
+import { BedDouble, Check, Copy, MapPinned, Navigation, Phone, Siren } from "lucide-react";
 import { LOGO, SCHOOL_NAME } from "../lib/brand";
 import { byBuilding, closesLabel, free, GEO_NOTE, KIND, mapsUrl, REQ_STATUS, telHref, VENUE_CAT, type Kind, type ReqStatus, type RoomUse, type Venue } from "../lib/lodging";
 import { NearbyVenues } from "../components/NearbyVenues";
@@ -7,9 +7,9 @@ import { fmtDate, fmtDateTime } from "../lib/time";
 import { Field } from "../components/ui";
 import { LodgingMap, type LodgingBuilding } from "../components/LodgingMap";
 import { PeopleLegend, RoomPeople } from "../components/RoomPeople";
+import { call, ERR, go, loadList, saveList } from "./api";
+import { ReportStatus, ReportView } from "./Report";
 
-const URL_ = import.meta.env.VITE_SUPABASE_URL || "https://placeholder.supabase.co";
-const KEY = import.meta.env.VITE_SUPABASE_KEY || "placeholder";
 const SAVED = "stay-refs";
 
 type EventInfo = { id: number; slug: string; name: string; starts_on: string; ends_on: string; closes_at: string; note: string; open: boolean; rooms: RoomUse[]; buildings?: LodgingBuilding[]; venues?: Venue[] };
@@ -20,33 +20,8 @@ type Status = {
   rooms: { building: string; floor: number; name: string; people: number; kind: Kind }[];
   venue?: (Pick<Venue, "name" | "category" | "contact" | "phone1" | "phone2" | "subdistrict" | "district" | "distance_km" | "lat" | "lng" | "geo_precision"> & { people?: number }) | null;
 };
-const ERR: Record<string, string> = {
-  not_found: "ไม่พบงานหรือคำขอนี้",
-  closed: "ปิดรับคำขอที่พักแล้ว",
-  rate_limited: "ส่งคำขอถี่เกินไป รอสักครู่แล้วลองใหม่",
-  not_pending: "คำขอนี้ได้รับการพิจารณาแล้ว ยกเลิกเองไม่ได้ ติดต่อฝ่ายอาคารสถานที่",
-  find_bad: "ใส่ชื่อโรงเรียนและเบอร์โทรที่ใช้ตอนขอที่พัก",
-  bad_request: "กรอกข้อมูลให้ครบ (เบอร์โทร 9–10 หลัก และจำนวนคนอย่างน้อย 1)",
-  server_error: "ระบบขัดข้อง ลองใหม่อีกครั้ง",
-};
-
-async function call<T>(body: object): Promise<T> {
-  const res = await fetch(`${URL_}/functions/v1/lodging-public`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", apikey: KEY, Authorization: `Bearer ${KEY}` },
-    body: JSON.stringify(body),
-  });
-  const j = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(ERR[j.error] ?? ERR.server_error);
-  return j as T;
-}
-function savedRefs(): { ref: string; school: string }[] {
-  try { return JSON.parse(localStorage.getItem(SAVED) ?? "[]"); } catch { return []; }
-}
-function saveRef(ref: string, school: string) {
-  try { localStorage.setItem(SAVED, JSON.stringify([{ ref, school }, ...savedRefs().filter((x) => x.ref !== ref)].slice(0, 10))); } catch { /* storage blocked */ }
-}
-const go = (path: string) => { window.history.pushState(null, "", path); window.dispatchEvent(new PopStateEvent("popstate")); };
+const savedRefs = () => loadList<{ ref: string; school: string }>(SAVED);
+const saveRef = (ref: string, school: string) => saveList(SAVED, [{ ref, school }, ...savedRefs().filter((x) => x.ref !== ref)].slice(0, 10));
 const days = (e: { starts_on: string; ends_on: string }) =>
   `${fmtDate(e.starts_on, { day: "numeric", month: "short" })} – ${fmtDate(e.ends_on, { day: "numeric", month: "short", year: "numeric" })}`;
 
@@ -58,15 +33,20 @@ export default function StayApp() {
     window.addEventListener("popstate", on);
     return () => window.removeEventListener("popstate", on);
   }, []);
-  useEffect(() => { document.title = "ขอที่พัก · " + SCHOOL_NAME; }, []);
+  const report = path.startsWith("/stay/report");
+  useEffect(() => { document.title = (report ? "แจ้งเหตุ · " : "ขอที่พัก · ") + SCHOOL_NAME; }, [report]);
   const ref = path.match(/^\/stay\/([0-9A-Fa-f]{12})$/)?.[1];
+  const incident = path.match(/^\/stay\/report\/([0-9A-Fa-f]{12})$/)?.[1];
   return (
     <div className="stay-app c-stay">
       <header className="stay-brand">
         <span className="seal"><img src={LOGO} alt={`ตรา${SCHOOL_NAME}`} /></span>
-        <div><b>ขอที่พักสำหรับโรงเรียนที่มาแข่งขัน</b><small>{SCHOOL_NAME}</small></div>
+        <div><b>{report ? "แจ้งเหตุ · ขอความช่วยเหลือระหว่างงานแข่งขัน" : "ขอที่พักสำหรับโรงเรียนที่มาแข่งขัน"}</b><small>{SCHOOL_NAME}</small></div>
       </header>
-      {ref ? <StatusView refCode={ref.toUpperCase()} /> : path.startsWith("/stay/near") ? <NearView /> : <RequestView />}
+      {incident ? <ReportStatus refCode={incident.toUpperCase()} />
+        : report ? <ReportView />
+        : ref ? <StatusView refCode={ref.toUpperCase()} />
+        : path.startsWith("/stay/near") ? <NearView /> : <RequestView />}
     </div>
   );
 }
@@ -156,6 +136,7 @@ function RequestView() {
         <p>{days(ev)} · {ev.open ? `รับคำขอถึง ${closesLabel(ev.closes_at)}` : "ปิดรับคำขอแล้ว"}</p>
         {ev.note && <p>{ev.note}</p>}
       </section>
+      <ReportLink />
       {ev.open ? (
         <form className="card form stay-form" onSubmit={submit}>
           <h2>กรอกคำขอที่พัก</h2>
@@ -286,6 +267,7 @@ function StatusView({ refCode }: { refCode: string }) {
           <button className="btn" onClick={copy}><Copy size={16} />{copied ? "คัดลอกลิงก์แล้ว" : "คัดลอกลิงก์ติดตามผล"}</button>
           {s.status === "pending" && <button className="btn" onClick={cancel}>ยกเลิกคำขอ</button>}
           <button className="btn" onClick={() => go("/stay")}>ส่งคำขออีกครั้ง</button>
+          {s.status === "approved" && <button className="btn" onClick={() => go(`/stay/report?from=${s.ref}`)}><Siren size={16} />แจ้งเหตุ</button>}
         </div>
         <div className="stay-code">
           <small>รหัสติดตาม</small>
@@ -295,6 +277,16 @@ function StatusView({ refCode }: { refCode: string }) {
         {err && <p className="error">{err}</p>}
       </section>
     </main>
+  );
+}
+
+/** ทางเข้าหน้าแจ้งเหตุ (น้ำไม่ไหล ไฟดับ รถขวางทาง ฯลฯ) — อยู่บนสุดของหน้าขอที่พัก */
+function ReportLink() {
+  return (
+    <button className="card stay-near-link stay-report-link c-alert" onClick={() => go("/stay/report")}>
+      <Siren size={28} />
+      <span><b>แจ้งเหตุ / ขอความช่วยเหลือ</b><small>น้ำไม่ไหล ไฟดับ ห้องชำรุด เฉี่ยวชน รถขวางทางเข้าออก — ถึงเจ้าหน้าที่ทาง LINE ทันที</small></span>
+    </button>
   );
 }
 

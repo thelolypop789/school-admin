@@ -5,6 +5,9 @@
 //   { action: "status", ref }                  สถานะ + ห้องที่ได้ (เมื่ออนุมัติ)
 //   { action: "cancel", ref }                  ยกเลิกคำขอที่ยังรอพิจารณา
 //   { action: "find", school, phone }          ลิงก์หาย: ค้นคำขอด้วยชื่อโรงเรียน + เบอร์โทร
+//   { action: "report", category, location, x?, y?, detail?, name, phone, request_ref?, photo?(base64 jpeg), website }
+//                                              แจ้งเหตุระหว่างงาน (น้ำไม่ไหล ไฟดับ รถขวางทาง ฯลฯ) → รหัสติดตาม · 30 ครั้ง/ชม./IP (Wi-Fi โรงเรียนใช้ IP เดียวกันหลายคน)
+//   { action: "report_status", ref }           สถานะการแจ้งเหตุ + หมายเหตุจากเจ้าหน้าที่
 // กันสแปม: ช่อง website ต้องว่าง (honeypot), จำกัด 6 คำขอ/ชม. ต่อ IP (เก็บแค่ hash) + 120 คำขอ/ชม. ต่องาน ใน DB
 import { createClient } from "npm:@supabase/supabase-js@2";
 
@@ -17,7 +20,7 @@ const ORIGINS = new Set([
   "http://localhost:4173",
   ...(Deno.env.get("APP_URL") ? [Deno.env.get("APP_URL")!.replace(/\/+$/, "")] : []),
 ]);
-const KNOWN = ["not_found", "closed", "rate_limited", "not_pending", "bad_request"];
+const KNOWN = ["not_found", "closed", "rate_limited", "not_pending", "bad_request", "bad_photo"];
 
 function cors(origin: string | null) {
   return {
@@ -40,6 +43,17 @@ async function ipHash(req: Request): Promise<string> {
 const str = (v: unknown, max: number) => String(v ?? "").trim().slice(0, max);
 const int = (v: unknown) => { const n = Math.floor(Number(v)); return Number.isFinite(n) && n >= 0 ? Math.min(n, 600) : 0; };
 const isRef = (v: string) => /^[0-9A-Fa-f]{12}$/.test(v);
+const MAX_PHOTO = 1_500_000;
+
+/** รูปจากหน้าแจ้งเหตุ: base64 ของ JPEG (ย่อในเบราว์เซอร์แล้ว) — รับเฉพาะ JPEG จริงไม่เกิน 1.5 MB */
+function jpegBytes(v: unknown): Uint8Array | null {
+  if (typeof v !== "string" || !v || v.length > MAX_PHOTO * 1.4) return null;
+  try {
+    const bin = atob(v.replace(/^data:image\/jpeg;base64,/, ""));
+    if (bin.length > MAX_PHOTO || bin.charCodeAt(0) !== 0xff || bin.charCodeAt(1) !== 0xd8 || bin.charCodeAt(2) !== 0xff) return null;
+    return Uint8Array.from(bin, (c) => c.charCodeAt(0));
+  } catch { return null; }
+}
 
 Deno.serve(async (req) => {
   const origin = req.headers.get("origin");
@@ -82,6 +96,39 @@ Deno.serve(async (req) => {
     const { data, error } = await sb.rpc("lodging_public_find", { p_ip_hash: await ipHash(req), p_school: school, p_phone: phone });
     if (error) return fail(error.message);
     return json({ items: data ?? [] }, 200, origin);
+  }
+
+  if (b.action === "report") {
+    if (str(b.website, 200)) return json({ ref: "000000000000" }, 200, origin); // honeypot
+    const phone = str(b.phone, 20).replace(/\D/g, "");
+    const name = str(b.name, 80), location = str(b.location, 200);
+    if (name.length < 2 || location.length < 2 || !/^0\d{8,9}$/.test(phone)) return json({ error: "bad_request" }, 400, origin);
+    const photo = b.photo ? jpegBytes(b.photo) : null;
+    if (b.photo && !photo) return json({ error: "bad_photo" }, 400, origin);
+    const path = photo ? `${crypto.randomUUID()}.jpg` : null;
+    const num = (v: unknown) => (v === null || v === undefined || v === "" || !Number.isFinite(Number(v)) ? null : Number(v));
+    const reqRef = str(b.request_ref, 20);
+    const { data, error } = await sb.rpc("lodging_public_report", {
+      p_ip_hash: await ipHash(req), p_category: str(b.category, 20), p_location: location, p_x: num(b.x), p_y: num(b.y),
+      p_detail: str(b.detail, 1000) || null, p_name: name, p_phone: phone, p_request_ref: isRef(reqRef) ? reqRef : null, p_photo: path,
+    });
+    if (error) return fail(error.message);
+    if (photo && path) {
+      const up = await sb.storage.from("incident-photos").upload(path, photo, { contentType: "image/jpeg" });
+      if (up.error) {
+        console.error("incident photo", up.error.message);
+        await sb.from("lodging_incidents").update({ photo_path: null }).eq("ref_code", data);
+      }
+    }
+    return json({ ref: data }, 200, origin);
+  }
+
+  if (b.action === "report_status") {
+    const ref = str(b.ref, 20);
+    if (!isRef(ref)) return json({ error: "not_found" }, 404, origin);
+    const { data, error } = await sb.rpc("lodging_public_report_status", { p_ref: ref });
+    if (error) return fail(error.message);
+    return data ? json(data, 200, origin) : json({ error: "not_found" }, 404, origin);
   }
 
   if (b.action === "status" || b.action === "cancel") {
