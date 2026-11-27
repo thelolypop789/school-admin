@@ -1287,3 +1287,43 @@ body:has(.nst-app) .modal .inline-ic { color: var(--nst-a); }
 .stay-avail .stay-room { display: grid; justify-items: stretch; font-weight: 400; color: inherit; background: var(--surface); box-shadow: inset 0 0 0 1px var(--line); padding: .45rem .5rem; text-decoration: none; min-width: 0; }
 .stay-avail .stay-room b { color: var(--k); }
 .stay-avail .stay-room.full { background: var(--t); box-shadow: none; text-decoration: none; }
+/* ที่พักเครือข่าย: แผนที่จริง (Leaflet/OSM) + รายชื่อ */
+.venue-map { height: min(60vh, 460px); min-height: 300px; border-radius: 16px; overflow: hidden; margin: .6rem 0 .3rem; background: #e8ecef; z-index: 0; }
+.venue-map.loading { display: grid; place-items: center; }
+.vm-pin { display: grid; place-items: center; width: 100%; height: 100%; border-radius: 50%; font: 700 12px/1 var(--font-body); color: #fff;
+  box-shadow: 0 0 0 2px #fff, 0 3px 8px rgb(0 0 0 / .3); }
+.vm-pin.home { background: linear-gradient(150deg, #b52552, #8f1036 60%, #4f0a1d); box-shadow: 0 0 0 3px #e2bf6a, 0 4px 10px rgb(0 0 0 / .35); font-size: 13px; }
+.vm-pin.ok { background: #1f8a4c; }
+.vm-pin.maybe { background: #8b8f98; }
+.vm-pin.no { background: #c9c5cf; }
+.vm-pin.approx { box-shadow: 0 0 0 2px #fff, 0 0 0 4px rgb(0 0 0 / .25), 0 3px 8px rgb(0 0 0 / .25); outline: 2px dashed #fff; outline-offset: -5px; }
+.vm-pin.maybe.approx, .vm-pin.no.approx { outline: none; opacity: .75; }
+.vm-key { display: flex; flex-wrap: wrap; gap: .3rem 1rem; align-items: center; }
+.vm-key span { display: inline-flex; align-items: center; gap: .35rem; }
+.vm-key .vm-pin { display: inline-block; width: 12px; height: 12px; font-size: 0; }
+.vm-pop { display: grid; gap: 3px; font-family: var(--font-body); font-size: 13px; }
+.vm-pop b { font-size: 14px; }
+.vm-pop small { color: #6b6774; }
+.vm-pop a { color: #8f1036; font-weight: 600; }
+.vm-approx { color: #9a6a00 !important; }
+.leaflet-container { font-family: var(--font-body); }
+.nearby-sum { margin: 0 0 .5rem; }
+.venue-list { list-style: none; margin: .6rem 0; padding: 0; display: grid; gap: 6px; }
+.venue-list li { display: flex; flex-wrap: wrap; gap: .4rem .8rem; justify-content: space-between; align-items: flex-start; padding: .6rem .7rem; border-radius: 14px; background: var(--surface-2, var(--bg)); }
+.venue-list li.ok { box-shadow: inset 3px 0 0 #1f8a4c; }
+.venue-list li.on { background: var(--t); }
+.venue-main { flex: 1 1 240px; min-width: 0; display: grid; gap: 1px; text-align: left; background: none; border: 0; padding: 0; color: inherit; font: inherit; cursor: pointer; }
+.venue-main small { color: var(--muted); font-size: .8rem; }
+.venue-side { display: grid; gap: .35rem; justify-items: end; }
+.venue-side .chip { margin: 0; }
+.venue-acts { display: flex; flex-wrap: wrap; gap: 4px; justify-content: flex-end; }
+.venue-acts .btn { text-decoration: none; }
+.stay-near-link { display: flex; gap: .8rem; align-items: center; text-align: left; width: 100%; border: 0; cursor: pointer; color: inherit; font: inherit; }
+.stay-near-link svg { color: var(--a); flex: none; }
+.stay-near-link span { display: grid; gap: 2px; }
+.stay-near-link small { color: var(--muted); }
+.near-title { font-size: 1.35rem; margin: .4rem 0 .2rem; }
+.zone-block.refer h4 { display: flex; align-items: center; gap: .4rem; }
+.zone-block.refer.on { background: var(--t); border-radius: 14px; padding: .7rem .8rem; border-top: 0; }
+.zone-block.refer select { flex: 1 1 220px; min-width: 0; }
+@media (max-width: 560px) { .venue-side { justify-items: start; } .venue-acts { justify-content: flex-start; } }

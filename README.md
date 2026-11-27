@@ -33,6 +33,7 @@ Stack: React 19 + TypeScript + Vite, Supabase (Auth Google / Postgres + RLS / St
    - `20261128000100_nst_purge_cron.sql` — pg_cron ลบรูปหลักฐาน นศท. ที่เก่ากว่า 30 วันทุกคืน
    - `20261205000000_lodging.sql` — ห้องพักงานแข่งขัน (งาน `lodging_events`, ห้อง `lodging_rooms` อาคาร 3/4 รวม 590 ที่, คำขอ/การจัดห้อง, ตำแหน่งอาคารบนแผนที่ `lodging_buildings`) ต้อง deploy edge function `lodging-public` (verify_jwt = false) สำหรับหน้าสาธารณะ `/stay` และ deploy `line-bot` ใหม่ (แจ้งเตือนคำขอใหม่)
    - `20261206000000_lodging_exclusive.sql` — กฎเหมาห้อง (นักเรียนโรงเรียนเดียวเกิน 10 คน = ห้องเต็ม) + จำนวนคนแยกประเภทในผังห้อง
+   - `20261207000000_lodging_network.sql` — ที่พักเครือข่ายรอบโรงเรียน (`lodging_venues`) + ส่งต่อคำขอ (`lodging_refer`) — ข้อมูลสถานที่/เบอร์นำเข้าใน DB แยก ไม่อยู่ใน repo
 3. `pongsarkon@wangluangpitt.ac.th` จะเป็น admin อัตโนมัติเมื่อล็อกอินครั้งแรก
 
 ### 2. ล็อกอิน Google

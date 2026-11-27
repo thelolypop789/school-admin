@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
-import { BedDouble, Check, Copy } from "lucide-react";
+import { BedDouble, Check, Copy, MapPinned, Navigation, Phone } from "lucide-react";
 import { LOGO, SCHOOL_NAME } from "../lib/brand";
-import { byBuilding, free, KIND, REQ_STATUS, type Kind, type ReqStatus, type RoomUse } from "../lib/lodging";
+import { byBuilding, free, GEO_NOTE, KIND, mapsUrl, REQ_STATUS, telHref, VENUE_CAT, type Kind, type ReqStatus, type RoomUse, type Venue } from "../lib/lodging";
+import { NearbyVenues } from "../components/NearbyVenues";
 import { fmtDate, fmtDateTime } from "../lib/time";
 import { Field } from "../components/ui";
 import { LodgingMap, type LodgingBuilding } from "../components/LodgingMap";
@@ -11,12 +12,13 @@ const URL_ = import.meta.env.VITE_SUPABASE_URL || "https://placeholder.supabase.
 const KEY = import.meta.env.VITE_SUPABASE_KEY || "placeholder";
 const SAVED = "stay-refs";
 
-type EventInfo = { id: number; slug: string; name: string; starts_on: string; ends_on: string; closes_at: string; note: string; open: boolean; rooms: RoomUse[]; buildings?: LodgingBuilding[] };
+type EventInfo = { id: number; slug: string; name: string; starts_on: string; ends_on: string; closes_at: string; note: string; open: boolean; rooms: RoomUse[]; buildings?: LodgingBuilding[]; venues?: Venue[] };
 type Status = {
   ref: string; status: ReqStatus; school_name: string; contact_name: string; male_students: number; female_students: number; teachers: number;
   note: string | null; decision_note: string | null; created_at: string;
   event: { name: string; slug: string; starts_on: string; ends_on: string; note: string };
   rooms: { building: string; floor: number; name: string; people: number; kind: Kind }[];
+  venue?: Pick<Venue, "name" | "category" | "contact" | "phone1" | "phone2" | "subdistrict" | "district" | "distance_km" | "lat" | "lng" | "geo_precision"> | null;
 };
 const ERR: Record<string, string> = {
   not_found: "ไม่พบงานหรือคำขอนี้",
@@ -63,7 +65,7 @@ export default function StayApp() {
         <span className="seal"><img src={LOGO} alt={`ตรา${SCHOOL_NAME}`} /></span>
         <div><b>ขอที่พักสำหรับโรงเรียนที่มาแข่งขัน</b><small>{SCHOOL_NAME}</small></div>
       </header>
-      {ref ? <StatusView refCode={ref.toUpperCase()} /> : <RequestView />}
+      {ref ? <StatusView refCode={ref.toUpperCase()} /> : path.startsWith("/stay/near") ? <NearView /> : <RequestView />}
     </div>
   );
 }
@@ -162,6 +164,12 @@ function RequestView() {
         </form>
       ) : <section className="card"><p>ปิดรับคำขอที่พักของงานนี้แล้ว ติดต่อฝ่ายอาคารสถานที่ของโรงเรียน</p></section>}
       <Availability rooms={ev.rooms} buildings={ev.buildings ?? []} />
+      {(ev.venues?.length ?? 0) > 1 && (
+        <button className="card stay-near-link" onClick={() => go("/stay/near")}>
+          <MapPinned size={28} />
+          <span><b>ที่พักอื่นรอบโรงเรียน</b><small>{ev.venues!.filter((v) => v.status === "confirmed" && !v.is_home).length} แห่งรับแล้ว · โรงแรม/รีสอร์ทและสถานที่อื่นอีก {ev.venues!.filter((v) => v.status !== "confirmed").length} แห่ง พร้อมแผนที่และเบอร์โทร</small></span>
+        </button>
+      )}
       <MyRequests />
     </main>
   );
@@ -207,7 +215,19 @@ function StatusView({ refCode }: { refCode: string }) {
           <dt>ผู้ประสานงาน</dt><dd>{s.contact_name}</dd><dt>ส่งเมื่อ</dt><dd>{fmtDateTime(s.created_at)}</dd>
         </dl>
         {s.decision_note && <p><b>หมายเหตุจากฝ่ายจัดห้อง:</b> {s.decision_note}</p>}
-        {s.status === "approved" && (
+        {s.status === "approved" && s.venue && (
+          <div className="stay-got">
+            <h2><Check size={20} /> ที่พักที่ได้: {s.venue.name}</h2>
+            <p>{[VENUE_CAT[s.venue.category], s.venue.distance_km != null ? `ห่างจากโรงเรียนวังหลวงพิทยาสรรพ์ ${s.venue.distance_km} กม.` : "", s.venue.subdistrict && `ต.${s.venue.subdistrict}`, s.venue.district && `อ.${s.venue.district}`].filter(Boolean).join(" · ")}</p>
+            {s.venue.contact && <p>ผู้ประสานงาน: {s.venue.contact}</p>}
+            <div className="row wrap">
+              {[s.venue.phone1, s.venue.phone2].filter(Boolean).map((p) => <a key={p} className="btn sm" href={telHref(p!)}><Phone size={14} />{p}</a>)}
+              <a className="btn sm" href={mapsUrl({ ...s.venue, province: null })} target="_blank" rel="noreferrer"><Navigation size={14} />นำทาง</a>
+            </div>
+            {GEO_NOTE[s.venue.geo_precision] && <p className="muted small">ปุ่มนำทางค้นหาจากชื่อสถานที่ ({GEO_NOTE[s.venue.geo_precision]}) โทรถามทางก่อนเดินทาง</p>}
+          </div>
+        )}
+        {s.status === "approved" && !s.venue && (
           <div className="stay-got">
             <h2><Check size={20} /> ห้องที่ได้</h2>
             {s.rooms.map((r, i) => <p key={i}><b>{r.building} ห้อง {r.name}</b> (ชั้น {r.floor}) · {KIND[r.kind]} {r.people} คน</p>)}
@@ -221,6 +241,23 @@ function StatusView({ refCode }: { refCode: string }) {
         </div>
         <p className="muted small">รหัสติดตาม {s.ref} · เก็บลิงก์นี้ไว้เปิดดูผลภายหลัง</p>
         {err && <p className="error">{err}</p>}
+      </section>
+    </main>
+  );
+}
+
+/** /stay/near — ที่พักอื่นรอบโรงเรียน (แผนที่ + รายชื่อ) */
+function NearView() {
+  const [ev, setEv] = useState<EventInfo | null | undefined>(undefined);
+  useEffect(() => { call<EventInfo>({ action: "event" }).then(setEv).catch(() => setEv(null)); }, []);
+  if (ev === undefined) return <div className="spinner" />;
+  return (
+    <main className="stay-main">
+      <section className="card">
+        <button className="link" onClick={() => go("/stay")}>← กลับหน้าขอที่พัก</button>
+        <h1 className="near-title">ที่พักรอบโรงเรียนวังหลวงพิทยาสรรพ์</h1>
+        <p className="muted">ที่ที่ "รับแล้ว" ฝ่ายอาคารสถานที่ประสานไว้แล้ว ขอผ่านหน้านี้ได้เลย ฝ่ายจะจัดให้ถ้าห้องในโรงเรียนเต็ม · โรงแรม/รีสอร์ทและสถานที่ที่ยังไม่ยืนยัน โรงเรียนติดต่อเอง</p>
+        {ev?.venues?.length ? <NearbyVenues venues={ev.venues} /> : <p>ยังไม่มีข้อมูลที่พักรอบโรงเรียน</p>}
       </section>
     </main>
   );

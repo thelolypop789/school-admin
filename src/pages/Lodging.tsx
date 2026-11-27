@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import QRCode from "qrcode";
-import { BedDouble, Copy, Plus, QrCode, Sparkles, Trash2 } from "lucide-react";
+import { BedDouble, Copy, Plus, QrCode, Send, Sparkles, Trash2, Undo2 } from "lucide-react";
 import { errText, supabase } from "../lib/supabase";
 import { useMe } from "../lib/me";
 import { useNotice } from "../lib/notice";
@@ -12,13 +12,16 @@ import {
 import { Empty, Field, Modal, ModuleHero } from "../components/ui";
 import { BuildingDrawer, LodgingMap, type LodgingBuilding } from "../components/LodgingMap";
 import { PeopleLegend, RoomPeople } from "../components/RoomPeople";
+import { NearbyVenues } from "../components/NearbyVenues";
+import { VENUE_CAT, VENUE_STATUS, venueLeft, type Venue, type VenueCategory, type VenueStatus } from "../lib/lodging";
 
-type Tab = "rooms" | "requests" | "settings";
+type Tab = "rooms" | "requests" | "network" | "settings";
 const ERR: Record<string, string> = {
   not_allocated: "จัดห้องให้ครบทุกคนก่อนอนุมัติ",
   too_many: "จัดห้องเกินจำนวนคนที่ขอ",
   note_required: "ใส่เหตุผลที่ไม่อนุมัติ (โรงเรียนจะเห็น)",
   not_pending: "คำขอนี้ถูกพิจารณาไปแล้ว",
+  venue_full: "ที่พักนั้นรับเพิ่มไม่พอสำหรับคำขอนี้",
 };
 const lerr = (e: unknown) => {
   const m = errText(e);
@@ -43,6 +46,8 @@ export default function Lodging() {
   const [share, setShare] = useState(false);
   const [buildings, setBuildings] = useState<LodgingBuilding[]>([]);
   const [bld, setBld] = useState<string | null>(null);
+  const [venues, setVenues] = useState<Venue[]>([]);
+  const [venueEdit, setVenueEdit] = useState<Venue | "new" | null>(null);
   const [err, setErr] = useState("");
   const [notice, say] = useNotice();
 
@@ -52,6 +57,12 @@ export default function Lodging() {
   }, []);
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { loadBuildings(); }, [loadBuildings]);
+  const loadVenues = useCallback(async () => {
+    const { data } = await supabase.rpc("lodging_venues_list");
+    setVenues((data as Venue[]) ?? []);
+  }, []);
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { loadVenues(); }, [loadVenues]);
   const loadEvents = useCallback(async () => {
     const { data, error } = await supabase.from("lodging_events").select("*").order("starts_on", { ascending: false });
     if (error) setErr(errText(error));
@@ -99,6 +110,7 @@ export default function Lodging() {
         <div className="mh-tabs" role="tablist">
           {viewer && <button role="tab" aria-selected={tab === "requests"} className={tab === "requests" ? "on" : ""} onClick={() => setTab("requests")}>คำขอ</button>}
           <button role="tab" aria-selected={tab === "rooms"} className={tab === "rooms" ? "on" : ""} onClick={() => setTab("rooms")}>ห้องว่าง/เต็ม</button>
+          <button role="tab" aria-selected={tab === "network"} className={tab === "network" ? "on" : ""} onClick={() => setTab("network")}>ที่พักเครือข่าย</button>
           {team && <button role="tab" aria-selected={tab === "settings"} className={tab === "settings" ? "on" : ""} onClick={() => setTab("settings")}>ตั้งค่า</button>}
         </div>
       </ModuleHero>
@@ -152,8 +164,23 @@ export default function Lodging() {
       ))}
 
       {tab === "requests" && viewer && (
-        <Requests reqs={reqs} allocs={allocs} rooms={rooms} team={team} onOpen={setOpen} />
+        <Requests reqs={reqs} allocs={allocs} rooms={rooms} venues={venues} team={team} onOpen={setOpen} />
       )}
+
+      {tab === "network" && (
+        <section className="card">
+          {team && <div className="row wrap" style={{ justifyContent: "flex-end", marginBottom: ".4rem" }}><button className="btn sm" onClick={() => setVenueEdit("new")}><Plus size={16} />เพิ่มที่พัก</button></div>}
+          {venues.length === 0 ? <Empty>ยังไม่มีข้อมูลที่พักเครือข่าย</Empty> : (
+            <NearbyVenues venues={venues} editable={team} onEdit={team ? setVenueEdit : undefined}
+              onMove={async (id, lat, lng) => {
+                const { error } = await supabase.rpc("lodging_venue_move", { p_id: id, p_lat: lat, p_lng: lng });
+                if (error) say(errText(error)); else { say("บันทึกตำแหน่งแล้ว"); loadVenues(); }
+              }} />
+          )}
+          <p className="muted small">ส่งต่อโรงเรียนไปพักที่เครือข่าย: เปิดคำขอในแท็บ คำขอ แล้วเลือก “ส่งต่อไปที่พักเครือข่าย” · โรงเรียนเห็นหน้านี้ที่ {window.location.origin}/stay/near</p>
+        </section>
+      )}
+      {venueEdit && <VenueForm venue={venueEdit === "new" ? null : venueEdit} onClose={() => setVenueEdit(null)} onSaved={() => { setVenueEdit(null); loadVenues(); say("บันทึกที่พักแล้ว"); }} />}
 
       {tab === "settings" && team && <Settings event={ev} buildings={buildings} onChanged={() => { loadEvents(); load(); loadBuildings(); }} say={say} />}
 
@@ -162,15 +189,15 @@ export default function Lodging() {
       )}
       {open !== null && ev && (
         <RequestModal event={ev} req={open === "new" ? null : reqs.find((r) => r.id === open) ?? null} rooms={rooms} allocs={allocs}
-          reqs={reqs} team={team} onClose={() => setOpen(null)} onChanged={(msg) => { load(); if (msg) say(msg); }} />
+          reqs={reqs} venues={venues} team={team} onClose={() => setOpen(null)} onChanged={(msg) => { load(); loadVenues(); if (msg) say(msg); }} />
       )}
       {share && <ShareModal onClose={() => setShare(false)} />}
     </div>
   );
 }
 
-function Requests({ reqs, allocs, rooms, team, onOpen }: {
-  reqs: LodgingRequest[]; allocs: Allocation[]; rooms: RoomUse[]; team: boolean; onOpen: (id: number) => void;
+function Requests({ reqs, allocs, rooms, venues, team, onOpen }: {
+  reqs: LodgingRequest[]; allocs: Allocation[]; rooms: RoomUse[]; venues: Venue[]; team: boolean; onOpen: (id: number) => void;
 }) {
   const [filter, setFilter] = useState<ReqStatus | "all">("pending");
   const shown = reqs.filter((r) => filter === "all" || r.status === filter);
@@ -193,6 +220,7 @@ function Requests({ reqs, allocs, rooms, team, onOpen }: {
                 <span className="nst-person-text">
                   <b>{r.school_name}</b>
                   <small>{total(r)} คน (ชาย {r.male_students} · หญิง {r.female_students} · ครู {r.teachers}) · {r.contact_name}{r.source === "staff" ? " · บันทึกแทน" : ""}</small>
+                  {r.venue_id && <small>ส่งต่อไปพักที่ {venues.find((v) => v.id === r.venue_id)?.name ?? "ที่พักเครือข่าย"}</small>}
                   {mine.length > 0 && <small>ห้อง {[...new Set(mine.map((a) => roomName(a.room_id)))].join(", ")}{r.status === "pending" ? ` · จัดแล้ว ${got}/${total(r)}` : ""}</small>}
                 </span>
                 <span className={`chip ${REQ_STATUS[r.status].tone}`}>{REQ_STATUS[r.status].label}</span>
@@ -207,8 +235,8 @@ function Requests({ reqs, allocs, rooms, team, onOpen }: {
 }
 
 type Line = { room_id: number; kind: Kind; people: number };
-function RequestModal({ event, req, rooms, allocs, reqs, team, onClose, onChanged }: {
-  event: LodgingEvent; req: LodgingRequest | null; rooms: RoomUse[]; allocs: Allocation[]; reqs: LodgingRequest[]; team: boolean;
+function RequestModal({ event, req, rooms, allocs, reqs, venues, team, onClose, onChanged }: {
+  event: LodgingEvent; req: LodgingRequest | null; rooms: RoomUse[]; allocs: Allocation[]; reqs: LodgingRequest[]; venues: Venue[]; team: boolean;
   onClose: () => void; onChanged: (msg?: string) => void;
 }) {
   const [f, setF] = useState({
@@ -283,6 +311,11 @@ function RequestModal({ event, req, rooms, allocs, reqs, team, onClose, onChange
       )}
 
       {req && (req.status === "pending" || req.status === "approved") && (
+        <Refer req={req} venues={venues} team={team} need={need} busy={busy}
+          onRefer={(venue, msg) => run(() => supabase.rpc("lodging_refer", { p_request: req.id, p_venue: venue, p_note: note || null }), msg, venue != null)} />
+      )}
+
+      {req && !req.venue_id && (req.status === "pending" || req.status === "approved") && (
         <div className="zone-block">
           <h4>จัดห้อง · {planned}/{need} คน</h4>
           {lines.length === 0 && <p className="muted small">ยังไม่ได้จัดห้อง{editable ? " — กด “จัดให้อัตโนมัติ” หรือเพิ่มทีละห้อง" : ""}</p>}
@@ -312,7 +345,7 @@ function RequestModal({ event, req, rooms, allocs, reqs, team, onClose, onChange
         </div>
       )}
 
-      {editable && (
+      {editable && !req!.venue_id && (
         <div className="zone-block act">
           <Field label={req!.status === "pending" ? "หมายเหตุถึงโรงเรียน (ไม่อนุมัติ = ต้องใส่)" : "หมายเหตุ (ถ้ายกเลิก)"}>
             <input value={note} onChange={(e) => setNote(e.target.value)} maxLength={500} placeholder="เช่น ห้องเต็มแล้ว / เข้าพักได้ตั้งแต่ 16:00" />
@@ -463,6 +496,89 @@ function RoomForm({ room, onClose, onSaved }: { room: RoomRow | null; onClose: (
       <label className="check"><input type="checkbox" checked={f.active} onChange={(e) => setF({ ...f, active: e.target.checked })} /> ใช้ห้องนี้เป็นที่พัก (ปิด = งดใช้)</label>
       {err && <p className="error">{err}</p>}
       <button className="btn primary big" onClick={save}>บันทึกห้อง</button>
+    </Modal>
+  );
+}
+
+/** ส่งต่อคำขอไปพักที่เครือข่าย (เมื่อห้องในโรงเรียนไม่พอ) / ยกเลิกการส่งต่อ */
+function Refer({ req, venues, team, need, busy, onRefer }: {
+  req: LodgingRequest; venues: Venue[]; team: boolean; need: number; busy: boolean;
+  onRefer: (venue: number | null, msg: string) => void;
+}) {
+  const options = venues.filter((v) => !v.is_home && v.status === "confirmed");
+  const current = venues.find((v) => v.id === req.venue_id);
+  const fits = (v: Venue) => { const l = venueLeft(v); return l == null || l + (v.id === req.venue_id ? need : 0) >= need; };
+  const [pick, setPick] = useState<number | "">(options.find(fits)?.id ?? "");
+  if (current) {
+    return (
+      <div className="zone-block refer on">
+        <h4><Send size={16} /> ส่งต่อไปพักที่ {current.name}</h4>
+        <p className="muted small">{[VENUE_CAT[current.category], current.distance_km != null && `${current.distance_km} กม.`, current.contact, current.phone1].filter(Boolean).join(" · ")}</p>
+        {team && <button className="btn sm" disabled={busy} onClick={() => onRefer(null, "ยกเลิกการส่งต่อแล้ว คำขอกลับไปรอจัดห้อง")}><Undo2 size={16} />ยกเลิกการส่งต่อ (กลับไปจัดห้องในโรงเรียน)</button>}
+      </div>
+    );
+  }
+  if (!team || options.length === 0) return null;
+  return (
+    <div className="zone-block refer">
+      <h4><Send size={16} /> หรือส่งต่อไปที่พักเครือข่าย</h4>
+      <div className="row wrap">
+        <select value={pick} onChange={(e) => setPick(e.target.value ? Number(e.target.value) : "")} aria-label="ที่พักเครือข่าย">
+          <option value="">เลือกที่พัก…</option>
+          {options.map((v) => {
+            const l = venueLeft(v);
+            return <option key={v.id} value={v.id} disabled={!fits(v)}>{v.name}{v.distance_km != null ? ` (${v.distance_km} กม.)` : ""} · {l == null ? "ไม่ระบุจำนวน" : `ว่าง ${l}`}</option>;
+          })}
+        </select>
+        <button className="btn sm primary" disabled={busy || pick === ""} onClick={() => pick !== "" && onRefer(pick, "ส่งต่อแล้ว โรงเรียนเห็นที่พักและเบอร์ติดต่อในลิงก์ติดตามผล")}>ส่งต่อไปพักที่นี่</button>
+      </div>
+      <p className="muted small">อนุมัติทันที ห้องที่จัดไว้ในโรงเรียน (ถ้ามี) จะว่างคืน · โรงเรียนเห็นชื่อที่พัก ผู้ประสานงาน เบอร์โทร และปุ่มนำทางในลิงก์ติดตามผล</p>
+    </div>
+  );
+}
+
+const EMPTY_VENUE = { category: "school" as VenueCategory, name: "", contact: "", subdistrict: "", district: "", province: "", distance_km: "", capacity: "", status: "unconfirmed" as VenueStatus, phone1: "", phone2: "", detail: "", active: true };
+function VenueForm({ venue, onClose, onSaved }: { venue: Venue | null; onClose: () => void; onSaved: () => void }) {
+  const [f, setF] = useState(venue ? {
+    category: venue.category, name: venue.name, contact: venue.contact ?? "", subdistrict: venue.subdistrict ?? "", district: venue.district ?? "",
+    province: venue.province ?? "", distance_km: venue.distance_km?.toString() ?? "", capacity: venue.capacity?.toString() ?? "",
+    status: venue.status, phone1: venue.phone1 ?? "", phone2: venue.phone2 ?? "", detail: venue.detail ?? "", active: true,
+  } : EMPTY_VENUE);
+  const [err, setErr] = useState("");
+  const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setF({ ...f, [k]: e.target.value });
+  const save = async () => {
+    if (f.name.trim().length < 2) { setErr("ใส่ชื่อสถานที่"); return; }
+    const num = (v: string) => (v.trim() === "" ? null : Number(v));
+    const { error } = await supabase.rpc("lodging_venue_save", { p_id: venue?.id ?? null, p: { ...f, distance_km: num(f.distance_km), capacity: num(f.capacity) } });
+    if (error) setErr(errText(error)); else onSaved();
+  };
+  return (
+    <Modal title={venue ? `แก้ไข ${venue.name}` : "เพิ่มที่พักเครือข่าย"} onClose={onClose}>
+      <div className="form">
+        <Field label="ชื่อสถานที่"><input value={f.name} onChange={set("name")} maxLength={120} /></Field>
+        <div className="row2">
+          <Field label="ประเภท"><select value={f.category} onChange={set("category")}>{(Object.keys(VENUE_CAT) as VenueCategory[]).map((k) => <option key={k} value={k}>{VENUE_CAT[k]}</option>)}</select></Field>
+          <Field label="สถานะ"><select value={f.status} onChange={set("status")}>{(Object.keys(VENUE_STATUS) as VenueStatus[]).map((k) => <option key={k} value={k}>{VENUE_STATUS[k].label}</option>)}</select></Field>
+        </div>
+        <div className="row2">
+          <Field label="รับได้ (คน)"><input value={f.capacity} onChange={set("capacity")} inputMode="numeric" /></Field>
+          <Field label="ระยะทาง (กม.)"><input value={f.distance_km} onChange={set("distance_km")} inputMode="decimal" /></Field>
+        </div>
+        <Field label="ผู้ประสานงาน"><input value={f.contact} onChange={set("contact")} maxLength={120} /></Field>
+        <div className="row2">
+          <Field label="โทร 1"><input value={f.phone1} onChange={set("phone1")} inputMode="tel" maxLength={30} /></Field>
+          <Field label="โทร 2"><input value={f.phone2} onChange={set("phone2")} inputMode="tel" maxLength={30} /></Field>
+        </div>
+        <div className="row3">
+          <Field label="ตำบล"><input value={f.subdistrict} onChange={set("subdistrict")} maxLength={60} /></Field>
+          <Field label="อำเภอ"><input value={f.district} onChange={set("district")} maxLength={60} /></Field>
+          <Field label="จังหวัด"><input value={f.province} onChange={set("province")} maxLength={60} /></Field>
+        </div>
+        <Field label="รายละเอียด"><input value={f.detail} onChange={set("detail")} maxLength={500} /></Field>
+        <p className="muted small">ตำแหน่งบนแผนที่: ลากหมุดในแท็บ ที่พักเครือข่าย</p>
+        {err && <p className="error">{err}</p>}
+        <button className="btn primary big" onClick={save}>บันทึกที่พัก</button>
+      </div>
     </Modal>
   );
 }
