@@ -4,7 +4,7 @@ import "leaflet/dist/leaflet.css";
 import { GEO_NOTE, mapsUrl, telHref, VENUE_CAT, venueLeft, type Venue } from "../lib/lodging";
 
 /**
- * แผนที่จริง (OpenStreetMap) ของที่พักรอบโรงเรียน — lazy chunk แยก (leaflet ~45 KB)
+ * แผนที่จริงของที่พักรอบโรงเรียน (ภาพดาวเทียม Esri เป็นค่าเริ่มต้น สลับเป็นแผนที่ถนน OSM ได้) — lazy chunk แยก (leaflet ~45 KB)
  * หมุดเบอร์กันดี = โรงเรียนเรา · เขียว = รับแล้ว (ตัวเลข = ที่ว่าง) · เทา = ยังไม่ยืนยัน · ตำแหน่งโดยประมาณ = หมุดขอบประ
  * editable = ฝ่ายจัดห้องลากหมุดเพื่อแก้ตำแหน่ง (onMove)
  */
@@ -22,9 +22,18 @@ export default function VenueMap({ venues, selected, onSelect, editable = false,
   useEffect(() => {
     if (!box.current) return;
     const m = L.map(box.current, { zoomControl: true, attributionControl: true, scrollWheelZoom: false });
-    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      maxZoom: 18, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a>',
-    }).addTo(m);
+    // ค่าเริ่มต้น = ภาพดาวเทียม (Esri World Imagery) + ป้ายชื่อสถานที่ซ้อน · สลับเป็นแผนที่ถนน (OSM) ได้ที่มุมขวาบน
+    const esri = "https://server.arcgisonline.com/ArcGIS/rest/services";
+    const sat = L.layerGroup([
+      L.tileLayer(`${esri}/World_Imagery/MapServer/tile/{z}/{y}/{x}`, {
+        maxZoom: 19, maxNativeZoom: 18, attribution: "ภาพดาวเทียม &copy; Esri, Maxar, Earthstar Geographics",
+      }),
+      L.tileLayer(`${esri}/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}`, { maxZoom: 19, maxNativeZoom: 18 }),
+    ]).addTo(m);
+    const street = L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 19, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a>',
+    });
+    L.control.layers({ "ภาพดาวเทียม": sat, "แผนที่ถนน": street }, undefined, { position: "topright", collapsed: false }).addTo(m);
     m.on("click", () => cb.current.onSelect(null));
     layer.current = L.layerGroup().addTo(m);
     map.current = m;
