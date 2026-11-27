@@ -14,7 +14,8 @@ const ORDER: Kind[] = ["male", "female", "teacher", "mixed"];
 const PEOPLE_LABEL: Record<Kind, string> = { male: "นักเรียนชาย", female: "นักเรียนหญิง", teacher: "ครู", mixed: "รวม" };
 
 /** คนในห้อง: รูปคน 1 ตัว = 1 ที่ (ชาย/หญิง/ครู คนละสี) + "มี n/จุ คน" · ห้องที่ถูกเหมา ที่เหลือเป็นรูปจาง */
-export function RoomPeople({ room }: { room: RoomUse }) {
+/** plain = หน้าโรงเรียน: ไม่ใช้คำภายใน "เหมาห้อง" (ห้องที่ถูกเหมาแสดงเป็นเต็มอยู่แล้ว) */
+export function RoomPeople({ room, plain = false }: { room: RoomUse; plain?: boolean }) {
   const p = room.people ?? {};
   const counts = ORDER.map((k) => [k, Math.max(0, p[k] ?? 0)] as const).filter(([, n]) => n > 0);
   const here = counts.reduce((n, [, c]) => n + c, 0);
@@ -28,19 +29,19 @@ export function RoomPeople({ room }: { room: RoomUse }) {
   const said = counts.map(([k, n]) => `${PEOPLE_LABEL[k]} ${n}`).join(" ");
   return (
     <div className="room-people" role="img"
-      aria-label={`ห้อง ${room.name} มี ${here} คน จาก ${room.capacity}${said ? ` (${said})` : ""}${room.locked ? " เหมาห้องแล้ว" : ""}`}>
+      aria-label={`ห้อง ${room.name} มี ${here} คน จาก ${room.capacity}${said ? ` (${said})` : ""}${room.locked ? (plain ? " เต็ม" : " เหมาห้องแล้ว") : ""}`}>
       <div className="pp-grid">{glyphs.map((c, i) => <Person key={i} cls={c} />)}</div>
-      <small className="pp-count"><b>{here}</b>/{room.capacity} คน{room.locked ? " · เหมาห้อง" : ""}</small>
+      <small className="pp-count"><b>{here}</b>/{room.capacity} คน{room.locked && !plain ? " · เหมาห้อง" : ""}</small>
     </div>
   );
 }
 
-export function PeopleLegend() {
+export function PeopleLegend({ plain = false }: { plain?: boolean }) {
   return (
     <p className="muted small pp-legend">
       {(["male", "female", "teacher"] as Kind[]).map((k) => <span key={k}><Person cls={k} />{PEOPLE_LABEL[k]}</span>)}
       <span><Person cls="free" />ที่ว่าง</span>
-      <span><Person cls="lock" />เหมาห้อง (นักเรียนเกิน 10 คน โรงเรียนอื่นเข้าไม่ได้)</span>
+      <span><Person cls="lock" />{plain ? "จองแล้ว (โรงเรียนเดียวใช้ทั้งห้อง)" : "เหมาห้อง (นักเรียนเกิน 10 คน โรงเรียนอื่นเข้าไม่ได้)"}</span>
     </p>
   );
 }

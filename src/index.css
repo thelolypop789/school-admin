@@ -1362,3 +1362,35 @@ body:has(.nst-app) .modal .inline-ic { color: var(--nst-a); }
 .stay-find .btn { justify-self: start; }
 .stay-missing { color: #b45309 !important; font-weight: 600; }
 .tabs .badge.warn { background: #d97706; color: #fff; }
+/* รายชื่อห้องพักสำหรับโต๊ะต้อนรับ (พิมพ์ A4) */
+.print-doc.roster { background: #fff; color: #111; border-radius: 16px; padding: 24px 28px; max-width: 1000px; margin: 0 auto; font-family: "Sarabun", var(--font-body); }
+.ro-head h1 { font-size: 1.35rem; margin: 0; }
+.ro-head p { margin: .2rem 0 .8rem; color: #555; font-size: .9rem; }
+.roster h2 { font-size: 1.05rem; margin: 1.2rem 0 .4rem; }
+.ro-table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+.ro-table th, .ro-table td { border: 1px solid #bbb; padding: 5px 8px; text-align: left; vertical-align: top; }
+.ro-table th { background: #f1eef3; font-weight: 700; }
+.ro-table .n { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ro-table tr { break-inside: avoid; }
+.ro-room b { display: block; font-size: 1.05rem; }
+.ro-room small, .ro-table small { color: #555; }
+.ro-table em { color: #9a5a00; font-style: normal; font-size: .85em; }
+.ro-tel { font-variant-numeric: tabular-nums; }
+.ro-wait { margin-top: .8rem; padding: .5rem .7rem; border: 1px dashed #b45309; color: #7a4b00; font-size: .9rem; }
+@media print { .print-doc.roster { padding: 12mm 12mm; font-size: 11pt; border-radius: 0; } .print-doc.roster .ro-table { font-size: 10pt; } }
+/* ห้องพัก: แผงยืนยันการตัดสินใจ (ข้อความแยกตามปุ่ม) */
+.decide { display: grid; gap: .5rem; border-radius: 14px; padding: .8rem .9rem; background: var(--t); }
+.decide.reject, .decide.cancel { background: #fdecea; }
+.decide h4 { margin: 0; }
+.decide p { margin: 0; }
+/* หน้าโรงเรียน: สรุปห้องว่างทีละอาคาร แตะเพื่อดูห้อง */
+.stay-bsum { width: 100%; display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "t go" "bar bar"; gap: 6px 10px; align-items: center;
+  text-align: left; background: var(--surface-2, var(--bg)); border: 0; border-radius: 14px; padding: .7rem .8rem; cursor: pointer; color: inherit; font: inherit; }
+.stay-bsum:hover { background: var(--t); }
+.stay-bsum-t { grid-area: t; display: grid; gap: 1px; min-width: 0; }
+.stay-bsum-t b { font-size: 1.02rem; }
+.stay-bsum-t small { color: var(--muted); font-size: .82rem; }
+.stay-bsum-bar { grid-area: bar; height: 6px; border-radius: 99px; background: #fff; box-shadow: inset 0 0 0 1px var(--line); overflow: hidden; }
+.stay-bsum-bar i { display: block; height: 100%; background: var(--a); border-radius: 99px; }
+.stay-bsum-go { grid-area: go; font-size: .85rem; font-weight: 600; color: var(--k); white-space: nowrap; }
+.stay-building.open .stay-bsum { background: var(--t); margin-bottom: .3rem; }

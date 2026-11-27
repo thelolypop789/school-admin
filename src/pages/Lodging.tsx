@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import QRCode from "qrcode";
-import { BedDouble, Copy, Plus, QrCode, Send, Sparkles, Trash2, Undo2 } from "lucide-react";
+import { BedDouble, Copy, Plus, Printer, QrCode, Send, Sparkles, Trash2, Undo2 } from "lucide-react";
+import { navigate } from "../lib/router";
 import { errText, supabase } from "../lib/supabase";
 import { useMe } from "../lib/me";
 import { useNotice } from "../lib/notice";
@@ -124,10 +125,13 @@ export default function Lodging() {
           </select>
         </div>
       )}
-      {team && ev && tab !== "settings" && (
+      {viewer && ev && tab !== "settings" && (
         <div className="stay-share">
           <span>โรงเรียนขอที่พักเองได้ที่ <b>{window.location.origin}/stay</b></span>
-          <button className="btn sm" onClick={() => setShare(true)}><QrCode size={16} />QR / คัดลอกลิงก์</button>
+          <span className="row wrap" style={{ gap: 6 }}>
+            <button className="btn sm" onClick={() => navigate("/lodging/print")}><Printer size={16} />พิมพ์รายชื่อห้องพัก</button>
+            {team && <button className="btn sm" onClick={() => setShare(true)}><QrCode size={16} />QR / คัดลอกลิงก์</button>}
+          </span>
         </div>
       )}
 
@@ -252,6 +256,9 @@ function RequestModal({ event, req, rooms, allocs, reqs, venues, team, onClose, 
   const mine = useMemo(() => (req ? allocs.filter((a) => a.request_id === req.id) : []), [req, allocs]);
   const [lines, setLines] = useState<Line[]>(mine.map((a) => ({ room_id: a.room_id, kind: a.kind, people: a.people })));
   const [note, setNote] = useState("");
+  // กดปุ่มตัดสินใจแล้วค่อยเปิดช่องข้อความของปุ่มนั้น — ข้อความของปุ่มหนึ่งไม่หลุดไปกับอีกปุ่ม
+  const [deciding, setDeciding] = useState<"approve" | "reject" | "cancel" | null>(null);
+  const pickDecision = (d: "approve" | "reject" | "cancel" | null) => { setDeciding(d); setNote(""); setErr(""); };
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const n = (v: string) => Math.max(0, Math.floor(Number(v) || 0));
@@ -349,20 +356,36 @@ function RequestModal({ event, req, rooms, allocs, reqs, venues, team, onClose, 
 
       {req && (req.status === "pending" || req.status === "approved") && (
         <Refer req={req} venues={venues} team={team} rest={need - saved} unsaved={planned !== saved} busy={busy}
-          onRefer={(venue, msg) => run(() => supabase.rpc("lodging_refer", { p_request: req.id, p_venue: venue, p_note: note || null }), msg, venue != null)} />
+          onRefer={(venue, msg) => run(() => supabase.rpc("lodging_refer", { p_request: req.id, p_venue: venue, p_note: null }), msg, venue != null)} />
       )}
 
       {editable && (
         <div className="zone-block act">
-          <Field label={req!.status === "pending" ? "หมายเหตุถึงโรงเรียน (ไม่อนุมัติ = ต้องใส่)" : "หมายเหตุ (ถ้ายกเลิก)"}>
-            <input value={note} onChange={(e) => setNote(e.target.value)} maxLength={500} placeholder="เช่น ห้องเต็มแล้ว / เข้าพักได้ตั้งแต่ 16:00" />
-          </Field>
-          <div className="row wrap">
-            {req!.status === "pending" && <button className="btn primary" disabled={busy} onClick={approve}>อนุมัติ ({planned + vp}/{need} คน)</button>}
-            {req!.status === "pending" && <button className="btn" disabled={busy} onClick={() => saveAlloc()}>บันทึกการจัดห้องไว้ก่อน</button>}
-            {req!.status === "pending" && <button className="btn danger" disabled={busy} onClick={() => run(() => supabase.rpc("lodging_decide", { p_request: req!.id, p_action: "reject", p_note: note }), "ไม่อนุมัติแล้ว")}>ไม่อนุมัติ</button>}
-            {req!.status === "approved" && <button className="btn danger" disabled={busy} onClick={() => { if (confirm(`ยกเลิกที่พักของ ${req!.school_name}? ห้องจะว่างให้โรงเรียนอื่น`)) run(() => supabase.rpc("lodging_decide", { p_request: req!.id, p_action: "cancel", p_note: note }), "ยกเลิกแล้ว"); }}>ยกเลิกที่พัก</button>}
-          </div>
+          {deciding === null ? (
+            <div className="row wrap">
+              {req!.status === "pending" && <button className="btn primary" disabled={busy} onClick={() => (planned + vp === need ? pickDecision("approve") : approve())}>อนุมัติ ({planned + vp}/{need} คน)</button>}
+              {req!.status === "pending" && <button className="btn" disabled={busy} onClick={() => saveAlloc()}>บันทึกการจัดห้องไว้ก่อน</button>}
+              {req!.status === "pending" && <button className="btn danger" disabled={busy} onClick={() => pickDecision("reject")}>ไม่อนุมัติ…</button>}
+              {req!.status === "approved" && <button className="btn danger" disabled={busy} onClick={() => pickDecision("cancel")}>ยกเลิกที่พัก…</button>}
+            </div>
+          ) : (
+            <div className={`decide ${deciding}`}>
+              <h4>{deciding === "approve" ? `อนุมัติที่พัก ${req!.school_name}` : deciding === "reject" ? `ไม่อนุมัติคำขอของ ${req!.school_name}` : `ยกเลิกที่พักของ ${req!.school_name}`}</h4>
+              <p className="muted small">{deciding === "approve" ? "บันทึกการจัดห้องแล้วอนุมัติ โรงเรียนเห็นห้องในลิงก์ติดตามผลทันที" : deciding === "reject" ? "โรงเรียนจะเห็นเหตุผลนี้ในลิงก์ติดตามผล และส่งคำขอใหม่ได้" : "ห้องที่จัดไว้และที่พักที่ส่งต่อจะว่างคืนให้โรงเรียนอื่น"}</p>
+              <Field label={deciding === "reject" ? "เหตุผล (ต้องใส่)" : "ข้อความถึงโรงเรียน (ไม่บังคับ)"}>
+                <textarea rows={2} value={note} onChange={(e) => setNote(e.target.value)} maxLength={500} autoFocus
+                  placeholder={deciding === "approve" ? "เช่น เข้าพักได้ตั้งแต่ 16:00 น." : deciding === "reject" ? "เช่น ห้องเต็มแล้ว แนะนำที่พักรอบโรงเรียน" : "เช่น โรงเรียนแจ้งยกเลิกทางโทรศัพท์"} />
+              </Field>
+              <div className="row wrap">
+                <button className={`btn ${deciding === "approve" ? "primary" : "danger"}`} disabled={busy || (deciding === "reject" && !note.trim())}
+                  onClick={() => (deciding === "approve" ? approve()
+                    : run(() => supabase.rpc("lodging_decide", { p_request: req!.id, p_action: deciding, p_note: note || null }), deciding === "reject" ? "ไม่อนุมัติแล้ว" : "ยกเลิกแล้ว"))}>
+                  {deciding === "approve" ? "ยืนยันอนุมัติ" : deciding === "reject" ? "ยืนยันไม่อนุมัติ" : "ยืนยันยกเลิกที่พัก"}
+                </button>
+                <button className="btn" disabled={busy} onClick={() => pickDecision(null)}>ย้อนกลับ</button>
+              </div>
+            </div>
+          )}
         </div>
       )}
       {err && <p className="error">{err}</p>}
