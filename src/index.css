@@ -1333,3 +1333,9 @@ body:has(.nst-app) .modal .inline-ic { color: var(--nst-a); }
 .venue-map .leaflet-control-layers label { margin: 2px 0; }
 .venue-map .leaflet-control-layers input { width: auto; height: auto; min-height: 0; margin: 0 6px 0 0; padding: 0; box-shadow: none; accent-color: #8f1036; vertical-align: -1px; }
 .venue-map .leaflet-control-layers label > span, .venue-map .leaflet-control-layers label > div { display: flex; align-items: center; white-space: nowrap; }
+/* รายชื่อที่พักแยกตามอำเภอ + เวลาข้อมูล */
+.nearby-asof { margin: 0 0 .2rem; font-size: .85rem; color: var(--muted); }
+.venue-group { margin-top: .9rem; }
+.venue-group-title { margin: 0 0 .1rem; font-size: 1rem; display: flex; align-items: baseline; gap: .4rem; padding-bottom: .3rem; border-bottom: 1px solid var(--line); }
+.venue-group-title small { font-weight: 500; color: var(--muted); font-size: .8rem; }
+.venue-group .venue-list { margin-top: .4rem; }
