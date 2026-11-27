@@ -22,7 +22,7 @@ export type ReqStatus = "pending" | "approved" | "rejected" | "cancelled";
 export type LodgingRequest = {
   id: number; event_id: number; ref_code: string; school_name: string; contact_name: string; phone: string;
   male_students: number; female_students: number; teachers: number; note: string | null; status: ReqStatus;
-  source: "public" | "staff"; created_at: string; decided_at: string | null; decision_note: string | null;
+  source: "public" | "staff"; venue_id?: number | null; created_at: string; decided_at: string | null; decision_note: string | null;
 };
 export type Kind = "male" | "female" | "teacher" | "mixed";
 export type Allocation = { id?: number; request_id: number; room_id: number; people: number; kind: Kind };
@@ -105,3 +105,31 @@ export function autoAllocate(
   }
   return out;
 }
+
+// ================================================================ ที่พักเครือข่ายรอบโรงเรียน
+export type VenueCategory = "school" | "temple" | "government" | "hotel";
+export type VenueStatus = "confirmed" | "unconfirmed" | "declined";
+export type GeoPrecision = "exact" | "name" | "village" | "tambon" | "manual" | "none";
+export type Venue = {
+  id: number; category: VenueCategory; name: string; contact: string | null; subdistrict: string | null; district: string | null;
+  province: string | null; distance_km: number | null; capacity: number | null; status: VenueStatus; phone1: string | null;
+  phone2: string | null; detail: string | null; lat: number | null; lng: number | null; geo_precision: GeoPrecision;
+  is_home: boolean; used: number;
+};
+export const VENUE_CAT: Record<VenueCategory, string> = { school: "โรงเรียน", temple: "วัด", government: "หน่วยงานราชการ", hotel: "โรงแรม/รีสอร์ท" };
+export const VENUE_STATUS: Record<VenueStatus, { label: string; tone: string }> = {
+  confirmed: { label: "รับแล้ว", tone: "ok" }, unconfirmed: { label: "ยังไม่ยืนยัน", tone: "" }, declined: { label: "ไม่รับ", tone: "bad" },
+};
+/** ตำแหน่งบนแผนที่แม่นแค่ไหน — ที่ไม่แม่นบอกผู้ใช้ตรงๆ */
+export const GEO_NOTE: Record<GeoPrecision, string> = {
+  exact: "", name: "", manual: "", village: "ตำแหน่งโดยประมาณ (กลางหมู่บ้าน)", tambon: "ตำแหน่งโดยประมาณ (กลางตำบล)", none: "ยังไม่มีพิกัด",
+};
+export const venueLeft = (v: Venue) => (v.capacity == null ? null : Math.max(0, v.capacity - v.used));
+/** ลิงก์นำทาง Google Maps (พิกัดถ้ามี ไม่งั้นค้นด้วยชื่อ + อำเภอ) */
+export function mapsUrl(v: Pick<Venue, "name" | "lat" | "lng" | "district" | "province" | "geo_precision">): string {
+  const exact = v.lat != null && v.lng != null && !["tambon", "village", "none"].includes(v.geo_precision);
+  const q = exact ? `${v.lat},${v.lng}` : [v.name, v.district && `อ.${v.district}`, v.province].filter(Boolean).join(" ");
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}`;
+}
+const tel = (p: string) => p.replace(/[^\d+]/g, "");
+export const telHref = (p: string) => `tel:${tel(p)}`;
