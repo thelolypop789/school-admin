@@ -60,7 +60,7 @@ export function NearbyVenues({ venues, editable = false, onMove, onEdit }: {
           );
         })}
       </ul>
-      <p className="muted small">แผนที่จาก OpenStreetMap · ระยะทางเป็นระยะทางถนนจากโรงเรียนวังหลวงพิทยาสรรพ์ · เบอร์โทรใช้ประสานเรื่องที่พักงานนี้เท่านั้น</p>
+      <p className="muted small">ภาพดาวเทียมจาก Esri · แผนที่ถนนจาก OpenStreetMap · ระยะทางเป็นระยะทางถนนจากโรงเรียนวังหลวงพิทยาสรรพ์ · เบอร์โทรใช้ประสานเรื่องที่พักงานนี้เท่านั้น</p>
     </div>
   );
 }

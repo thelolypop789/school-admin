@@ -1327,3 +1327,9 @@ body:has(.nst-app) .modal .inline-ic { color: var(--nst-a); }
 .zone-block.refer.on { background: var(--t); border-radius: 14px; padding: .7rem .8rem; border-top: 0; }
 .zone-block.refer select { flex: 1 1 220px; min-width: 0; }
 @media (max-width: 560px) { .venue-side { justify-items: start; } .venue-acts { justify-content: flex-start; } }
+/* ตัวสลับ ภาพดาวเทียม/แผนที่ถนน */
+.venue-map .leaflet-control-layers { border: 0; border-radius: 12px; box-shadow: 0 2px 10px rgb(0 0 0 / .25); font-family: var(--font-body); font-size: 13px; }
+.venue-map .leaflet-control-layers-expanded { padding: 4px 10px; }
+.venue-map .leaflet-control-layers label { margin: 2px 0; }
+.venue-map .leaflet-control-layers input { width: auto; height: auto; min-height: 0; margin: 0 6px 0 0; padding: 0; box-shadow: none; accent-color: #8f1036; vertical-align: -1px; }
+.venue-map .leaflet-control-layers label > span, .venue-map .leaflet-control-layers label > div { display: flex; align-items: center; white-space: nowrap; }
