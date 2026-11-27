@@ -22,7 +22,7 @@ export type ReqStatus = "pending" | "approved" | "rejected" | "cancelled";
 export type LodgingRequest = {
   id: number; event_id: number; ref_code: string; school_name: string; contact_name: string; phone: string;
   male_students: number; female_students: number; teachers: number; note: string | null; status: ReqStatus;
-  source: "public" | "staff"; venue_id?: number | null; created_at: string; decided_at: string | null; decision_note: string | null;
+  source: "public" | "staff"; venue_id?: number | null; venue_people?: number | null; created_at: string; decided_at: string | null; decision_note: string | null;
 };
 export type Kind = "male" | "female" | "teacher" | "mixed";
 export type Allocation = { id?: number; request_id: number; room_id: number; people: number; kind: Kind };
@@ -133,3 +133,22 @@ export function mapsUrl(v: Pick<Venue, "name" | "lat" | "lng" | "district" | "pr
 }
 const tel = (p: string) => p.replace(/[^\d+]/g, "");
 export const telHref = (p: string) => `tel:${tel(p)}`;
+
+/** เวลาปิดรับแบบที่คนอ่านไม่พลาด: ปิดตอนเที่ยงคืนพอดี → แสดงเป็น 23:59 น. ของวันก่อน (เช่น "20 ธ.ค. 2569 เวลา 23:59 น.") */
+export function closesLabel(iso: string): string {
+  const d = new Date(iso);
+  const hm = new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Bangkok", hour: "2-digit", minute: "2-digit" }).format(d);
+  const show = hm === "00:00" ? new Date(d.getTime() - 60_000) : d;
+  const day = new Intl.DateTimeFormat("th-TH", { timeZone: "Asia/Bangkok", day: "numeric", month: "short", year: "numeric" }).format(show);
+  const t = new Intl.DateTimeFormat("th-TH", { timeZone: "Asia/Bangkok", hour: "2-digit", minute: "2-digit" }).format(show);
+  return `${day} เวลา ${t} น.`;
+}
+
+/** คำขอที่ข้อมูลยังไม่ครบ (ลงไว้ก่อน) — คืนรายการสิ่งที่ต้องตาม */
+export function missingInfo(r: Pick<LodgingRequest, "phone" | "contact_name" | "note">): string[] {
+  const out: string[] = [];
+  if (/^0+$/.test(r.phone)) out.push("เบอร์โทร");
+  if (/^รอข้อมูล/.test(r.contact_name)) out.push("ผู้ประสานงาน");
+  if (r.note?.includes("ยังไม่แยก")) out.push("แยกชาย/หญิง/ครู");
+  return out;
+}

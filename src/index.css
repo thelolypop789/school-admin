@@ -1339,3 +1339,26 @@ body:has(.nst-app) .modal .inline-ic { color: var(--nst-a); }
 .venue-group-title { margin: 0 0 .1rem; font-size: 1rem; display: flex; align-items: baseline; gap: .4rem; padding-bottom: .3rem; border-bottom: 1px solid var(--line); }
 .venue-group-title small { font-weight: 500; color: var(--muted); font-size: .8rem; }
 .venue-group .venue-list { margin-top: .4rem; }
+/* ห้องพัก: จัดห้องบนมือถือ — บรรทัดแรกเลือกห้องเต็มความกว้าง (อ่านเลขห้องได้ครบ) บรรทัดสองประเภท + จำนวน + ลบ */
+@media (max-width: 560px) {
+  .stay-line { grid-template-columns: minmax(0, 1fr) 4.4rem auto; grid-template-areas: "room room room" "kind num del"; row-gap: 4px; padding: .5rem; border-radius: 12px; background: var(--surface-2, var(--bg)); margin-bottom: 8px; }
+  .stay-line > select:nth-of-type(1) { grid-area: room; }
+  .stay-line > select:nth-of-type(2) { grid-area: kind; }
+  .stay-line > input { grid-area: num; }
+  .stay-line > .icon-btn { grid-area: del; }
+}
+/* หน้าโรงเรียน: ที่ว่าง/เตือนขอเกิน · รหัสติดตามตัวใหญ่ · ค้นหาคำขอ */
+.stay-left { margin: -.2rem 0 .2rem; color: var(--soft, var(--muted)); }
+.stay-left b { color: var(--k); }
+.stay-left.none b { color: #b42318; }
+.stay-over { background: #fff6e6; color: #7a4b00; border-radius: 12px; padding: .6rem .8rem; font-size: .9rem; margin: 0; }
+.stay-over .link { display: inline; padding: 0 .2rem; }
+.stay-code { display: grid; gap: 2px; justify-items: center; text-align: center; background: var(--t); border-radius: 16px; padding: .8rem 1rem; }
+.stay-code small { color: var(--muted); font-size: .8rem; }
+.stay-code b { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 1.6rem; letter-spacing: .08em; color: var(--k); }
+.stay-mine { display: grid; gap: .8rem; }
+.stay-mine h2 { margin: 0; font-size: 1.1rem; }
+.stay-mine-list, .stay-find { display: grid; gap: .4rem; }
+.stay-find .btn { justify-self: start; }
+.stay-missing { color: #b45309 !important; font-weight: 600; }
+.tabs .badge.warn { background: #d97706; color: #fff; }
