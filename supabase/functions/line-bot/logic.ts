@@ -9,6 +9,7 @@ export const MOD = {
   fix: { start: "#ffb23f", end: "#f0611c", ink: "#b8430b", tint: "#fff1e4" },
   zone: { start: "#9bdc5a", end: "#3f8f1c", ink: "#2e6b12", tint: "#edf8e3" },
   stay: { start: "#d58ae6", end: "#8a3fb8", ink: "#6b2a92", tint: "#f6eafb" },
+  alert: { start: "#ff8a6b", end: "#d1293a", ink: "#a51d2b", tint: "#ffece8" }, // แจ้งเหตุ
 } as const;
 type Mod = (typeof MOD)[keyof typeof MOD];
 
@@ -448,4 +449,78 @@ export function lodgingNewMessages(q: LodgingNew | null, appUrl: string): unknow
       contents: [{ type: "button", style: "primary", height: "sm", color: BURGUNDY, action: uriBtn("จัดห้องในระบบ", `${appUrl}/lodging`, "primary").action }],
     },
   })];
+}
+
+// ---------------------------------------------------------------- แจ้งเหตุระหว่างงานแข่งขัน (หน้าสาธารณะ /stay/report)
+export type IncidentCategory = "water" | "power" | "room" | "crash" | "blocked" | "medical" | "other";
+export const INCIDENT_TH: Record<IncidentCategory, string> = {
+  water: "น้ำไม่ไหล", power: "ไฟดับ / ไฟฟ้า", room: "ห้องพัก / ห้องน้ำชำรุด", crash: "เฉี่ยวชน / อุบัติเหตุรถ",
+  blocked: "รถขวางทางเข้าออก", medical: "เจ็บป่วย / ต้องการปฐมพยาบาล", other: "เหตุอื่นๆ",
+};
+/** ใครได้การ์ด: ฝ่ายอาคารสถานที่ + admin ทุกเรื่อง · เรื่องอาคาร + เจ้าหน้าที่อาคารสถานที่ · เรื่องรถ + หัวหน้างานยานพาหนะ */
+export function incidentRoles(c: string): Role[] {
+  const base: Role[] = ["facilities_head", "admin"];
+  if (c === "water" || c === "power" || c === "room") return [...base, "inspector"];
+  if (c === "crash" || c === "blocked") return [...base, "vehicle_head"];
+  return base;
+}
+export type IncidentInfo = {
+  id: number; category: string; location: string; detail: string | null; reporter_name: string; phone: string;
+  school_name: string | null; status: string; has_photo: boolean; created_at: string; event_name: string;
+};
+export type IncidentAction = "ack" | "done";
+export function incidentPostbackData(a: IncidentAction, id: number): string {
+  return new URLSearchParams({ v: "1", k: "i", a, id: String(id) }).toString();
+}
+export function parseIncidentPostback(data: string): { a: IncidentAction; id: number } | null {
+  const p = new URLSearchParams(data);
+  const a = p.get("a") as IncidentAction;
+  const id = Number(p.get("id"));
+  if (p.get("v") !== "1" || p.get("k") !== "i" || (a !== "ack" && a !== "done") || !Number.isInteger(id) || id <= 0) return null;
+  return { a, id };
+}
+const catTh = (c: string) => INCIDENT_TH[c as IncidentCategory] ?? "เหตุอื่นๆ";
+
+export function incidentMessages(q: IncidentInfo | null, appUrl: string): unknown[] {
+  if (!q || q.status !== "new") return [];
+  const tel = q.phone.replace(/\D/g, "");
+  return [flex(`แจ้งเหตุ: ${catTh(q.category)} · ${q.location}`, {
+    type: "bubble", size: "mega",
+    header: headerBox(MOD.alert, `แจ้งเหตุ · ${q.event_name}`, catTh(q.category)),
+    body: {
+      type: "box", layout: "vertical", spacing: "sm", paddingAll: "16px", contents: [
+        row("ที่ไหน", q.location, MOD.alert.ink),
+        ...(q.detail ? [row("รายละเอียด", q.detail)] : []),
+        row("ผู้แจ้ง", [q.reporter_name, q.school_name].filter(Boolean).join(" · ")),
+        row("โทร", tel),
+        row("เวลา", timeFmt.format(new Date(q.created_at)) + " น."),
+        ...(q.has_photo ? [row("รูป", "มีรูปประกอบ ดูในระบบ")] : []),
+        BRAND_LINE,
+      ],
+    },
+    footer: {
+      type: "box", layout: "vertical", spacing: "sm", paddingAll: "12px", contents: [
+        { type: "button", style: "primary", height: "sm", color: BURGUNDY,
+          action: { type: "postback", label: "รับเรื่องแล้ว", data: incidentPostbackData("ack", q.id), displayText: "รับเรื่องแล้ว" } },
+        { type: "button", style: "secondary", height: "sm", action: { type: "uri", label: "โทรหาผู้แจ้ง", uri: `tel:${tel}` } },
+        { type: "button", style: "link", height: "sm", action: uriBtn("ดูในระบบ", `${appUrl}/lodging?tab=incidents`).action },
+      ],
+    },
+  })];
+}
+
+/** ตอบกลับหลังกดปุ่ม: รับเรื่อง → มีปุ่มด่วน "แก้ไขแล้ว" ต่อเลย */
+export function incidentErrorText(message: string | undefined | null): string {
+  if ((message ?? "").includes("not_pending")) return "เรื่องนี้มีเจ้าหน้าที่รับหรือปิดไปแล้ว ดูสถานะในระบบ (แท็บ แจ้งเหตุ)";
+  if ((message ?? "").includes("forbidden")) return "รับเรื่องแจ้งเหตุได้เฉพาะงานอาคารสถานที่ งานยานพาหนะ และผู้ดูแลระบบ";
+  return errorText(message);
+}
+export function incidentDoneReply(a: IncidentAction, r: { category: string; location: string }, id: number): unknown {
+  if (a === "ack") {
+    return {
+      type: "text", text: `รับเรื่องแล้ว: ${catTh(r.category)} · ${r.location}\nผู้แจ้งเห็นสถานะ "เจ้าหน้าที่รับเรื่องแล้ว" ในลิงก์ติดตามผล\nแก้เสร็จแล้วกด "แก้ไขแล้ว"`,
+      quickReply: { items: [{ type: "action", action: { type: "postback", label: "แก้ไขแล้ว", data: incidentPostbackData("done", id), displayText: "แก้ไขแล้ว" } }] },
+    };
+  }
+  return { type: "text", text: `ปิดเรื่องแล้ว: ${catTh(r.category)} · ${r.location}\nถ้าจะบอกผู้แจ้งเพิ่มเติม เขียนหมายเหตุในระบบ (แท็บ แจ้งเหตุ)` };
 }

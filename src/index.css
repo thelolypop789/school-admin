@@ -1394,3 +1394,55 @@ body:has(.nst-app) .modal .inline-ic { color: var(--nst-a); }
 .stay-bsum-bar i { display: block; height: 100%; background: var(--a); border-radius: 99px; }
 .stay-bsum-go { grid-area: go; font-size: .85rem; font-weight: 600; color: var(--k); white-space: nowrap; }
 .stay-building.open .stay-bsum { background: var(--t); margin-bottom: .3rem; }
+
+/* แจ้งเหตุระหว่างงาน (/stay/report, แท็บ แจ้งเหตุ ใน /lodging) — สีแดงส้มของเหตุด่วน ใช้เฉพาะส่วนนี้ */
+:root { --alert-a: #d1293a; --alert-b: #ff8a6b; --alert-t: #ffece8; --alert-k: #a51d2b; }
+@media (prefers-color-scheme: dark) { :root { --alert-t: #3a1a1c; --alert-k: #ffb4a8; } }
+.c-alert { --a: var(--alert-a); --b: var(--alert-b); --t: var(--alert-t); --k: var(--alert-k); }
+.stay-report-link { border: 2px solid var(--alert-a); }
+.stay-report-link b { color: var(--alert-k); }
+.inc-sos { display: grid; gap: .5rem; padding: .8rem .9rem; border-radius: 16px; background: var(--alert-t); color: var(--alert-k); }
+.inc-sos .btn { border-color: var(--alert-a); color: var(--alert-k); }
+.inc-form fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
+.inc-form legend { font-weight: 700; margin-bottom: .45rem; padding: 0; }
+.inc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: .5rem; }
+.inc-cat { display: flex; align-items: center; gap: .55rem; min-height: 56px; padding: .55rem .7rem; border-radius: 14px; border: 1.5px solid var(--line-strong); background: var(--surface); color: inherit; font: inherit; font-weight: 600; text-align: left; cursor: pointer; }
+.inc-cat svg { color: var(--alert-a); flex: none; }
+.inc-cat.on { border-color: var(--alert-a); background: var(--alert-t); color: var(--alert-k); box-shadow: inset 0 0 0 1px var(--alert-a); }
+.inc-cat:focus-visible { outline: 3px solid var(--alert-b); outline-offset: 2px; }
+.inc-pin { justify-self: start; }
+.inc-map { display: grid; gap: .4rem; }
+.inc-map .campus3d { height: 300px; }
+.inc-photo { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem .8rem; }
+.inc-thumb { display: flex; align-items: center; gap: .6rem; }
+.inc-thumb img { width: 84px; height: 84px; object-fit: cover; border-radius: 12px; }
+.inc-status h1 { display: flex; align-items: center; gap: .5rem; }
+.inc-status h1 svg { color: var(--alert-a); }
+.inc-steps { list-style: none; margin: .3rem 0; padding: 0; display: grid; gap: .55rem; }
+.inc-steps li { display: flex; gap: .65rem; align-items: center; color: var(--muted); }
+.inc-steps li > span:last-child { display: grid; }
+.inc-steps .dot { width: 26px; height: 26px; border-radius: 50%; border: 2px solid var(--line-strong); display: grid; place-items: center; flex: none; }
+.inc-steps li.done { color: inherit; }
+.inc-steps li.done .dot { background: var(--ok); border-color: var(--ok); color: #fff; }
+.inc-steps small { color: var(--muted); font-size: .8rem; }
+.inc-note { background: var(--t); border-radius: 12px; padding: .6rem .8rem; }
+.inc-help { margin: .2rem 0 .6rem; }
+.inc-overview { display: grid; gap: .4rem; margin-bottom: .8rem; }
+.inc-overview .campus3d { height: 340px; }
+.inc-list { display: grid; gap: .7rem; margin-top: .8rem; }
+.inc-item { display: grid; gap: .45rem; border-left: 5px solid var(--line-strong); }
+.inc-item.s-new { border-left-color: var(--alert-a); }
+.inc-item.s-acknowledged { border-left-color: var(--warn); }
+.inc-item.s-resolved { border-left-color: var(--ok); opacity: .85; }
+.inc-item.sel { box-shadow: 0 0 0 3px var(--alert-b); }
+.inc-item header { display: flex; align-items: center; gap: .6rem; }
+.inc-item .inc-ic { width: 40px; height: 40px; border-radius: 12px; background: var(--alert-t); color: var(--alert-a); display: grid; place-items: center; flex: none; }
+.inc-item .inc-head { display: grid; flex: 1; min-width: 0; }
+.inc-item .inc-head small { color: var(--muted); font-size: .8rem; }
+.inc-item .chip { margin: 0; }
+.inc-where { font-weight: 600; margin: 0; }
+.inc-item p { margin: 0; }
+.inc-photo-staff img { max-width: 220px; max-height: 180px; border-radius: 12px; object-fit: cover; display: block; }
+a.btn { text-decoration: none; color: inherit; }
+.inc-sos a.btn { color: var(--alert-k); }
+.inc-item .muted a { color: inherit; }

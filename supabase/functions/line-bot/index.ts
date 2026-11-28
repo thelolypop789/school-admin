@@ -108,6 +108,22 @@ async function notifyLodging(evt: { request_id: number }) {
   await sendTo(to, messages);
 }
 
+async function notifyIncident(evt: { incident_id: number }) {
+  const { data, error } = await sb.rpc("line_incident_info", { p_id: evt.incident_id });
+  if (error) console.error("incidentInfo", error.message);
+  const q = (data as L.IncidentInfo) ?? null;
+  const messages = L.incidentMessages(q, APP_URL);
+  if (!q || !messages.length) return;
+  const ids = (await Promise.all(L.incidentRoles(q.category).map(lineIdsOfRole))).flat();
+  await sendTo([...new Set(ids)], messages);
+}
+
+async function updateIncident(replyToken: string, user: string, a: L.IncidentAction, id: number) {
+  const { data, error } = await sb.rpc("line_incident_update", { p_line_user: user, p_id: id, p_status: a === "ack" ? "acknowledged" : "resolved" });
+  if (error) return replyText(replyToken, L.incidentErrorText(error.message));
+  return reply(replyToken, [L.incidentDoneReply(a, data as { category: string; location: string }, id)]);
+}
+
 // ---------------------------------------------------------------- LINE webhook
 type LineEvent = {
   type: string; replyToken?: string; source?: { type: string; userId?: string };
@@ -135,6 +151,8 @@ async function handle(ev: LineEvent) {
   if (ev.type === "follow") return replyText(rt, L.WELCOME_TEXT);
 
   if (ev.type === "postback" && ev.postback) {
+    const ip = L.parseIncidentPostback(ev.postback.data);
+    if (ip) return updateIncident(rt, user, ip.a, ip.id);
     const rp = L.parseRepairPostback(ev.postback.data);
     if (rp) return decideRepair(rt, user, rp.a, rp.id, rp.s);
     const p = L.parsePostback(ev.postback.data);
@@ -207,6 +225,7 @@ Deno.serve(async (req) => {
       if (evt.type === "repair_status") await notifyRepair(evt);
       else if (evt.type === "clean_fail") await notifyCleanFail(evt);
       else if (evt.type === "lodging_new") await notifyLodging(evt);
+      else if (evt.type === "lodging_incident") await notifyIncident(evt);
       else await notify(evt);
     } catch (e) { console.error("notify", e); }
     return new Response("ok");

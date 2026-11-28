@@ -135,5 +135,21 @@ t('lodging card: 1 message, total + link', lm.length === 1 && JSON.stringify(lm[
 t('lodging card: no phone number', !JSON.stringify(lm[0]).includes('08'));
 t('lodging: not pending → nothing', L.lodgingNewMessages({ ...lq, status: 'cancelled' }, 'x').length === 0 && L.lodgingNewMessages(null, 'x').length === 0);
 
+// แจ้งเหตุ
+const iq = { id: 5, category: 'blocked', location: 'ประตูหน้าโรงเรียน', detail: 'กระบะขาว กข 1234', reporter_name: 'ครูเอ', phone: '081-234-5678', school_name: 'โรงเรียนทดสอบ', status: 'new', has_photo: true, created_at: '2026-12-21T01:30:00Z', event_name: 'การแข่งขันปาริชาติ' };
+const im = JSON.stringify(L.incidentMessages(iq, 'https://app'));
+t('incident card: category, place, call button, link', im.includes('รถขวางทางเข้าออก') && im.includes('ประตูหน้าโรงเรียน') && im.includes('tel:0812345678') && im.includes('https://app/lodging?tab=incidents&openExternalBrowser=1'));
+t('incident card: time in Thai zone', im.includes('08:30'));
+t('incident: only new → card', L.incidentMessages({ ...iq, status: 'acknowledged' }, 'x').length === 0 && L.incidentMessages(null, 'x').length === 0);
+t('incident roles by category', L.incidentRoles('blocked').includes('vehicle_head') && L.incidentRoles('water').includes('inspector') && !L.incidentRoles('medical').includes('inspector') && L.incidentRoles('other').includes('facilities_head'));
+const ip = L.incidentPostbackData('ack', 5);
+t('incident postback round trip', JSON.stringify(L.parseIncidentPostback(ip)) === JSON.stringify({ a: 'ack', id: 5 }));
+t('incident postback not mixed up with others', L.parseRepairPostback(ip) === null && L.parsePostback(ip) === null && L.parseIncidentPostback(L.repairPostbackData('agree', 1, 'proposed')) === null);
+t('incident postback rejects bad', L.parseIncidentPostback('v=1&k=i&a=delete&id=5') === null && L.parseIncidentPostback('v=1&k=i&a=ack&id=0') === null);
+t('incident ack reply has done quick reply', JSON.stringify(L.incidentDoneReply('ack', iq, 5)).includes(L.incidentPostbackData('done', 5)));
+const incLabels = []; JSON.stringify(L.incidentMessages(iq, 'https://app'), (k, v) => { if (k === 'label') incLabels.push(v); return v; });
+t('incident card: button labels ≤ 20 chars (LINE limit)', incLabels.length >= 3 && incLabels.every((x) => [...x].length <= 20));
+t('incident not_pending text', L.incidentErrorText('ERROR: not_pending').includes('รับหรือปิดไปแล้ว'));
+
 console.log(`${n - bad}/${n} passed`);
 process.exit(bad ? 1 : 0);
