@@ -492,6 +492,7 @@ export function incidentMessages(q: IncidentInfo | null, appUrl: string): unknow
         row("ที่ไหน", q.location, MOD.alert.ink),
         ...(q.detail ? [row("รายละเอียด", q.detail)] : []),
         row("ผู้แจ้ง", [q.reporter_name, q.school_name].filter(Boolean).join(" · ")),
+        row("โทร", tel),
         row("เวลา", timeFmt.format(new Date(q.created_at)) + " น."),
         ...(q.has_photo ? [row("รูป", "มีรูปประกอบ ดูในระบบ")] : []),
         BRAND_LINE,
@@ -501,7 +502,7 @@ export function incidentMessages(q: IncidentInfo | null, appUrl: string): unknow
       type: "box", layout: "vertical", spacing: "sm", paddingAll: "12px", contents: [
         { type: "button", style: "primary", height: "sm", color: BURGUNDY,
           action: { type: "postback", label: "รับเรื่องแล้ว", data: incidentPostbackData("ack", q.id), displayText: "รับเรื่องแล้ว" } },
-        { type: "button", style: "secondary", height: "sm", action: { type: "uri", label: `โทรหาผู้แจ้ง ${tel}`, uri: `tel:${tel}` } },
+        { type: "button", style: "secondary", height: "sm", action: { type: "uri", label: "โทรหาผู้แจ้ง", uri: `tel:${tel}` } },
         { type: "button", style: "link", height: "sm", action: uriBtn("ดูในระบบ", `${appUrl}/lodging?tab=incidents`).action },
       ],
     },

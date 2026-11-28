@@ -147,6 +147,8 @@ t('incident postback round trip', JSON.stringify(L.parseIncidentPostback(ip)) ==
 t('incident postback not mixed up with others', L.parseRepairPostback(ip) === null && L.parsePostback(ip) === null && L.parseIncidentPostback(L.repairPostbackData('agree', 1, 'proposed')) === null);
 t('incident postback rejects bad', L.parseIncidentPostback('v=1&k=i&a=delete&id=5') === null && L.parseIncidentPostback('v=1&k=i&a=ack&id=0') === null);
 t('incident ack reply has done quick reply', JSON.stringify(L.incidentDoneReply('ack', iq, 5)).includes(L.incidentPostbackData('done', 5)));
+const incLabels = []; JSON.stringify(L.incidentMessages(iq, 'https://app'), (k, v) => { if (k === 'label') incLabels.push(v); return v; });
+t('incident card: button labels ≤ 20 chars (LINE limit)', incLabels.length >= 3 && incLabels.every((x) => [...x].length <= 20));
 t('incident not_pending text', L.incidentErrorText('ERROR: not_pending').includes('รับหรือปิดไปแล้ว'));
 
 console.log(`${n - bad}/${n} passed`);
